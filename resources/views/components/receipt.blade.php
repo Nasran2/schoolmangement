@@ -1,4 +1,4 @@
-@props(['revenue', 'student', 'category', 'schoolInfo'])
+@props(['revenue', 'student', 'category', 'schoolInfo', 'schoolLogoDataUri' => null])
 
 @php
 // Simple number to words (en) helper used for the "sum of" line
@@ -48,12 +48,67 @@ $
 $schoolName = $schoolInfo['name'] ?? config('app.name');
 $schoolAddress = $schoolInfo['address'] ?? '';
 $schoolPhone = $schoolInfo['phone'] ?? '';
+// Months covered by this receipt via allocations
+$coveredMonths = [];
+if (method_exists($revenue, 'allocations')) {
+    foreach ($revenue->allocations as $al) {
+        $coveredMonths[] = [
+            'month' => (int) $al->month,
+            'year' => (int) $al->year,
+            'partial' => (bool) $al->is_partial,
+            'type' => (string) $al->type,
+            'amount' => (float) $al->applied_amount,
+        ];
+    }
+}
+// Fallback: if allocations relationship returned empty, try direct query (in case of loading issues)
+if (empty($coveredMonths) && $revenue->exists) {
+    try {
+        $directAllocs = \App\Models\StudentMonthFeeAllocation::where('revenue_id', $revenue->id)->get();
+        foreach ($directAllocs as $al) {
+            $coveredMonths[] = [
+                'month' => (int) $al->month,
+                'year' => (int) $al->year,
+                'partial' => (bool) $al->is_partial,
+                'type' => (string) $al->type,
+                'amount' => (float) $al->applied_amount,
+            ];
+        }
+    } catch (\Exception $e) {
+        // Ignore errors if table doesn't exist or other DB issues
+    }
+}
+
+// Compute boxes to mark
+$boxed = array_fill(1, 12, false);
+foreach ($coveredMonths as $cm) { $boxed[$cm['month']] = true; }
+// Monthly fee sum in this receipt (from allocations if present)
+$monthlySum = 0.0;
+foreach ($coveredMonths as $cm) { $monthlySum += (float) $cm['amount']; }
+if ($monthlySum <= 0 && strtolower((string)$category->payment_type) === 'monthly') { $monthlySum = $amount; }
+
+// Determine parent/guardian name
+$parentName = $student?->guardian_name;
+if (empty($parentName) && $student) {
+    $parentName = $student->father_name_with_initial ?: $student->mother_name_with_initial;
+}
+
+// Determine address
+$studentAddress = $student?->address;
+if (empty($studentAddress) && $student) {
+    $studentAddress = $student->parent_address;
+}
 @endphp
 
 <div id="receipt-print" class="bg-white p-8 max-w-3xl mx-auto" style="font-family: 'Courier New', monospace;">
     <div class="flex justify-between items-start">
         <div>
-            <h1 class="text-2xl font-extrabold uppercase">{{ $schoolName }}</h1>
+            <div class="flex items-center gap-3">
+                @if(!empty($schoolLogoDataUri))
+                    <img src="{{ $schoolLogoDataUri }}" alt="Logo" class="h-10 w-10 object-contain" />
+                @endif
+                <h1 class="text-2xl font-extrabold uppercase">{{ $schoolName }}</h1>
+            </div>
             @if($schoolAddress)
                 <p class="text-sm">{{ $schoolAddress }}</p>
             @endif
@@ -78,10 +133,10 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
             <span class="font-semibold">Received with thanks from Master/Ms</span>
             <span class="inline-block border-b border-gray-800 min-w-[220px]">{{ $student?->name }}</span>
             <span class="ml-6 font-semibold">Mr/Mrs.Ms</span>
-            <span class="inline-block border-b border-gray-800 min-w-[220px]">{{ $student?->guardian_name }}</span>
+            <span class="inline-block border-b border-gray-800 min-w-[220px]">{{ $parentName }}</span>
         </div>
         <div>
-            <span class="inline-block border-b border-gray-800 min-w-[300px]">{{ $student?->address }}</span>
+            <span class="inline-block border-b border-gray-800 min-w-[300px]">{{ $studentAddress }}</span>
             <span class="ml-3">(Address)</span>
         </div>
         <div>
@@ -99,14 +154,20 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
     @if($isMonthly)
         <div class="mt-4">
             <div class="flex items-center gap-2 text-xs">
-                @foreach($months as $m)
-                    @php $active = ($m === strtoupper($monthShort)); @endphp
-                    <div class="flex items-center">
-                        <div class="w-5 h-5 border border-gray-800 text-center leading-5 {{ $active ? 'bg-gray-900 text-white' : '' }}">{{ $active ? 'X' : '' }}</div>
-                        <div class="ml-1 mr-3">{{ $m }}</div>
-                    </div>
+                @foreach($months as $idx => $m)
+                    @php $monthNum = $idx+1; $active = !empty($boxed[$monthNum]); @endphp
+                    @if($active)
+                        <div class="flex items-center">
+                            <div class="w-5 h-5 border border-gray-800 text-center leading-5 bg-gray-900 text-white">X</div>
+                            <div class="ml-1 mr-3">{{ $m }}</div>
+                        </div>
+                    @endif
                 @endforeach
             </div>
+            @php $hasPartial = collect($coveredMonths)->contains(fn($cm) => $cm['partial']); @endphp
+            @if($hasPartial)
+                <div class="mt-1 text-xs text-gray-700">Note: Partial payments included.</div>
+            @endif
         </div>
     @endif
 
@@ -129,7 +190,7 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
                     <div class="flex justify-between"><span>I. Admission fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                 @endif
                 @if($isMonthly)
-                    <div class="flex justify-between"><span>{{ $isAdmission ? 'II.' : 'I.' }} Monthly fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                    <div class="flex justify-between"><span>{{ $isAdmission ? 'II.' : 'I.' }} Monthly fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($monthlySum,2) }}</span></div>
                 @endif
                 @if($isFacilities)
                     <div class="flex justify-between"><span>{{ ($isAdmission || $isMonthly) ? 'III.' : 'I.' }} Facilities fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
@@ -150,7 +211,34 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
         </div>
     </div>
 
-    <div class="mt-8 flex justify-end">
+    <div class="mt-6">
+        @if($isMonthly && !empty($coveredMonths))
+            <div class="mb-4 text-sm">
+                <p class="font-semibold">Months covered in this receipt:</p>
+                <ul class="list-disc ml-5">
+                    @foreach($coveredMonths as $cm)
+                        <li>
+                            {{ \Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y') }} – Rs {{ number_format($cm['amount'],2) }} 
+                            ({{ ucfirst($cm['type']) }}
+                            @if(!empty($cm['partial']))
+                                , partial
+                            @endif
+                            )
+                        </li>
+                    @endforeach
+                </ul>
+                @php
+                    $dueList = collect($coveredMonths)->where('type','due')->map(fn($cm)=>\Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y'))->all();
+                    $advList = collect($coveredMonths)->where('type','advance')->map(fn($cm)=>\Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y'))->all();
+                @endphp
+                @if(!empty($dueList) || !empty($advList))
+                    <p class="mt-2 text-xs text-gray-700">Includes settlement of outstanding fees for {{ empty($dueList) ? '—' : implode(', ', $dueList) }}@if(!empty($advList)) and advance payment for {{ implode(', ', $advList) }}@endif.</p>
+                @endif
+            </div>
+        @endif
+    </div>
+
+    <div class="mt-6 flex justify-end">
         <div class="text-center">
             <div class="border-t border-gray-800 pt-1 w-56">
                 <p class="text-xs">Authorized Signature | Cashier</p>

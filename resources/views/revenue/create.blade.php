@@ -183,14 +183,28 @@
                                             <h4 class="text-sm font-bold text-amber-900">Payment Status</h4>
                                             <div class="mt-1 text-sm text-amber-800">
                                                 <p>Total Due: <span class="font-bold">Rs <span x-text="Number(studentDueAmount).toLocaleString('en', {minimumFractionDigits: 2})"></span></span></p>
-                                                <div x-show="studentDueMonths.length > 0" class="mt-2">
-                                                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">Due Months:</p>
-                                                    <div class="flex flex-wrap gap-1.5">
-                                                        <template x-for="month in studentDueMonths" :key="month">
-                                                            <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200" x-text="month"></span>
+                                                
+                                                {{-- Interactive Due Months Selector --}}
+                                                <div x-show="studentDueMonths.length > 0" class="mt-3">
+                                                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Select Due Months to Pay:</p>
+                                                    <div class="flex flex-wrap gap-2">
+                                                        <template x-for="(month, index) in studentDueMonths" :key="index">
+                                                            <button type="button"
+                                                                @click="toggleDueMonth(index)"
+                                                                :class="isDueSelected(index) 
+                                                                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' 
+                                                                    : 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50 hover:border-amber-300'"
+                                                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all duration-200">
+                                                                <span x-text="typeof month === 'object' ? month.label : month"></span>
+                                                                <svg x-show="isDueSelected(index)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
+                                                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                                                </svg>
+                                                            </button>
                                                         </template>
                                                     </div>
+                                                    <p class="text-[10px] text-amber-600 mt-1.5 italic">* Selecting a month automatically includes all previous due months.</p>
                                                 </div>
+
                                                 <div x-show="studentDueMonths.length === 0 && studentDueAmount <= 0" class="mt-2 text-green-700 font-medium flex items-center gap-1">
                                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
                                                         <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
@@ -200,6 +214,78 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                {{-- Advance payment toggle --}}
+                                <div x-show="categoryType === 'monthly'" x-transition.opacity x-cloak class="mt-6">
+                                    <div class="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors">
+                                        <div class="flex items-center gap-3">
+                                            <div class="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="text-sm font-semibold text-gray-900">Advance Payment</p>
+                                                <p class="text-xs text-gray-500" x-show="studentName">Pay for upcoming months</p>
+                                                <p class="text-xs text-amber-600" x-show="!studentName">Select a student to enable</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <button type="button"
+                                            @click="if(!studentName) return; advanceMode = !advanceMode; if(!advanceMode){ selectedAdvanceMonths=[]; selectedAdvanceLabels=[]; updateAllocationPreview(); }"
+                                            :disabled="!studentName"
+                                            :class="[advanceMode ? 'bg-indigo-600' : 'bg-gray-200', !studentName ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer']"
+                                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                                            <span :class="advanceMode ? 'translate-x-6' : 'translate-x-1'"
+                                                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm"></span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Advance Months selector --}}
+                                <div x-show="categoryType === 'monthly' && studentName && advanceMode" 
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 -translate-y-2"
+                                    x-transition:enter-end="opacity-100 translate-y-0"
+                                    x-cloak 
+                                    class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900">Select Months</p>
+                                            <p class="text-xs text-gray-500">Choose which future months to pay</p>
+                                        </div>
+                                        <span class="text-xs font-medium px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full" x-show="selectedAdvanceLabels.length > 0" x-text="selectedAdvanceLabels.length + ' selected'"></span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="m in advanceOptions" :key="m.key">
+                                            <button type="button"
+                                                @click="toggleAdvanceMonth(m.key, m.label)"
+                                                :class="isAdvanceSelected(m.key)
+                                                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-200 ring-offset-1'
+                                                    : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50'"
+                                                class="flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-200">
+                                                <span x-text="m.label"></span>
+                                                <svg x-show="isAdvanceSelected(m.key)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
+                                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                                </svg>
+                                            </button>
+                                        </template>
+                                    </div>
+
+                                    <div class="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center" x-show="selectedAdvanceLabels.length > 0" x-transition>
+                                        <div class="flex items-center gap-2">
+                                            <div class="p-1.5 bg-indigo-50 text-indigo-600 rounded-md">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.732 6.232a2.5 2.5 0 013.536 0 .75.75 0 101.06-1.06A4 4 0 006.5 8v.165c0 .364.034.728.1 1.085h-.35a.75.75 0 000 1.5h.737a5.25 5.25 0 01-.367 3.072l-.055.123a.75.75 0 001.37.61 3.75 3.75 0 00.256-1.508l.001-.797h2.106a.75.75 0 000-1.5h-2.1v-.165a2.5 2.5 0 012.536-2.536zM10 8a2.5 2.5 0 00-2.5 2.5V12h1.8a.75.75 0 000-1.5h-1.8v-1.5A1 1 0 018.5 8h3a1 1 0 011 1v2.5h-1.8a.75.75 0 000 1.5h1.8v.5a1 1 0 01-1 1h-1.3a.75.75 0 000 1.5h1.3A2.5 2.5 0 0014 13.5V10.5A2.5 2.5 0 0011.5 8h-1.5z" clip-rule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <span class="text-xs font-medium text-gray-600">Advance Amount Required</span>
+                                        </div>
+                                        <span class="text-sm font-bold text-indigo-700">Rs <span x-text="(selectedAdvanceLabels.length * (parseFloat(studentMonthlyFee) || 0)).toFixed(2)"></span></span>
+                                    </div>
+
+                                    <input type="hidden" name="advance_months" :value="JSON.stringify(selectedAdvanceMonths.map(k => { const [y,mo]=k.split('-'); return {year:+y,month:+mo}; }))">
                                 </div>
 
                                 {{-- Amount and Date --}}
@@ -212,7 +298,7 @@
                                             <input type="number" id="amount_input" name="amount" step="0.01" min="0.01"
                                                 class="block w-full pl-12 pr-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="0.00" value="{{ old('amount') }}"
-                                                x-on:input="updateSummary()" required>
+                                                x-on:input="updateSummary(); updateAllocationPreview()" required>
                                         </div>
                                         @error('amount')
                                             <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
@@ -227,6 +313,38 @@
                                         @error('paid_at')
                                             <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
+                                    </div>
+                                </div>
+
+                                {{-- Allocation summary --}}
+                                <div x-show="categoryType === 'monthly' && selectedStudentId && formData.amount" x-cloak class="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                                    <div class="mt-1">
+                                        <h5 class="text-xs font-semibold text-indigo-800 mb-2">Allocation summary</h5>
+                                        <template x-if="allocation.allocations.length === 0">
+                                            <p class="text-xs text-indigo-700">Enter amount and select advance months (optional) to preview.</p>
+                                        </template>
+                                        <template x-for="a in allocation.allocations" :key="a.year+'-'+a.month">
+                                            <div class="flex justify-between text-xs py-1">
+                                                <div>
+                                                    <span x-text="monthName(a.month)+' '+a.year"></span>
+                                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full border" :class="a.type==='due' ? 'border-amber-300 text-amber-800 bg-amber-100' : 'border-emerald-300 text-emerald-800 bg-emerald-100'">
+                                                        <span x-text="a.type==='due' ? 'Due' : 'Advance'"></span>
+                                                    </span>
+                                                    <span x-show="a.is_partial" class="ml-2 text-rose-700">(Partial)</span>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span>Rs </span><span x-text="Number(a.applied_amount).toFixed(2)"></span>
+                                                    <span x-show="a.is_partial" class="ml-2 text-xs text-gray-600">Remaining: Rs <span x-text="Number(a.remaining_for_month).toFixed(2)"></span></span>
+                                                </div>
+                                            </div>
+                                        </template>
+                                        <div class="mt-2 pt-2 border-t text-xs">
+                                            <div class="flex justify-between"><span>Total applied</span><span>Rs <span x-text="Number(allocation.summary.total_applied||0).toFixed(2)"></span></span></div>
+                                            <div class="flex justify-between"><span>Unallocated balance</span><span>Rs <span x-text="Number(allocation.summary.unallocated_balance||0).toFixed(2)"></span></span></div>
+                                            <template x-if="(allocation.summary.errors||[]).length > 0">
+                                                <div class="mt-2 text-rose-700" x-text="allocation.summary.errors.join(' ')"></div>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -323,16 +441,18 @@
 
                             <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
                                 <div class="flex gap-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                        stroke-width="2" stroke="currentColor"
-                                        class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                                     </svg>
                                     <div class="text-sm text-blue-900">
-                                        <p class="font-semibold mb-1">Receipt Generation</p>
-                                        <p class="text-xs text-blue-800">Receipt will be generated after saving. You can
-                                            print it from settings.</p>
+                                        <p class="font-semibold mb-1">This payment will settle:</p>
+                                        <p class="text-xs text-blue-800"><span class="font-semibold">Dues:</span>
+                                            <template x-if="(allocation.summary.paid_due_months||[]).length === 0"><span>—</span></template>
+                                            <template x-for="d in allocation.summary.paid_due_months" :key="d.year+'-'+d.month"><span class="inline-block mr-1" x-text="monthName(d.month)+' '+d.year+(d.partial?' (Partial)':'')"></span></template>
+                                        </p>
+                                        <p class="text-xs text-blue-800" x-show="(allocation.summary.advance_months||[]).length > 0"><span class="font-semibold">Advance:</span>
+                                            <template x-for="ad in allocation.summary.advance_months" :key="ad.year+'-'+ad.month"><span class="inline-block mr-1" x-text="monthName(ad.month)+' '+ad.year+(ad.partial?' (Partial)':'')"></span></template>
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -417,12 +537,24 @@
                         date: '{{ old('paid_at', date('Y-m-d')) }}',
                         bill_no: '{{ old('bill_no') }}'
                     },
+                    categories: @json($categories),
                     categoryName: '',
                     categoryType: '',
                     studentName: '',
                     studentDueAmount: 0,
+                    studentMonthlyFee: 0,
                     studentDueMonths: [],
+                    selectedDueCount: 0,
                     showCategoryModal: false,
+                    selectedStudentId: '{{ $selectedStudentId ?? '' }}',
+                    advanceEnabled: false,
+                    advanceMode: false,
+                    advanceOptions: [],
+                    futureMonths: [],
+                    selectedAdvanceKeys: new Set(),
+                    selectedAdvanceMonths: [],
+                    selectedAdvanceLabels: [],
+                    allocation: { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } },
 
                     init() {
                         try {
@@ -436,36 +568,181 @@
                                             this.studentName = e.detail.name || '';
                                             this.studentDueAmount = e.detail.due_amount || 0;
                                             this.studentDueMonths = e.detail.due_months || [];
+                                            this.studentMonthlyFee = e.detail.monthly_fee || 0;
+                                            this.selectedStudentId = e.detail.id || '';
+                                            this.selectedDueCount = 0;
+                                            const adv = Array.isArray(e.detail.advance_months) ? e.detail.advance_months : [];
+                                            if (adv.length > 0) {
+                                                this.advanceOptions = adv.map(m => ({ key: m.key, year: m.year, month: m.month, label: m.label }));
+                                            } else {
+                                                this.initFutureMonths();
+                                                this.advanceOptions = this.futureMonths;
+                                            }
+                                            this.updateAllocationPreview();
                                         } else {
                                             this.studentName = '';
                                             this.studentDueAmount = 0;
                                             this.studentDueMonths = [];
+                                            this.selectedDueCount = 0;
+                                            this.selectedStudentId = '';
+                                            this.advanceMode = false;
+                                            this.selectedAdvanceKeys.clear();
+                                            this.syncAdvanceSelections();
+                                            this.allocation = { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } };
                                         }
                                     } catch (err) {
                                         console.error('Error in student-selected handler:', err);
                                     }
                                 });
                             }
+                            this.initFutureMonths();
+                            this.advanceOptions = this.futureMonths;
+                            try {
+                                this.$watch('advanceMode', (val) => {
+                                    this.advanceEnabled = !!val;
+                                    if (!val) {
+                                        this.selectedAdvanceKeys.clear();
+                                        this.syncAdvanceSelections();
+                                        this.updateAllocationPreview();
+                                    }
+                                });
+                            } catch (e) {}
+                            this.updateAllocationPreview();
                         } catch (err) {
                             console.error('Error initializing revenueForm:', err);
                         }
                     },
 
+                    toggleDueMonth(index) {
+                        // If clicking the same last selected, deselect it (go back one)
+                        if (this.selectedDueCount === index + 1) {
+                            this.selectedDueCount = index;
+                        } else {
+                            // Otherwise select up to this index
+                            this.selectedDueCount = index + 1;
+                        }
+                        
+                        // Update amount
+                        let total = 0;
+                        if (Array.isArray(this.studentDueMonths)) {
+                            for (let i = 0; i < this.selectedDueCount; i++) {
+                                const m = this.studentDueMonths[i];
+                                if (typeof m === 'object' && m.amount !== undefined) {
+                                    total += parseFloat(m.amount);
+                                } else {
+                                    total += parseFloat(this.studentMonthlyFee) || 0;
+                                }
+                            }
+                        }
+                        this.formData.amount = total.toFixed(2);
+                        this.updateAllocationPreview();
+                    },
+
+                    isDueSelected(index) {
+                        return index < this.selectedDueCount;
+                    },
+
                     updateSummary() {
                         try {
-                            const categorySelect = document.getElementById('revenue_category_id');
-                            if (categorySelect && categorySelect.options) {
-                                const selectedIndex = categorySelect.selectedIndex;
-                                if (selectedIndex >= 0) {
-                                    const selectedOption = categorySelect.options[selectedIndex];
-                                    if (selectedOption) {
-                                        this.categoryName = selectedOption.getAttribute('data-name') || '-';
-                                        this.categoryType = selectedOption.getAttribute('data-type') || '';
-                                    }
-                                }
+                            const id = this.formData.category_id;
+                            const cat = Array.isArray(this.categories) ? this.categories.find(c => c.id == id) : null;
+                            if (cat) {
+                                this.categoryName = cat.name;
+                                this.categoryType = cat.payment_type;
+                            } else {
+                                this.categoryName = '';
+                                this.categoryType = '';
                             }
                         } catch (err) {
                             console.error('Error updating summary:', err);
+                        }
+                    },
+                    initFutureMonths() {
+                        const base = new Date();
+                        base.setDate(1);
+                        this.futureMonths = [];
+                        for (let i = 0; i < 12; i++) {
+                            const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
+                            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                            this.futureMonths.push({ key, year: d.getFullYear(), month: d.getMonth()+1, label: `${this.monthName(d.getMonth()+1)} ${d.getFullYear()}` });
+                        }
+                    },
+                    toggleAdvanceMonth(m, label) {
+                        if (!this.advanceEnabled) return;
+                        if (Array.isArray(this.studentDueMonths) && this.studentDueMonths.length > 0) {
+                            alert('Cannot select advance months while there are dues pending.');
+                            return;
+                        }
+                        let key = m;
+                        if (typeof m === 'object' && m) key = m.key;
+                        if (typeof key !== 'string') return;
+                        if (this.selectedAdvanceKeys.has(key)) {
+                            this.selectedAdvanceKeys.delete(key);
+                        } else {
+                            this.selectedAdvanceKeys.add(key);
+                            const ordered = [...(this.advanceOptions||[]).map(f=>f.key)].filter(k=>this.selectedAdvanceKeys.has(k));
+                            this.selectedAdvanceKeys = new Set(ordered);
+                        }
+                        this.syncAdvanceSelections();
+                        this.updateAllocationPreview();
+                    },
+                    isAdvanceSelected(key) {
+                        return this.selectedAdvanceKeys.has(key);
+                    },
+                    syncAdvanceSelections() {
+                        const keys = [...this.selectedAdvanceKeys];
+                        this.selectedAdvanceMonths = keys;
+                        const map = new Map((this.advanceOptions||[]).map(o => [o.key, o.label]));
+                        this.selectedAdvanceLabels = keys.map(k => map.get(k)).filter(Boolean);
+                    },
+                    monthName(m) {
+                        const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                        return names[(m-1)%12];
+                    },
+                    async updateAllocationPreview() {
+                        try {
+                            if (this.categoryType !== 'monthly') return;
+                            const amt = parseFloat(this.formData.amount||'0');
+                            if (!this.selectedStudentId || !amt || amt <= 0) {
+                                this.allocation = { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } };
+                                return;
+                            }
+                            const adv = [...this.selectedAdvanceKeys].map(k => { const [y, mo] = k.split('-'); return {year: +y, month: +mo}; });
+                            const res = await fetch("{{ route('revenue.items.preview_allocation') }}", {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
+                                body: JSON.stringify({ student_id: this.selectedStudentId, amount: amt, advance_months: adv })
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                this.allocation = data || { allocations: [], summary: {} };
+                                if (this.advanceEnabled && this.selectedAdvanceKeys.size === 0) {
+                                    // Auto-select future months based on remaining amount
+                                    const rem = Number(this.allocation.summary.unallocated_balance||0);
+                                    const fee = Number(this.studentMonthlyFee||0);
+                                    if (fee > 0 && rem > 0) {
+                                        const fullCount = Math.floor(rem / fee);
+                                        const extra = rem - fullCount*fee;
+                                        const selectCount = fullCount + (extra > 0 ? 1 : 0);
+                                        const keys = (this.advanceOptions||this.futureMonths).slice(0, selectCount).map(m=>m.key);
+                                        this.selectedAdvanceKeys = new Set(keys);
+                                        this.syncAdvanceSelections();
+                                        // Recompute preview with auto-selected months
+                                        const adv2 = [...this.selectedAdvanceKeys].map(k => { const [y, mo] = k.split('-'); return {year: +y, month: +mo}; });
+                                        const res2 = await fetch("{{ route('revenue.items.preview_allocation') }}", {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
+                                            body: JSON.stringify({ student_id: this.selectedStudentId, amount: amt, advance_months: adv2 })
+                                        });
+                                        if (res2.ok) {
+                                            const data2 = await res2.json();
+                                            this.allocation = data2;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Allocation preview failed:', e?.message);
                         }
                     }
                 }));
@@ -652,6 +929,7 @@
                         }
                     }
                 }));
+
             });
         </script>
     @endpush

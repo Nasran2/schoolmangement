@@ -90,6 +90,13 @@
                         </svg>
                         Statement (PDF)
                     </a>
+
+                    <a href="{{ route('students.admission', $student) }}" class="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-800 text-sm font-semibold rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
+                        <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-8 4h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Admission (PDF)
+                    </a>
                 @endcan
 
                 <a href="{{ route('students.index') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-all">
@@ -264,44 +271,118 @@
                         </div>
 
                         @php
-                            $cyclesAll = $student->monthlyCyclesToNow();
-                            $totalCycles = count($cyclesAll);
-                            $paidCyclesCount = $student->monthlyFeePaidCyclesCount();
-                            $sliceStart = max(0, $totalCycles - 12);
-                            $cycles = array_slice($cyclesAll, $sliceStart);
+                            $monthlyFeeValue = (float) ($student->monthly_fee ?? 0);
+                            $feeStartDateValue = $student->fee_start_date;
+                            $canShowTracker = !empty($feeStartDateValue) && $monthlyFeeValue > 0;
+
+                            $cycles = [];
+                            $paidCyclesCount = 0;
+                            $allocations = collect();
+
+                            if ($canShowTracker) {
+                                // Use MonthlyFeeAllocator to get accurate ledger
+                                $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
+                                $ledger = $allocator->buildLedger($student, 12);
+                                
+                                // Convert ledger to cycles format for display
+                                $cycles = [];
+                                $now = now();
+                                foreach ($ledger as $key => $data) {
+                                    $s = \Carbon\Carbon::createFromDate($data['year'], $data['month'], 1)->startOfMonth();
+                                    $e = $s->copy()->endOfMonth();
+                                    $cycles[] = [
+                                        'start' => $s,
+                                        'end' => $e,
+                                        'inProgress' => $now->betweenIncluded($s, $e),
+                                        'isFuture' => $s->gt($now->endOfMonth()),
+                                        'month' => $data['month'],
+                                        'year' => $data['year'],
+                                        'status' => $data['status'], // 'paid', 'partially_paid', 'unpaid'
+                                        'remaining' => $data['remaining'],
+                                    ];
+                                }
+
+                                // Slice logic: Show last 12 months relative to NOW, plus all future months
+                                // Find index of "current" month
+                                $currentIndex = -1;
+                                foreach ($cycles as $idx => $c) {
+                                    if ($c['inProgress']) {
+                                        $currentIndex = $idx;
+                                        break;
+                                    }
+                                }
+                                // If no current month (e.g. start date in future), current is effectively 0 or -1
+                                if ($currentIndex === -1) {
+                                    $start = \Carbon\Carbon::parse($feeStartDateValue)->startOfMonth();
+                                    if ($start->gt($now)) $currentIndex = 0; // Start is future
+                                    else $currentIndex = count($cycles) - 1; // End is past
+                                }
+
+                                $sliceStart = max(0, $currentIndex - 11);
+                                $cycles = array_slice($cycles, $sliceStart);
+                            }
                         @endphp
 
-                        @if($totalCycles <= 0)
+                        @if(!$canShowTracker)
                             <div class="text-sm text-gray-600">Set Fee Start Date and Monthly Fee to see the tracker.</div>
                         @else
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                 @foreach($cycles as $i => $cy)
                                     @php
-                                        $globalIndex = $sliceStart + $i;
-                                        $isPaid = $globalIndex < $paidCyclesCount;
-                                        $isInProgress = (bool)($cy['inProgress'] ?? false);
-                                        $label = ($cy['start'] instanceof \Carbon\Carbon) ? $cy['start']->format('M Y') : \Carbon\Carbon::parse($cy['start'])->format('M Y');
+                                        $status = 'unpaid';
+                                        if ($cy['status'] === 'paid') {
+                                            $status = $cy['isFuture'] ? 'advance' : 'paid';
+                                        } elseif ($cy['status'] === 'partially_paid') {
+                                            $status = 'partial';
+                                        } elseif ($cy['inProgress']) {
+                                            $status = 'current';
+                                        }
+
+                                        $label = $cy['start']->format('M Y');
                                     @endphp
                                     <div class="relative group">
-                                        <div class="border-2 {{ $isPaid ? 'border-green-500 bg-green-50' : ($isInProgress ? 'border-amber-400 bg-amber-50' : 'border-gray-200 bg-gray-50') }} rounded-lg p-3 text-center hover:shadow-md transition-all">
-                                            <div class="text-xs font-semibold {{ $isPaid ? 'text-green-700' : ($isInProgress ? 'text-amber-700' : 'text-gray-500') }} mb-1">{{ $label }}</div>
-                                            @if($isPaid)
+                                        @if($status === 'advance')
+                                            <div class="border-2 border-indigo-500 bg-indigo-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                <div class="text-xs font-semibold text-indigo-700 mb-1">{{ $label }}</div>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                                </svg>
+                                                <div class="text-xs font-bold text-indigo-700 mt-1">Advance</div>
+                                            </div>
+                                        @elseif($status === 'partial')
+                                            <div class="border-2 border-orange-400 bg-orange-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                <div class="text-xs font-semibold text-orange-700 mb-1">{{ $label }}</div>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 019 9v.375M10.125 2.25A3.375 3.375 0 0113.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 013.375 3.375M9 15l2.25 2.25L15 12" />
+                                                </svg>
+                                                <div class="text-xs font-bold text-orange-700 mt-1">Partial</div>
+                                                <div class="text-[10px] font-medium text-orange-800 mt-0.5">Bal: {{ number_format($cy['remaining']) }}</div>
+                                            </div>
+                                        @elseif($status === 'paid')
+                                            <div class="border-2 border-green-500 bg-green-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                <div class="text-xs font-semibold text-green-700 mb-1">{{ $label }}</div>
                                                 <svg class="h-6 w-6 text-green-600 mx-auto" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                                                 </svg>
                                                 <div class="text-xs font-bold text-green-700 mt-1">Paid</div>
-                                            @elseif($isInProgress)
+                                            </div>
+                                        @elseif($status === 'current')
+                                            <div class="border-2 border-amber-400 bg-amber-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                <div class="text-xs font-semibold text-amber-700 mb-1">{{ $label }}</div>
                                                 <svg class="h-6 w-6 text-amber-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
                                                 </svg>
                                                 <div class="text-xs font-semibold text-amber-700 mt-1">Current</div>
-                                            @else
+                                            </div>
+                                        @else
+                                            <div class="border-2 border-gray-200 bg-gray-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                <div class="text-xs font-semibold text-gray-500 mb-1">{{ $label }}</div>
                                                 <svg class="h-6 w-6 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                                 <div class="text-xs font-semibold text-gray-500 mt-1">Unpaid</div>
-                                            @endif
-                                        </div>
+                                            </div>
+                                        @endif
                                     </div>
                                 @endforeach
                             </div>

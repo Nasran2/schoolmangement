@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Models\ClassRoom;
 use App\Models\Student;
 use App\Services\Billing\BillNumberService;
+use App\Services\Billing\MonthlyFeeAllocator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -93,8 +94,14 @@ class RevenueController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, BillNumberService $billNumbers): RedirectResponse
+    public function store(Request $request, BillNumberService $billNumbers, MonthlyFeeAllocator $allocator): RedirectResponse
     {
+        // Normalize JSON advance_months if sent as string
+        $advRaw = $request->input('advance_months');
+        if (is_string($advRaw)) {
+            $parsed = json_decode($advRaw, true);
+            if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
+        }
         $validated = $request->validate([
             'revenue_category_id' => ['required', 'exists:revenue_categories,id'],
             'student_id' => ['nullable', 'exists:students,id'],
@@ -102,11 +109,17 @@ class RevenueController extends Controller
             'paid_at' => ['required', 'date'],
             'bill_no' => ['nullable', 'string', 'max:50', 'unique:revenues,bill_no'],
             'notes' => ['nullable', 'string'],
+            // Allocation inputs (optional): array of future months {month,year}
+            'advance_months' => ['nullable', 'array'],
+            'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
+            'advance_months.*.year' => ['required_with:advance_months', 'integer', 'min:2000'],
         ]);
 
+        // Validate category applicability and, if monthly, compute allocation BEFORE creating revenue
+        $student = null;
+        $category = RevenueCategory::query()->with('classRooms')->find((int) $validated['revenue_category_id']);
         if (! empty($validated['student_id'])) {
             $student = Student::query()->with('classRoom')->find((int) $validated['student_id']);
-            $category = RevenueCategory::query()->with('classRooms')->find((int) $validated['revenue_category_id']);
             if ($student && $student->class_room_id && $category) {
                 $allowed = $category->applies_to_all || $category->classRooms->contains('id', (int) $student->class_room_id);
                 if (! $allowed) {
@@ -117,6 +130,27 @@ class RevenueController extends Controller
             }
         }
 
+        $result = null;
+        if ($student && $category && strtolower((string)$category->payment_type) === 'monthly') {
+            $adv = $validated['advance_months'] ?? [];
+            $result = $allocator->allocate($student, (float)$validated['amount'], $adv);
+
+            $errors = $result['summary']['errors'] ?? [];
+            if (! empty($adv)) {
+                $monthlyFee = (float) ($student->monthly_fee ?? 0);
+                if ((float)$validated['amount'] < 0.01) {
+                    $errors[] = 'Amount is not valid.';
+                }
+                if (count($adv) > 1 && (float)$validated['amount'] < $monthlyFee) {
+                    $errors[] = 'Amount is not enough to cover selected months. Please reduce selected months or increase amount.';
+                }
+            }
+            if (! empty($errors)) {
+                return back()->withInput()->withErrors(['amount' => implode(' ', $errors)]);
+            }
+        }
+
+        // Prepare bill number
         $billNo = $validated['bill_no'] ?? null;
         if (! $billNo) {
             $billNo = $billNumbers->nextRevenueBillNumber() ?: null;
@@ -125,6 +159,7 @@ class RevenueController extends Controller
         // Notes: only save what the user typed; do not auto-generate
         $notes = $validated['notes'] ?? null;
 
+        // Create revenue AFTER successful allocation preview to avoid double-counting in ledger
         $revenue = Revenue::create([
             'bill_no' => $billNo,
             'revenue_category_id' => (int) $validated['revenue_category_id'],
@@ -134,6 +169,22 @@ class RevenueController extends Controller
             'notes' => $notes,
             'created_by' => $request->user()?->id,
         ]);
+
+        // Persist allocations if monthly
+        if ($student && $result && !empty($result['allocations'])) {
+            foreach ($result['allocations'] as $a) {
+                \App\Models\StudentMonthFeeAllocation::create([
+                    'revenue_id' => $revenue->id,
+                    'student_id' => $student->id,
+                    'month' => (int) $a['month'],
+                    'year' => (int) $a['year'],
+                    'type' => (string) $a['type'],
+                    'applied_amount' => (float) $a['applied_amount'],
+                    'is_partial' => (bool) $a['is_partial'],
+                    'remaining_for_month' => (float) $a['remaining_for_month'],
+                ]);
+            }
+        }
 
         return redirect()->route('revenue.items.receipt', $revenue->id)
             ->with('status', 'Revenue recorded successfully.');
@@ -232,7 +283,7 @@ class RevenueController extends Controller
      */
     public function receipt(Revenue $item): View
     {
-        $item->load(['student.classRoom', 'category']);
+        $item->load(['student.classRoom', 'category', 'allocations']);
 
         $settings = app('settings');
         $schoolInfo = [
@@ -244,11 +295,49 @@ class RevenueController extends Controller
 
         $autoPrint = $settings->get('receipt.auto_print', '0') === '1';
 
+        // Prepare logo data URI
+        $logoPath = (string) $settings->get('school.logo', '');
+        $logoDataUri = null;
+        if ($logoPath !== '') {
+            $abs = storage_path('app/public/'.$logoPath);
+            if (is_file($abs)) {
+                $mime = @mime_content_type($abs) ?: 'image/png';
+                $logoDataUri = 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($abs));
+            }
+        }
+
         return view('revenue.receipt', [
             'revenue' => $item,
             'schoolInfo' => $schoolInfo,
             'autoPrint' => $autoPrint,
+            'schoolLogoDataUri' => $logoDataUri,
         ]);
+    }
+
+    /**
+     * Preview allocation JSON for monthly fee payments.
+     */
+    public function previewAllocation(Request $request, MonthlyFeeAllocator $allocator)
+    {
+        // Normalize JSON advance_months if sent as string
+        $advRaw = $request->input('advance_months');
+        if (is_string($advRaw)) {
+            $parsed = json_decode($advRaw, true);
+            if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
+        }
+        $validated = $request->validate([
+            'student_id' => ['required', 'exists:students,id'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'advance_months' => ['nullable', 'array'],
+            'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
+            'advance_months.*.year' => ['required_with:advance_months', 'integer', 'min:2000'],
+        ]);
+
+        $student = Student::query()->with('classRoom')->find((int) $validated['student_id']);
+        if (! $student) return response()->json(['error' => 'Student not found'], 404);
+
+        $result = $allocator->allocate($student, (float)$validated['amount'], $validated['advance_months'] ?? []);
+        return response()->json($result);
     }
 }
 

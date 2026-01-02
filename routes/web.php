@@ -113,6 +113,10 @@ Route::middleware('auth')->group(function () {
         Route::post('items', [RevenueController::class, 'store'])
             ->middleware('permission:revenue.add')
             ->name('items.store');
+        // Preview allocation for monthly payments
+        Route::post('items/preview-allocation', [RevenueController::class, 'previewAllocation'])
+            ->middleware('permission:revenue.add')
+            ->name('items.preview_allocation');
         Route::get('items/{item}/edit', [RevenueController::class, 'edit'])
             ->middleware('permission:revenue.manage')
             ->name('items.edit');
@@ -178,6 +182,7 @@ Route::middleware('auth')->group(function () {
     Route::post('students', [StudentController::class, 'store'])->middleware('permission:students.add')->name('students.store');
     Route::get('students/{student}', [StudentController::class, 'show'])->middleware('permission:students.manage')->name('students.show');
     Route::get('students/{student}/statement', [StudentController::class, 'statement'])->middleware('permission:students.manage')->name('students.statement');
+    Route::get('students/{student}/admission', [StudentController::class, 'admission'])->middleware('permission:students.manage')->name('students.admission');
     Route::get('students/{student}/edit', [StudentController::class, 'edit'])->middleware('permission:students.manage')->name('students.edit');
     Route::put('students/{student}', [StudentController::class, 'update'])->middleware('permission:students.manage')->name('students.update');
     Route::delete('students/{student}', [StudentController::class, 'destroy'])->middleware('permission:students.delete')->name('students.destroy');

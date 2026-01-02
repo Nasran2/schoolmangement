@@ -322,7 +322,32 @@ class StudentController extends Controller
 
         // Progress metrics
         $monthsDueCount = $student->monthlyCyclesCountToNow();
-        $monthsPaidCount = $student->monthlyFeePaidCyclesCount();
+        
+        // Use MonthlyFeeAllocator for accurate paid count
+        $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
+        $ledger = $allocator->buildLedger($student, 0);
+        $monthsPaidCount = 0;
+        foreach ($ledger as $m) {
+            if ($m['status'] === 'paid') {
+                $monthsPaidCount++;
+            } elseif ($m['status'] === 'partially_paid') {
+                // Count partial as fractional? Or just ignore for "Paid Months" count?
+                // Let's count it as fractional based on amount
+                if ($m['due'] > 0) {
+                    $monthsPaidCount += ($m['paid'] / $m['due']);
+                }
+            }
+        }
+        // Round to 1 decimal for display if needed, or just floor/ceil?
+        // The UI expects an integer for "Paid Months X / Y".
+        // Let's floor it to be safe, or maybe just count fully paid months.
+        // The original logic was floor(total / fee).
+        // Let's stick to fully paid count for the integer display, but maybe show partials in the tracker.
+        $monthsPaidCount = 0;
+        foreach ($ledger as $m) {
+             if ($m['status'] === 'paid') $monthsPaidCount++;
+        }
+        
         $paidPct = ($monthsDueCount > 0) ? round(($monthsPaidCount / $monthsDueCount) * 100) : 0;
 
         return view('students.show', [
@@ -394,6 +419,32 @@ class StudentController extends Controller
         ]);
 
         return $pdf->download('student-statement-'.$student->id.'.pdf');
+    }
+
+    /** Download student admission form as PDF */
+    public function admission(Request $request, Student $student)
+    {
+        $schoolName = (string) app('settings')->get('school.name', config('app.name'));
+        $logoPath = (string) app('settings')->get('school.logo', '');
+
+        $logoDataUri = null;
+        if ($logoPath !== '') {
+            // Settings stores a path in the "public" disk (storage/app/public/...)
+            $abs = storage_path('app/public/'.$logoPath);
+            if (is_file($abs)) {
+                $mime = @mime_content_type($abs) ?: 'image/png';
+                $logoDataUri = 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($abs));
+            }
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('students.admission_pdf', [
+            'student' => $student,
+            'schoolName' => $schoolName,
+            'schoolLogoDataUri' => $logoDataUri,
+            'generatedAt' => now(),
+        ])->setPaper('A4');
+
+        return $pdf->download('student-admission-'.$student->id.'.pdf');
     }
 
     /**
@@ -571,12 +622,55 @@ class StudentController extends Controller
 
             // Calculate due months
             $cycles = $s->monthlyCyclesToNow();
+            $allocations = \App\Models\StudentMonthFeeAllocation::where('student_id', $s->id)->get();
             $paidCount = $s->monthlyFeePaidCyclesCount();
             $dueMonths = [];
+            
             foreach ($cycles as $index => $cycle) {
-                if ($index >= $paidCount) {
-                    $dueMonths[] = $cycle['start']->format('F Y');
+                // Check allocation by matching cycle's start month/year
+                $alloc = $allocations->first(function ($a) use ($cycle) {
+                    return ((int)$a->month === (int)$cycle['start']->month) && ((int)$a->year === (int)$cycle['start']->year);
+                });
+
+                $isAllocated = !is_null($alloc);
+                $isPartial = $isAllocated && (bool) $alloc->is_partial;
+
+                // Bucket logic (fallback for legacy revenues without allocations)
+                $isBucketPaid = $index < $paidCount;
+
+                // Determine if month is considered paid
+                $isPaid = ($isBucketPaid && !$isAllocated) || ($isAllocated && !$isPartial);
+
+                if (!$isPaid) {
+                    $label = $cycle['start']->format('F Y');
+                    $amount = (float) ($s->monthly_fee ?? 0);
+
+                    if ($isPartial) {
+                        $label .= ' (Partial)';
+                        // Use remaining_for_month reported by allocation for accurate balance
+                        $amount = (float) ($alloc->remaining_for_month ?? max(0.0, $amount - (float)($alloc->applied_amount ?? 0)));
+                    }
+
+                    $dueMonths[] = [
+                        'label' => $label,
+                        'amount' => $amount,
+                        'is_partial' => $isPartial,
+                        'month_key' => $cycle['start']->format('Y-m')
+                    ];
                 }
+            }
+
+            // Build available advance months (next 12 from next month)
+            $advanceMonths = [];
+            $base = \Carbon\Carbon::now()->startOfMonth()->addMonth();
+            for ($i = 0; $i < 12; $i++) {
+                $d = $base->copy()->addMonthsNoOverflow($i);
+                $advanceMonths[] = [
+                    'key' => $d->format('Y-m'),
+                    'label' => $d->format('M Y'),
+                    'month' => (int) $d->format('n'),
+                    'year' => (int) $d->format('Y'),
+                ];
             }
 
             $detail = [
@@ -589,6 +683,7 @@ class StudentController extends Controller
                 'due_amount' => (float) ($s->computed_due_amount ?? $s->due_amount ?? 0),
                 'monthly_category_id' => $s->classRoom?->monthly_fee_revenue_category_id,
                 'due_months' => $dueMonths,
+                'advance_months' => $advanceMonths,
             ];
 
             return response()->json(['results' => [$detail]]);
