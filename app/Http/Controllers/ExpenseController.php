@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -58,13 +59,24 @@ class ExpenseController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        Expense::create([
+        $expense = Expense::create([
             'expense_category_id' => (int) $validated['expense_category_id'],
             'amount' => $validated['amount'],
             'expense_date' => $validated['expense_date'],
             'notes' => $validated['notes'] ?? null,
             'created_by' => $request->user()?->id,
         ]);
+
+        app(AuditLogger::class)->log(
+            'expense.create',
+            $expense,
+            'Expense recorded',
+            [
+                'amount' => (float) $expense->amount,
+                'expense_category_id' => $expense->expense_category_id,
+                'expense_date' => $expense->expense_date,
+            ]
+        );
 
         return redirect()->route('expense.items.index')->with('status', 'Expense recorded.');
     }
@@ -107,6 +119,17 @@ class ExpenseController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        app(AuditLogger::class)->log(
+            'expense.update',
+            $item,
+            'Expense updated',
+            [
+                'amount' => (float) $item->amount,
+                'expense_category_id' => $item->expense_category_id,
+                'expense_date' => $item->expense_date,
+            ]
+        );
+
         return back()->with('status', 'Expense updated.');
     }
 
@@ -115,6 +138,17 @@ class ExpenseController extends Controller
      */
     public function destroy(Expense $item): RedirectResponse
     {
+        app(AuditLogger::class)->log(
+            'expense.delete',
+            $item,
+            'Expense deleted',
+            [
+                'amount' => (float) $item->amount,
+                'expense_category_id' => $item->expense_category_id,
+                'expense_date' => $item->expense_date,
+            ]
+        );
+
         $item->delete();
 
         return redirect()->route('expense.items.index')->with('status', 'Expense deleted.');

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
 
 use App\Models\Revenue;
+use App\Models\RevenueAdjustment;
 
 class Student extends Model
 {
@@ -108,16 +109,37 @@ class Student extends Model
             $monthsDue = $now->lt($start) ? 0 : (int) ($start->diffInMonths($now) + 1);
         }
 
-        $expected = $monthlyFee * max(0, (int) $monthsDue);
+        $expectedBase = $monthlyFee * max(0, (int) $monthsDue);
+
         $monthlyCatId = $this->classRoom?->monthly_fee_revenue_category_id;
-        $paid = 0.0;
+        $paidGross = 0.0;
+        $refunds = 0.0;
+        $waivers = 0.0;
+
         if ($monthlyCatId) {
-            $paid = (float) Revenue::query()
+            $paidGross = (float) Revenue::query()
                 ->where('student_id', $this->id)
                 ->where('revenue_category_id', $monthlyCatId)
                 ->sum('amount');
+
+            $refunds = (float) RevenueAdjustment::query()
+                ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
+                ->where('revenues.student_id', $this->id)
+                ->where('revenues.revenue_category_id', $monthlyCatId)
+                ->where('revenue_adjustments.type', 'refund')
+                ->sum('revenue_adjustments.amount');
+
+            $waivers = (float) RevenueAdjustment::query()
+                ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
+                ->where('revenues.student_id', $this->id)
+                ->where('revenues.revenue_category_id', $monthlyCatId)
+                ->where('revenue_adjustments.type', 'waiver')
+                ->sum('revenue_adjustments.amount');
         }
-        return max(0.0, $expected - $paid);
+
+        $paidNet = max(0.0, $paidGross - $refunds);
+        $expectedNet = max(0.0, $expectedBase - $waivers);
+        return max(0.0, $expectedNet - $paidNet);
     }
 
     public function getComputedDueAmountAttribute(): float
@@ -161,16 +183,39 @@ class Student extends Model
     {
         $catId = $this->monthlyFeeCategoryId();
         if (! $catId) return 0.0;
-        return (float) Revenue::query()
+        $paidGross = (float) Revenue::query()
             ->where('student_id', $this->id)
             ->where('revenue_category_id', $catId)
             ->sum('amount');
+
+        $refunds = (float) RevenueAdjustment::query()
+            ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
+            ->where('revenues.student_id', $this->id)
+            ->where('revenues.revenue_category_id', $catId)
+            ->where('revenue_adjustments.type', 'refund')
+            ->sum('revenue_adjustments.amount');
+
+        return max(0.0, $paidGross - $refunds);
+    }
+
+    public function monthlyFeeWaiverAmount(): float
+    {
+        $catId = $this->monthlyFeeCategoryId();
+        if (! $catId) return 0.0;
+
+        return (float) RevenueAdjustment::query()
+            ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
+            ->where('revenues.student_id', $this->id)
+            ->where('revenues.revenue_category_id', $catId)
+            ->where('revenue_adjustments.type', 'waiver')
+            ->sum('revenue_adjustments.amount');
     }
 
     public function monthlyFeePaidCyclesCount(): int
     {
         $fee = (float) $this->monthly_fee;
         if ($fee <= 0) return 0;
-        return (int) floor($this->monthlyFeePaidAmount() / $fee);
+        $covered = (float) $this->monthlyFeePaidAmount() + (float) $this->monthlyFeeWaiverAmount();
+        return (int) floor($covered / $fee);
     }
 }

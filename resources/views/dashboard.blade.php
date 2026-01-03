@@ -29,14 +29,14 @@
                 </form>
 
                 <div class="flex items-center gap-2">
-                    @can('revenues.manage')
-                        <a href="{{ route('revenues.create') }}" class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-700">
+                    @can('revenue.add')
+                        <a href="{{ route('revenue.items.create') }}" class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-indigo-700">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
                             Add Revenue
                         </a>
                     @endcan
-                    @can('expenses.manage')
-                        <a href="{{ route('expenses.create') }}" class="inline-flex items-center gap-2 rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700">
+                    @can('expense.add')
+                        <a href="{{ route('expense.items.create') }}" class="inline-flex items-center gap-2 rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3z"/><path d="M8 7v14"/><path d="M16 7v14"/></svg>
                             Add Expense
                         </a>
@@ -56,6 +56,7 @@
         <script type="application/json" id="dashboard-data">{!! json_encode($dashboardData ?? []) !!}</script>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            @can('dashboard.widget.total_revenue.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center gap-3">
@@ -69,7 +70,9 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
+            @can('dashboard.widget.total_expenses.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center gap-3">
@@ -83,7 +86,9 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
+            @can('dashboard.widget.net_profit.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center gap-3">
@@ -97,7 +102,9 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
+            @can('dashboard.widget.cash_flow.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-sm text-gray-500">Cash Flow (Last 30 Days)</div>
@@ -107,9 +114,11 @@
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+            @can('dashboard.widget.revenue_vs_expense.view')
             <div class="xl:col-span-2 bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Revenue vs Expense ({{ $dashboardRange['label'] ?? 'Selected Range' }})</div>
@@ -118,7 +127,9 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
+            @can('dashboard.widget.due_students.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Students with Due Payments</div>
@@ -149,9 +160,11 @@
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+            @can('dashboard.widget.revenue_category_breakdown.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Revenue Category Breakdown</div>
@@ -160,7 +173,9 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
+            @can('dashboard.widget.expense_category_breakdown.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Expense Category Breakdown</div>
@@ -169,7 +184,9 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
+            @can('dashboard.widget.upcoming_teacher_payments.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Upcoming Teacher Salary Payments</div>
@@ -194,9 +211,11 @@
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+            @can('dashboard.widget.enrollment_trend.view')
             <div class="xl:col-span-2 bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Student Enrollment Trend (Last 12 Months)</div>
@@ -205,7 +224,9 @@
                     </div>
                 </div>
             </div>
+            @endcan
 
+            @can('dashboard.widget.notifications.view')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">System Notifications & Reminders</div>
@@ -218,8 +239,10 @@
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
 
+        @can('dashboard.widget.recent_activity.view')
         <div class="mt-6 bg-white overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6">
                 <div class="text-base font-semibold text-gray-900">Recent Financial Activity</div>
@@ -240,5 +263,6 @@
                 </div>
             </div>
         </div>
+        @endcan
     </div>
 </x-app-layout>

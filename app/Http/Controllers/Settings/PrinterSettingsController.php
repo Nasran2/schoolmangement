@@ -28,6 +28,7 @@ class PrinterSettingsController extends Controller
         app('settings')->setMany([
             'printer.slip.header' => $validated['slip_header'] ?? '',
             'printer.slip.footer' => $validated['slip_footer'] ?? '',
+            'printer.last_updated_at' => now()->toDateTimeString(),
         ], 'printer');
 
         return back()->with('status', 'Printer settings updated.');

@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\RevenueAdjustment;
+use App\Models\User;
 
 class Revenue extends Model
 {
@@ -47,8 +50,23 @@ class Revenue extends Model
     /**
      * Month-wise allocations for this revenue (monthly fee payments).
      */
-    public function allocations()
+    public function allocations(): HasMany
     {
         return $this->hasMany(StudentMonthFeeAllocation::class);
+    }
+
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(RevenueAdjustment::class);
+    }
+
+    public function refunds(): HasMany
+    {
+        return $this->adjustments()->where('type', 'refund');
+    }
+
+    public function waivers(): HasMany
+    {
+        return $this->adjustments()->where('type', 'waiver');
     }
 }

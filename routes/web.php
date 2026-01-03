@@ -10,7 +10,9 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Rbac\RoleController;
 use App\Http\Controllers\RevenueCategoryController;
 use App\Http\Controllers\RevenueController;
+use App\Http\Controllers\RevenueAdjustmentController;
 use App\Http\Controllers\StorageController;
+use App\Http\Controllers\Settings\BackupSettingsController;
 use App\Http\Controllers\Settings\GeneralSettingsController;
 use App\Http\Controllers\Settings\SalaryComponentSettingsController;
 use App\Http\Controllers\StudentController;
@@ -22,7 +24,12 @@ use Illuminate\Support\Facades\Route;
 //     return view('welcome');
 // });
 
-Route::get('/', DashboardController::class)->middleware(['auth'])->name('dashboard');
+Route::get('/', DashboardController::class)->middleware(['auth','permission:dashboard.view'])->name('dashboard');
+
+// Public storage fallback: serve /storage/* without needing symlink
+Route::get('/storage/{path}', [StorageController::class, 'show'])
+    ->where('path', '.*')
+    ->name('storage.show');
 
 Route::middleware('auth')->group(function () {
     Route::post('/academic-year', AcademicYearController::class)->name('academic-year.set');
@@ -39,12 +46,31 @@ Route::middleware('auth')->group(function () {
             ->middleware('permission:settings.manage')
             ->name('general.update');
 
+        Route::get('/status', [\App\Http\Controllers\Settings\SystemStatusController::class, 'index'])
+            ->middleware('permission:settings.manage')
+            ->name('status.index');
+
         Route::get('/sms', [\App\Http\Controllers\Settings\SmsSettingsController::class, 'edit'])
             ->middleware('permission:settings.manage')
             ->name('sms.edit');
         Route::put('/sms', [\App\Http\Controllers\Settings\SmsSettingsController::class, 'update'])
             ->middleware('permission:settings.manage')
             ->name('sms.update');
+
+        Route::post('/sms/test', [\App\Http\Controllers\Settings\SmsSettingsController::class, 'sendTest'])
+            ->middleware('permission:settings.manage')
+            ->name('sms.test');
+
+        Route::get('/email', [\App\Http\Controllers\Settings\EmailSettingsController::class, 'edit'])
+            ->middleware('permission:settings.manage')
+            ->name('email.edit');
+        Route::put('/email', [\App\Http\Controllers\Settings\EmailSettingsController::class, 'update'])
+            ->middleware('permission:settings.manage')
+            ->name('email.update');
+
+        Route::post('/email/test', [\App\Http\Controllers\Settings\EmailSettingsController::class, 'sendTest'])
+            ->middleware('permission:settings.manage')
+            ->name('email.test');
         Route::get('/printer', [\App\Http\Controllers\Settings\PrinterSettingsController::class, 'edit'])
             ->middleware('permission:settings.manage')
             ->name('printer.edit');
@@ -64,6 +90,22 @@ Route::middleware('auth')->group(function () {
         Route::put('/salary-components', [SalaryComponentSettingsController::class, 'update'])
             ->middleware('permission:settings.manage')
             ->name('salary-components.update');
+
+        Route::get('/backups', [BackupSettingsController::class, 'index'])
+            ->middleware('permission:settings.manage')
+            ->name('backups.index');
+        Route::put('/backups', [BackupSettingsController::class, 'updateConfig'])
+            ->middleware('permission:settings.manage')
+            ->name('backups.update');
+        Route::post('/backups/run', [BackupSettingsController::class, 'run'])
+            ->middleware('permission:settings.manage')
+            ->name('backups.run');
+        Route::get('/backups/{file}', [BackupSettingsController::class, 'download'])
+            ->middleware('permission:settings.manage')
+            ->name('backups.download');
+        Route::delete('/backups/{file}', [BackupSettingsController::class, 'destroy'])
+            ->middleware('permission:settings.manage')
+            ->name('backups.destroy');
     });
 
     Route::prefix('rbac')->name('rbac.')->middleware('permission:roles.manage')->group(function () {
@@ -76,9 +118,55 @@ Route::middleware('auth')->group(function () {
     Route::prefix('reports')->name('reports.')->middleware('permission:reports.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
 
-        Route::get('/revenue', [ReportController::class, 'revenue'])->name('revenue');
-        Route::get('/expense', [ReportController::class, 'expense'])->name('expense');
-        Route::get('/financial', [ReportController::class, 'financial'])->name('financial');
+        Route::get('/revenue', [ReportController::class, 'revenue'])
+            ->middleware('permission:reports.revenue.view')
+            ->name('revenue');
+        Route::get('/expense', [ReportController::class, 'expense'])
+            ->middleware('permission:reports.expense.view')
+            ->name('expense');
+        Route::get('/financial', [ReportController::class, 'financial'])
+            ->middleware('permission:reports.financial.view')
+            ->name('financial');
+
+        Route::get('/teacher/epf', [ReportController::class, 'teacherEpf'])
+            ->middleware('permission:reports.teacher_epf.view')
+            ->name('teacher_epf');
+        Route::get('/teacher/etf', [ReportController::class, 'teacherEtf'])
+            ->middleware('permission:reports.teacher_etf.view')
+            ->name('teacher_etf');
+        Route::get('/students/due', [ReportController::class, 'studentDue'])
+            ->middleware('permission:reports.student_due.view')
+            ->name('student_due');
+
+        // Fee-focused reports
+        Route::get('/fees/collection-summary', [ReportController::class, 'feeCollectionSummary'])
+            ->middleware('permission:reports.fee_collection_summary.view')
+            ->name('fee_collection_summary');
+        Route::get('/fees/collection-by-class', [ReportController::class, 'feeCollectionByClass'])
+            ->middleware('permission:reports.fee_collection_by_class.view')
+            ->name('fee_collection_by_class');
+        Route::get('/fees/collection-by-category', [ReportController::class, 'feeCollectionByCategory'])
+            ->middleware('permission:reports.fee_collection_by_category.view')
+            ->name('fee_collection_by_category');
+        Route::get('/fees/collection-vs-expected', [ReportController::class, 'feeCollectionVsExpected'])
+            ->middleware('permission:reports.fee_collection_vs_expected.view')
+            ->name('fee_collection_vs_expected');
+
+        // Student due insights
+        Route::get('/students/due-aging', [ReportController::class, 'studentDueAging'])
+            ->middleware('permission:reports.student_due_aging.view')
+            ->name('student_due_aging');
+        Route::get('/students/top-due', [ReportController::class, 'studentTopDue'])
+            ->middleware('permission:reports.student_top_due.view')
+            ->name('student_top_due');
+
+        // Placeholders (require extra tracking fields)
+        Route::get('/fees/discounts', [ReportController::class, 'feeDiscounts'])
+            ->middleware('permission:reports.fee_discounts.view')
+            ->name('fee_discounts');
+        Route::get('/fees/refunds', [ReportController::class, 'feeRefunds'])
+            ->middleware('permission:reports.fee_refunds.view')
+            ->name('fee_refunds');
     });
 
     // SMS sending endpoints
@@ -88,11 +176,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/sms/students/due', [\App\Http\Controllers\SmsController::class, 'sendDueStudents'])
         ->middleware('permission:sms.send.bulk')
         ->name('sms.students.due');
-    // Public storage fallback: serve /storage/* without needing symlink
-    Route::get('/storage/{path}', [StorageController::class, 'show'])
-        ->where('path', '.*')
-        ->name('storage.show');
-
     Route::post('/sms/classes/selected', [\App\Http\Controllers\SmsController::class, 'sendSelectedClasses'])
         ->middleware('permission:sms.send.selected_grades')
         ->name('sms.classes.selected');
@@ -100,6 +183,10 @@ Route::middleware('auth')->group(function () {
     Route::prefix('revenue')->name('revenue.')->group(function () {
         Route::resource('categories', RevenueCategoryController::class)
             ->middleware('permission:revenue.categories.manage');
+
+        Route::get('adjustments', [RevenueAdjustmentController::class, 'index'])
+            ->middleware('permission:revenue.manage')
+            ->name('adjustments.index');
 
         Route::get('items', [RevenueController::class, 'index'])
             ->middleware('permission:revenue.manage')
@@ -113,6 +200,12 @@ Route::middleware('auth')->group(function () {
         Route::post('items', [RevenueController::class, 'store'])
             ->middleware('permission:revenue.add')
             ->name('items.store');
+        Route::post('items/{item}/refund', [RevenueAdjustmentController::class, 'refund'])
+            ->middleware('permission:revenue.manage')
+            ->name('items.refund');
+        Route::post('items/{item}/waiver', [RevenueAdjustmentController::class, 'waiver'])
+            ->middleware('permission:revenue.manage')
+            ->name('items.waiver');
         // Preview allocation for monthly payments
         Route::post('items/preview-allocation', [RevenueController::class, 'previewAllocation'])
             ->middleware('permission:revenue.add')
@@ -132,6 +225,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/printer/revenue/{item}', [\App\Http\Controllers\PrinterSlipController::class, 'revenue'])
         ->middleware('permission:revenue.manage')
         ->name('printer.revenue');
+    Route::get('/printer/refund/{adjustment}', [\App\Http\Controllers\PrinterSlipController::class, 'refund'])
+        ->middleware('permission:revenue.manage')
+        ->name('printer.refund');
     Route::get('/printer/teacher-salary/{payment}', [\App\Http\Controllers\PrinterSlipController::class, 'teacher'])
         ->middleware('permission:teachers.salary.pay')
         ->name('printer.teacher');
@@ -222,6 +318,10 @@ Route::middleware('auth')->group(function () {
     Route::get('teacher-salary-payments/{teacherSalaryPayment}/payslip', [TeacherSalaryPaymentController::class, 'payslip'])
         ->middleware('permission:teachers.salary.pay')
         ->name('teacher-salary-payments.payslip');
+
+    Route::post('teacher-salary-payments/{teacherSalaryPayment}/email-payslip', [TeacherSalaryPaymentController::class, 'emailPayslip'])
+        ->middleware('permission:teachers.salary.pay')
+        ->name('teacher-salary-payments.email-payslip');
 
     Route::prefix('classrooms')->name('classrooms.')->group(function () {
         Route::get('/', [ClassRoomController::class, 'index'])

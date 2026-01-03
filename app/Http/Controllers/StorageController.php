@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Response;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -14,6 +15,12 @@ class StorageController extends Controller
      */
     public function show(string $path)
     {
+        // Basic traversal hardening
+        if ($path === '' || str_contains($path, '..') || str_starts_with($path, '/')) {
+            abort(404);
+        }
+
+        /** @var FilesystemAdapter $disk */
         $disk = Storage::disk('public');
         if (! $disk->exists($path)) {
             abort(404);
@@ -29,10 +36,22 @@ class StorageController extends Controller
             return response()->noContent(304);
         }
 
-        $content = $disk->get($path);
-        return response($content, 200)
-            ->header('Content-Type', $mime)
-            ->header('ETag', '"'.$etag.'"')
-            ->header('Last-Modified', gmdate('D, d M Y H:i:s', $lastModified).' GMT');
+        $stream = $disk->readStream($path);
+        if ($stream === false) {
+            abort(404);
+        }
+
+        return response()->stream(function () use ($stream) {
+            fpassthru($stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }, 200, [
+            'Content-Type' => $mime,
+            'ETag' => '"'.$etag.'"',
+            'Last-Modified' => gmdate('D, d M Y H:i:s', $lastModified).' GMT',
+            // Cache public assets; ETag supports revalidation
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
     }
 }

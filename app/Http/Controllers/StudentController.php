@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassRoom;
 use App\Models\Revenue;
+use App\Models\RevenueAdjustment;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -207,6 +208,8 @@ class StudentController extends Controller
     {
         $payments = Revenue::query()
             ->with(['category'])
+            ->withSum('refunds as refunded_amount', 'amount')
+            ->withSum('waivers as waived_amount', 'amount')
             ->where('student_id', $student->id);
 
         // Optional type filter: monthly | other
@@ -234,13 +237,19 @@ class StudentController extends Controller
 
             return response()->streamDownload(function () use ($rows) {
                 $out = fopen('php://output', 'w');
-                fputcsv($out, ['Bill No', 'Date', 'Category', 'Amount', 'Notes']);
+                fputcsv($out, ['Bill No', 'Date', 'Category', 'Amount', 'Refunded', 'Waived', 'Net Collected', 'Notes']);
                 foreach ($rows as $row) {
+                    $refunded = (float) ($row->refunded_amount ?? 0);
+                    $waived = (float) ($row->waived_amount ?? 0);
+                    $net = max(0.0, (float) $row->amount - $refunded);
                     fputcsv($out, [
                         $row->bill_no,
                         optional($row->paid_at)->format('Y-m-d'),
                         $row->category?->name,
                         $row->amount,
+                        $refunded,
+                        $waived,
+                        $net,
                         $row->notes,
                     ]);
                 }
@@ -271,22 +280,25 @@ class StudentController extends Controller
             // Normalize months to cycles length to avoid drift
             $monthsDue = count($cycles);
         }
-        $expectedDue = $monthlyFee * max(0, (int) $monthsDue);
-
-        $paidMonthlyFee = 0.0;
-        if ($monthlyCatId) {
-            $paidMonthlyFee = (float) Revenue::query()
-                ->where('student_id', $student->id)
-                ->where('revenue_category_id', $monthlyCatId)
-                ->sum('amount');
-        }
-        $netDue = max(0.0, ($monthlyFee * max(0, (int) $monthsDue)) - $paidMonthlyFee);
+        $expectedBase = $monthlyFee * max(0, (int) $monthsDue);
+        $paidMonthlyFeeNet = (float) $student->monthlyFeePaidAmount();
+        $waivedMonthlyFee = (float) $student->monthlyFeeWaiverAmount();
+        $expectedDueNet = max(0.0, $expectedBase - $waivedMonthlyFee);
+        $netDue = max(0.0, $expectedDueNet - $paidMonthlyFeeNet);
 
         $history = \App\Models\StudentPromotionHistory::query()
             ->with(['fromClassRoom','toClassRoom','performer'])
             ->where('student_id', $student->id)
             ->orderByDesc('created_at')
-            ->paginate(10);
+            ->paginate(10, ['*'], 'promotion_page')
+            ->withQueryString();
+
+        $adjustments = RevenueAdjustment::query()
+            ->with(['revenue.category', 'creator'])
+            ->where('student_id', $student->id)
+            ->orderByDesc('created_at')
+            ->paginate(10, ['*'], 'adjustments_page')
+            ->withQueryString();
 
         // Recent activity: last payments + promotions
         $recentRevenues = Revenue::query()
@@ -352,18 +364,20 @@ class StudentController extends Controller
 
         return view('students.show', [
             'student' => $student,
-            'payments' => $payments->paginate(15)->withQueryString(),
+            'payments' => $payments->paginate(15, ['*'], 'payments_page')->withQueryString(),
             'filters' => $request->only(['from', 'to']) + ['type' => $type],
             'dueBreakdown' => [
                 'monthlyFee' => $monthlyFee,
                 'startDate' => $student->fee_start_date,
                 'monthsDue' => $monthsDue,
-                'expectedDue' => $expectedDue,
-                'paidMonthlyFee' => $paidMonthlyFee,
+                'expectedDue' => $expectedDueNet,
+                'paidMonthlyFee' => $paidMonthlyFeeNet,
                 'netDue' => $netDue,
+                'waivedMonthlyFee' => $waivedMonthlyFee,
                 'cycles' => $cycles,
             ],
             'history' => $history,
+            'adjustments' => $adjustments,
             'recentActivities' => $recentActivities,
             'progress' => [
                 'monthsDueCount' => $monthsDueCount,

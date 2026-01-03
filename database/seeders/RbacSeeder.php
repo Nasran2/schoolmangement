@@ -13,6 +13,21 @@ class RbacSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
+            // Dashboard
+            'dashboard.view',
+            // Dashboard widgets
+            'dashboard.widget.total_revenue.view',
+            'dashboard.widget.total_expenses.view',
+            'dashboard.widget.net_profit.view',
+            'dashboard.widget.cash_flow.view',
+            'dashboard.widget.revenue_vs_expense.view',
+            'dashboard.widget.due_students.view',
+            'dashboard.widget.revenue_category_breakdown.view',
+            'dashboard.widget.expense_category_breakdown.view',
+            'dashboard.widget.upcoming_teacher_payments.view',
+            'dashboard.widget.enrollment_trend.view',
+            'dashboard.widget.notifications.view',
+            'dashboard.widget.recent_activity.view',
             // Settings
             'settings.manage',
 
@@ -62,6 +77,22 @@ class RbacSeeder extends Seeder
             // Reports (global)
             'reports.view',
             'reports.download',
+
+            // Reports (granular view)
+            'reports.revenue.view',
+            'reports.expense.view',
+            'reports.financial.view',
+            'reports.student_due.view',
+            'reports.student_due_aging.view',
+            'reports.student_top_due.view',
+            'reports.teacher_epf.view',
+            'reports.teacher_etf.view',
+            'reports.fee_collection_summary.view',
+            'reports.fee_collection_by_class.view',
+            'reports.fee_collection_by_category.view',
+            'reports.fee_collection_vs_expected.view',
+            'reports.fee_discounts.view',
+            'reports.fee_refunds.view',
 
             // RBAC
             'roles.manage',

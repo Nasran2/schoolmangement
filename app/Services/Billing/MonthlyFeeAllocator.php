@@ -3,6 +3,7 @@
 namespace App\Services\Billing;
 
 use App\Models\Revenue;
+use App\Models\RevenueAdjustment;
 use App\Models\Student;
 use App\Models\StudentMonthFeeAllocation;
 use Carbon\Carbon;
@@ -69,7 +70,11 @@ class MonthlyFeeAllocator
             foreach ($legacy as $rev) {
                 // Skip amounts that already have allocations
                 $allocatedSum = StudentMonthFeeAllocation::query()->where('revenue_id', $rev->id)->sum('applied_amount');
-                $remainingAmount = max(0.0, (float)$rev->amount - (float)$allocatedSum);
+                $refundedSum = (float) RevenueAdjustment::query()
+                    ->where('revenue_id', $rev->id)
+                    ->where('type', 'refund')
+                    ->sum('amount');
+                $remainingAmount = max(0.0, (float)$rev->amount - (float)$refundedSum - (float)$allocatedSum);
                 if ($remainingAmount <= 0) continue;
                 // Apply to oldest unpaid/partial months
                 foreach ($ledger as &$m) {

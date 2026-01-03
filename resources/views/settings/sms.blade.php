@@ -44,6 +44,43 @@
                             <x-primary-button>Save</x-primary-button>
                         </div>
                     </form>
+
+                    <div class="mt-8 border-t pt-6">
+                        <h3 class="text-base font-semibold text-gray-900">Send Test SMS</h3>
+                        <p class="mt-1 text-sm text-gray-600">
+                            @if($last_tested_at)
+                                Last test: <span class="font-medium text-gray-900">{{ $last_tested_at }}</span>
+                                @if($last_test_status)
+                                    (<span class="font-medium {{ $last_test_status === 'ok' ? 'text-green-700' : 'text-red-700' }}">{{ strtoupper($last_test_status) }}</span>)
+                                @endif
+                            @else
+                                No tests run yet.
+                            @endif
+                        </p>
+                        @if($last_test_status === 'failed' && $last_test_error)
+                            <p class="mt-2 text-sm text-red-700">{{ $last_test_error }}</p>
+                        @endif
+
+                        <form method="POST" action="{{ route('settings.sms.test') }}" class="mt-4 space-y-4">
+                            @csrf
+
+                            <div>
+                                <x-input-label for="test_phone" :value="__('Phone Number')" />
+                                <x-text-input id="test_phone" name="test_phone" type="text" class="mt-1 block w-full" :value="old('test_phone')" placeholder="e.g. 947XXXXXXXX" required />
+                                <x-input-error class="mt-2" :messages="$errors->get('test_phone')" />
+                            </div>
+
+                            <div>
+                                <x-input-label for="test_message" :value="__('Message (optional)')" />
+                                <x-text-input id="test_message" name="test_message" type="text" class="mt-1 block w-full" :value="old('test_message')" placeholder="Leave blank to use default test message" />
+                                <x-input-error class="mt-2" :messages="$errors->get('test_message')" />
+                            </div>
+
+                            <div class="flex items-center gap-4">
+                                <x-primary-button>Send Test SMS</x-primary-button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

@@ -23,6 +23,8 @@ class GeneralSettingsController extends Controller
             'school_email' => $settings->get('school.email', ''),
             'auto_print_receipt' => $settings->get('receipt.auto_print', '0'),
 
+            'auto_email_teacher_payslip' => $settings->get('salary.auto_email_payslip', '0'),
+
             'revenue_bill_autogenerate' => $settings->get('billing.revenue.autogenerate', '1'),
             'revenue_bill_prefix' => $settings->get('billing.revenue.prefix', 'BILL-'),
             'revenue_bill_start_number' => $settings->get('billing.revenue.start_number', '1000'),
@@ -41,6 +43,8 @@ class GeneralSettingsController extends Controller
             'school_phone' => ['nullable', 'string', 'max:20'],
             'school_email' => ['nullable', 'email', 'max:120'],
             'auto_print_receipt' => ['nullable', 'in:0,1'],
+
+            'auto_email_teacher_payslip' => ['nullable', 'in:0,1'],
 
             'revenue_bill_autogenerate' => ['nullable', 'in:0,1'],
             'revenue_bill_prefix' => ['nullable', 'string', 'max:20'],
@@ -70,6 +74,8 @@ class GeneralSettingsController extends Controller
             'school.phone' => $validated['school_phone'] ?? '',
             'school.email' => $validated['school_email'] ?? '',
             'receipt.auto_print' => $validated['auto_print_receipt'] ?? '0',
+
+            'salary.auto_email_payslip' => $validated['auto_email_teacher_payslip'] ?? '0',
 
             'billing.revenue.autogenerate' => $validated['revenue_bill_autogenerate'] ?? '0',
             'billing.revenue.prefix' => $validated['revenue_bill_prefix'] ?? '',

@@ -44,10 +44,27 @@ $isMonthly = $paymentType === 'monthly';
 $isAdmission = $paymentType === 'admission';
 $isFacilities = $paymentType === 'facilities';
 $isTerm = in_array($paymentType, ['term','semester','term_fee']);
-$
+
 $schoolName = $schoolInfo['name'] ?? config('app.name');
 $schoolAddress = $schoolInfo['address'] ?? '';
 $schoolPhone = $schoolInfo['phone'] ?? '';
+
+$refundedAmount = 0.0;
+$waivedAmount = 0.0;
+try {
+    $refundedAmount = (float) \App\Models\RevenueAdjustment::query()
+        ->where('revenue_id', $revenue->id)
+        ->where('type', 'refund')
+        ->sum('amount');
+    $waivedAmount = (float) \App\Models\RevenueAdjustment::query()
+        ->where('revenue_id', $revenue->id)
+        ->where('type', 'waiver')
+        ->sum('amount');
+} catch (\Exception $e) {
+    $refundedAmount = 0.0;
+    $waivedAmount = 0.0;
+}
+$netCollected = max(0.0, $amount - $refundedAmount);
 // Months covered by this receipt via allocations
 $coveredMonths = [];
 if (method_exists($revenue, 'allocations')) {
@@ -145,6 +162,16 @@ if (empty($studentAddress) && $student) {
             <span class="mx-2">of</span>
             <span class="inline-block border-b border-gray-800 min-w-[360px]">{{ $amountWords }}</span>
         </div>
+        @if($refundedAmount > 0 || $waivedAmount > 0)
+            <div class="text-xs">
+                @if($refundedAmount > 0)
+                    <div><span class="font-semibold">Refunded:</span> Rs {{ number_format($refundedAmount,2) }} &nbsp; <span class="font-semibold">Net Collected:</span> Rs {{ number_format($netCollected,2) }}</div>
+                @endif
+                @if($waivedAmount > 0)
+                    <div><span class="font-semibold">Waived:</span> Rs {{ number_format($waivedAmount,2) }}</div>
+                @endif
+            </div>
+        @endif
         <div>
             <span class="mr-2">Being payment for</span>
             <span class="inline-block border-b border-gray-800 min-w-[360px]">{{ $category->name ?? 'Fees' }}</span>
@@ -199,6 +226,13 @@ if (empty($studentAddress) && $student) {
                     <div class="flex justify-between"><span>{{ $category->name }} :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                 @endif
                 <div class="flex justify-between font-semibold"><span>Total :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                @if($refundedAmount > 0)
+                    <div class="flex justify-between"><span>Refunded :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($refundedAmount,2) }}</span></div>
+                    <div class="flex justify-between font-semibold"><span>Net Collected :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($netCollected,2) }}</span></div>
+                @endif
+                @if($waivedAmount > 0)
+                    <div class="flex justify-between"><span>Waived :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($waivedAmount,2) }}</span></div>
+                @endif
             </div>
             <div class="space-y-2">
                 <div class="flex items-center gap-4"><span>Grade</span><span class="inline-block border-b border-gray-800 min-w-[120px]">{{ $student?->classRoom?->name ?? $student?->class }}</span></div>

@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\TeacherPayslipMail;
 use App\Models\Teacher;
 use App\Models\TeacherSalaryPayment;
 use App\Services\SettingsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class TeacherSalaryPaymentController extends Controller
@@ -142,7 +145,55 @@ class TeacherSalaryPaymentController extends Controller
             'created_by' => $request->user()?->id,
         ]);
 
-        return redirect()->route('teacher-salary-payments.show', $payment)->with('status', 'Salary payment recorded successfully.');
+        $status = 'Salary payment recorded successfully.';
+
+        // Optionally email payslip automatically
+        $autoEmail = (string) $settings->get('salary.auto_email_payslip', '0');
+        if ($autoEmail === '1') {
+            try {
+                $teacher = $teacher ?? null;
+                if (! $teacher) {
+                    $teacher = Teacher::query()->find((int) $validated['teacher_id']);
+                }
+
+                if (! $teacher || ! $teacher->email) {
+                    $status .= ' Payslip not emailed (teacher email missing).';
+                } else {
+                    $host = (string) app('settings')->get('smtp.host', '');
+                    if ($host === '') {
+                        $status .= ' Payslip not emailed (SMTP not configured).';
+                    } else {
+                        $payment->load('teacher', 'creator');
+
+                        $html = view('teacher-salary-payments.payslip', [
+                            'payment' => $payment,
+                        ])->render();
+
+                        $pdf = Pdf::loadHTML($html)
+                            ->setPaper('a5')
+                            ->setOption('margin-top', 5)
+                            ->setOption('margin-bottom', 5)
+                            ->setOption('margin-left', 5)
+                            ->setOption('margin-right', 5);
+
+                        $binary = $pdf->output();
+                        $filename = 'payslip-' . $payment->receipt_number . '.pdf';
+
+                        Mail::to($teacher->email)->send(new TeacherPayslipMail($payment, $binary, $filename));
+                        $status .= ' Payslip emailed to ' . $teacher->email . '.';
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Auto email payslip failed', [
+                    'teacher_id' => (int) $validated['teacher_id'],
+                    'payment_id' => $payment->id,
+                    'error' => $e->getMessage(),
+                ]);
+                $status .= ' Payslip email failed (see logs).';
+            }
+        }
+
+        return redirect()->route('teacher-salary-payments.show', $payment)->with('status', $status);
     }
 
     /**
@@ -197,6 +248,42 @@ class TeacherSalaryPaymentController extends Controller
             ->setOption('margin-right', 5);
 
         return $pdf->download('payslip-' . $teacherSalaryPayment->receipt_number . '.pdf');
+    }
+
+    /**
+     * Email payslip PDF to teacher.
+     */
+    public function emailPayslip(Request $request, TeacherSalaryPayment $teacherSalaryPayment): RedirectResponse
+    {
+        $teacherSalaryPayment->load('teacher', 'creator');
+
+        $teacher = $teacherSalaryPayment->teacher;
+        if (! $teacher || ! $teacher->email) {
+            return back()->withErrors(['email' => 'Teacher email is missing. Please add an email for this teacher.']);
+        }
+
+        $host = (string) app('settings')->get('smtp.host', '');
+        if ($host === '') {
+            return back()->withErrors(['email' => 'SMTP is not configured. Please set Email (SMTP) settings first.']);
+        }
+
+        $html = view('teacher-salary-payments.payslip', [
+            'payment' => $teacherSalaryPayment,
+        ])->render();
+
+        $pdf = Pdf::loadHTML($html)
+            ->setPaper('a5')
+            ->setOption('margin-top', 5)
+            ->setOption('margin-bottom', 5)
+            ->setOption('margin-left', 5)
+            ->setOption('margin-right', 5);
+
+        $binary = $pdf->output();
+        $filename = 'payslip-' . $teacherSalaryPayment->receipt_number . '.pdf';
+
+        Mail::to($teacher->email)->send(new TeacherPayslipMail($teacherSalaryPayment, $binary, $filename));
+
+        return back()->with('status', 'Payslip emailed to '.$teacher->email.'.');
     }
 
     /**

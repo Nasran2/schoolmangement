@@ -36,67 +36,114 @@ function makeSparkline(ctx, labels, data) {
     });
 }
 
+function hasAnyValue(arr) {
+    if (!Array.isArray(arr) || arr.length === 0) return false;
+    return arr.some((v) => {
+        const n = Number(v);
+        return Number.isFinite(n) && n !== 0;
+    });
+}
+
+function showEmptyState(canvasEl, message) {
+    if (!canvasEl) return;
+    const container = canvasEl.parentElement;
+    if (!container) return;
+    container.innerHTML = `<div class="flex h-full items-center justify-center text-sm text-gray-500">${message}</div>`;
+}
+
 export function initDashboardCharts() {
     const data = readDashboardData();
     if (!data) return;
 
     const cashFlowCanvas = document.getElementById('cashflowChart');
     if (cashFlowCanvas) {
-        makeSparkline(cashFlowCanvas.getContext('2d'), data.cashFlow.labels, data.cashFlow.data);
+        const labels = data?.cashFlow?.labels || [];
+        const series = data?.cashFlow?.data || [];
+        if (!Array.isArray(labels) || labels.length === 0 || !hasAnyValue(series)) {
+            showEmptyState(cashFlowCanvas, 'No cash flow data for the selected range.');
+        } else {
+            makeSparkline(cashFlowCanvas.getContext('2d'), labels, series);
+        }
     }
 
     const monthlyCanvas = document.getElementById('monthlyBarChart');
     if (monthlyCanvas) {
-        new Chart(monthlyCanvas.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels: data.monthly.labels,
-                datasets: [
-                    { label: 'Revenue', data: data.monthly.revenue },
-                    { label: 'Expense', data: data.monthly.expense },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } },
-            },
-        });
+        const labels = data?.monthly?.labels || [];
+        const revenue = data?.monthly?.revenue || [];
+        const expense = data?.monthly?.expense || [];
+
+        if (!Array.isArray(labels) || labels.length === 0 || (!hasAnyValue(revenue) && !hasAnyValue(expense))) {
+            showEmptyState(monthlyCanvas, 'No revenue/expense data for the selected range.');
+        } else {
+            new Chart(monthlyCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'Revenue', data: revenue },
+                        { label: 'Expense', data: expense },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                },
+            });
+        }
     }
 
     const revDonut = document.getElementById('revDonut');
     if (revDonut) {
-        new Chart(revDonut.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: data.revCats.labels,
-                datasets: [{ data: data.revCats.data }],
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
-        });
+        const labels = data?.revCats?.labels || [];
+        const series = data?.revCats?.data || [];
+        if (!Array.isArray(labels) || labels.length === 0 || !hasAnyValue(series)) {
+            showEmptyState(revDonut, 'No revenue breakdown data for the selected range.');
+        } else {
+            new Chart(revDonut.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{ data: series }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
+            });
+        }
     }
 
     const expDonut = document.getElementById('expDonut');
     if (expDonut) {
-        new Chart(expDonut.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: data.expCats.labels,
-                datasets: [{ data: data.expCats.data }],
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
-        });
+        const labels = data?.expCats?.labels || [];
+        const series = data?.expCats?.data || [];
+        if (!Array.isArray(labels) || labels.length === 0 || !hasAnyValue(series)) {
+            showEmptyState(expDonut, 'No expense breakdown data for the selected range.');
+        } else {
+            new Chart(expDonut.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{ data: series }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
+            });
+        }
     }
 
     const enrollLine = document.getElementById('enrollmentLine');
     if (enrollLine) {
-        new Chart(enrollLine.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels: data.enroll.labels,
-                datasets: [{ label: 'Enrollments', data: data.enroll.data, tension: 0.35 }],
-            },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
-        });
+        const labels = data?.enroll?.labels || [];
+        const series = data?.enroll?.data || [];
+        if (!Array.isArray(labels) || labels.length === 0 || !hasAnyValue(series)) {
+            showEmptyState(enrollLine, 'No enrollment trend data available.');
+        } else {
+            new Chart(enrollLine.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{ label: 'Enrollments', data: series, tension: 0.35 }],
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
+            });
+        }
     }
 }

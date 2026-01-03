@@ -21,6 +21,17 @@
                     </svg>
                     Print Payslip
                 </a>
+
+                <form method="POST" action="{{ route('teacher-salary-payments.email-payslip', $payment) }}">
+                    @csrf
+                    <button type="submit"
+                        class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+                        </svg>
+                        Send Payslip Email
+                    </button>
+                </form>
                 <a href="{{ route('teacher-salary-payments.index') }}" 
                    class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition">
                     ← Back

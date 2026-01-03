@@ -438,16 +438,27 @@
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Category</th>
                                         <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Refunded</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Waived</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Net</th>
                                         <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 bg-white">
                                     @forelse ($payments as $p)
+                                        @php
+                                            $refunded = (float) ($p->refunded_amount ?? 0);
+                                            $waived = (float) ($p->waived_amount ?? 0);
+                                            $net = max(0.0, (float) $p->amount - $refunded);
+                                        @endphp
                                         <tr class="hover:bg-gray-50 transition-colors">
                                             <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $p->bill_no ?? '-' }}</td>
                                             <td class="px-4 py-3 text-sm text-gray-700">{{ optional($p->paid_at)->format('Y-m-d') }}</td>
                                             <td class="px-4 py-3 text-sm text-gray-700">{{ $p->category?->name ?? '-' }}</td>
                                             <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ number_format((float) $p->amount, 2) }}</td>
+                                            <td class="px-4 py-3 text-sm text-right font-semibold {{ $refunded > 0 ? 'text-rose-700' : 'text-gray-500' }}">{{ number_format($refunded, 2) }}</td>
+                                            <td class="px-4 py-3 text-sm text-right font-semibold {{ $waived > 0 ? 'text-indigo-700' : 'text-gray-500' }}">{{ number_format($waived, 2) }}</td>
+                                            <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ number_format($net, 2) }}</td>
                                             <td class="px-4 py-3 text-sm text-right">
                                                 <div class="inline-flex items-center gap-3 text-gray-500">
                                                     <a href="{{ route('revenue.items.receipt', $p) }}" class="hover:text-indigo-600" title="Print / View Receipt">
@@ -461,13 +472,20 @@
                                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A1.25 1.25 0 0116.75 20H5.25A1.25 1.25 0 014 18.75V7.25A1.25 1.25 0 015.25 6H10" />
                                                             </svg>
                                                         </a>
+                                                        @if(!empty($p->bill_no))
+                                                            <a href="{{ route('revenue.adjustments.index', ['bill_no' => $p->bill_no]) }}" class="hover:text-indigo-600" title="Refund / Waiver">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                                                </svg>
+                                                            </a>
+                                                        @endif
                                                     @endcan
                                                 </div>
                                             </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="5">No payments found.</td>
+                                            <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="8">No payments found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -475,6 +493,77 @@
                         </div>
 
                         <div class="mt-4">{{ $payments->links() }}</div>
+                    </div>
+
+                    <!-- Refund / Waiver History -->
+                    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                        <div class="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Refund / Waiver History</h3>
+                                <p class="text-sm text-gray-600 mt-1">All refund and waiver adjustments for this student</p>
+                            </div>
+                            @can('revenue.manage')
+                                <a href="{{ route('revenue.adjustments.index', ['q' => $student->admission_number ?: $student->name]) }}" class="inline-flex items-center gap-2 px-3 py-2 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-200 hover:bg-gray-50">
+                                    Open Refund / Waiver
+                                </a>
+                            @endcan
+                        </div>
+
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Type</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Reason</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">By</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white">
+                                    @forelse($adjustments as $a)
+                                        <tr class="hover:bg-gray-50 transition-colors">
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($a->created_at)->format('Y-m-d') }}</td>
+                                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $a->revenue?->bill_no ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-sm">
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $a->type === 'refund' ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700' }}">
+                                                    {{ ucfirst($a->type) }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-right font-semibold {{ $a->type === 'refund' ? 'text-rose-700' : 'text-indigo-700' }}">{{ number_format((float) $a->amount, 2) }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ $a->reason ?: '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ $a->creator?->name ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-right">
+                                                <div class="inline-flex items-center gap-3 text-gray-500">
+                                                    @if($a->revenue)
+                                                        <a href="{{ route('revenue.items.receipt', $a->revenue) }}" class="hover:text-indigo-600" title="View Receipt">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+                                                            </svg>
+                                                        </a>
+                                                    @endif
+                                                    @if($a->type === 'refund')
+                                                        <a href="{{ route('printer.refund', $a) }}" class="hover:text-indigo-600" title="Print Refund Slip">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2.25A.75.75 0 016.75 1.5h10.5a.75.75 0 01.75.75V9m-12 0h12m-12 0a3 3 0 00-3 3v5.25A.75.75 0 003.75 21h16.5a.75.75 0 00.75-.75V12a3 3 0 00-3-3m-12 8.25h12V14.25H6v3z" />
+                                                            </svg>
+                                                        </a>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="7">No refund/waiver adjustments found.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">{{ $adjustments->links() }}</div>
                     </div>
 
                     <!-- Promotion History -->

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\SettingsService;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -20,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \App\Console\Commands\AutoPromoteStudents::class,
+                \App\Console\Commands\RunDailyBackup::class,
             ]);
         }
     }
@@ -29,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->applyMailSettings();
         View::share('schoolName', app('settings')->get('school.name', config('app.name')));
 
         $defaultYear = app('settings')->get('school.academic_year', date('Y').'-'.(date('Y') + 1));
@@ -47,5 +50,54 @@ class AppServiceProvider extends ServiceProvider
 
         View::share('selectedAcademicYear', $selectedYear);
         View::share('availableAcademicYears', $years);
+    }
+
+    private function applyMailSettings(): void
+    {
+        if (! Schema::hasTable('settings')) {
+            return;
+        }
+
+        $s = app('settings');
+
+        $host = (string) $s->get('smtp.host', '');
+        if ($host === '') {
+            return;
+        }
+
+        $port = (int) ($s->get('smtp.port', '0') ?: 0);
+        $username = (string) $s->get('smtp.username', '');
+        $password = (string) $s->get('smtp.password', '');
+        $encryption = (string) $s->get('smtp.encryption', '');
+
+        $scheme = null;
+        if ($encryption === 'ssl') {
+            $scheme = 'smtps';
+        }
+        if ($encryption === 'tls') {
+            $scheme = 'smtp';
+        }
+
+        config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.url' => null,
+            'mail.mailers.smtp.host' => $host,
+            'mail.mailers.smtp.port' => $port > 0 ? $port : 587,
+            'mail.mailers.smtp.username' => $username !== '' ? $username : null,
+            'mail.mailers.smtp.password' => $password !== '' ? $password : null,
+            'mail.mailers.smtp.scheme' => $scheme,
+            // Avoid long hangs when host/port is unreachable.
+            'mail.mailers.smtp.timeout' => 15,
+        ]);
+
+        $fromAddress = (string) $s->get('smtp.from.address', $s->get('school.email', ''));
+        $fromName = (string) $s->get('smtp.from.name', $s->get('school.name', config('app.name')));
+
+        if ($fromAddress !== '') {
+            config([
+                'mail.from.address' => $fromAddress,
+                'mail.from.name' => $fromName,
+            ]);
+        }
     }
 }

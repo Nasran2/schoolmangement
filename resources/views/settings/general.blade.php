@@ -82,12 +82,26 @@
                             <p class="mt-1 text-sm text-gray-600">Configure receipt printing behavior.</p>
                             <div class="mt-4">
                                 <label class="inline-flex items-center gap-2">
+                                    <input type="hidden" name="auto_print_receipt" value="0" />
                                     <input type="checkbox" name="auto_print_receipt" value="1" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ old('auto_print_receipt', $auto_print_receipt ?? false) == '1' ? 'checked' : '' }} />
                                     <span class="text-sm text-gray-800">Automatically print receipt after saving payment</span>
                                 </label>
-                                <input type="hidden" name="auto_print_receipt" value="0" />
                                 <p class="mt-1 text-xs text-gray-500">When enabled, the receipt will automatically open in print dialog after saving a payment.</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('auto_print_receipt')" />
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-6">
+                            <h3 class="text-base font-semibold text-gray-900">Teacher Salary Payments</h3>
+                            <p class="mt-1 text-sm text-gray-600">Configure behavior after recording teacher salary payments.</p>
+                            <div class="mt-4">
+                                <label class="inline-flex items-center gap-2">
+                                    <input type="hidden" name="auto_email_teacher_payslip" value="0" />
+                                    <input type="checkbox" name="auto_email_teacher_payslip" value="1" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ old('auto_email_teacher_payslip', $auto_email_teacher_payslip ?? false) == '1' ? 'checked' : '' }} />
+                                    <span class="text-sm text-gray-800">Automatically email payslip to teacher after saving salary payment</span>
+                                </label>
+                                <p class="mt-1 text-xs text-gray-500">Requires Email (SMTP) settings and a teacher email address.</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('auto_email_teacher_payslip')" />
                             </div>
                         </div>
 
@@ -97,10 +111,10 @@
 
                             <div class="mt-4">
                                 <label class="inline-flex items-center gap-2">
+                                    <input type="hidden" name="revenue_bill_autogenerate" value="0" />
                                     <input type="checkbox" name="revenue_bill_autogenerate" value="1" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ old('revenue_bill_autogenerate', $revenue_bill_autogenerate) == '1' ? 'checked' : '' }} />
                                     <span class="text-sm text-gray-800">Auto-generate bill number</span>
                                 </label>
-                                <input type="hidden" name="revenue_bill_autogenerate" value="0" />
                                 <x-input-error class="mt-2" :messages="$errors->get('revenue_bill_autogenerate')" />
                             </div>
 

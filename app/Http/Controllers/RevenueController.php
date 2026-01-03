@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Revenue;
+use App\Models\RevenueAdjustment;
 use App\Models\RevenueCategory;
 use App\Models\Setting;
 use App\Models\ClassRoom;
 use App\Models\Student;
+use App\Services\AuditLogger;
 use App\Services\Billing\BillNumberService;
 use App\Services\Billing\MonthlyFeeAllocator;
 use Illuminate\Http\RedirectResponse;
@@ -170,6 +172,18 @@ class RevenueController extends Controller
             'created_by' => $request->user()?->id,
         ]);
 
+        app(AuditLogger::class)->log(
+            'revenue.create',
+            $revenue,
+            'Revenue created',
+            [
+                'bill_no' => $revenue->bill_no,
+                'amount' => (float) $revenue->amount,
+                'student_id' => $revenue->student_id,
+                'revenue_category_id' => $revenue->revenue_category_id,
+            ]
+        );
+
         // Persist allocations if monthly
         if ($student && $result && !empty($result['allocations'])) {
             foreach ($result['allocations'] as $a) {
@@ -265,6 +279,18 @@ class RevenueController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
+        app(AuditLogger::class)->log(
+            'revenue.update',
+            $item,
+            'Revenue updated',
+            [
+                'bill_no' => $item->bill_no,
+                'amount' => (float) $item->amount,
+                'student_id' => $item->student_id,
+                'revenue_category_id' => $item->revenue_category_id,
+            ]
+        );
+
         return back()->with('status', 'Revenue updated.');
     }
 
@@ -273,6 +299,26 @@ class RevenueController extends Controller
      */
     public function destroy(Revenue $item): RedirectResponse
     {
+        $hasAdjustments = RevenueAdjustment::query()
+            ->where('revenue_id', $item->id)
+            ->exists();
+
+        if ($hasAdjustments) {
+            return redirect()->route('revenue.items.index')->withErrors([
+                'delete' => 'Cannot delete this revenue because it has refund/waiver adjustments.',
+            ]);
+        }
+
+        app(AuditLogger::class)->log(
+            'revenue.delete',
+            $item,
+            'Revenue deleted',
+            [
+                'bill_no' => $item->bill_no,
+                'amount' => (float) $item->amount,
+            ]
+        );
+
         $item->delete();
 
         return redirect()->route('revenue.items.index')->with('status', 'Revenue deleted.');

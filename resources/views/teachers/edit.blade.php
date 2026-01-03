@@ -347,8 +347,9 @@
 
                     <!-- Status Section -->
                     <div class="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
-                        <div class="flex items-center">
-                            <div class="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
+                        <label class="flex items-start sm:items-center gap-3 cursor-pointer select-none w-full">
+                            <input type="hidden" name="active" value="0" />
+                            <span class="relative inline-block w-12 h-6 bg-gray-300 rounded-full shrink-0 mt-0.5 sm:mt-0">
                                 <input 
                                     type="checkbox" 
                                     id="active" 
@@ -360,13 +361,12 @@
                                 >
                                 <div class="absolute inset-0 rounded-full bg-gradient-to-r from-green-400 to-green-600 opacity-0 peer-checked:opacity-100 transition-opacity duration-300"></div>
                                 <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full peer-checked:left-7 transition-all duration-300"></div>
-                            </div>
-                            <label for="active" class="ml-3 font-medium text-gray-800 cursor-pointer">
+                            </span>
+                            <span class="font-medium text-gray-800">
                                 Teacher Status: <span id="status-label" class="{{ old('active', $teacher->active ? '1' : '0') === '1' ? 'text-green-600' : 'text-red-600' }} font-bold">{{ old('active', $teacher->active ? '1' : '0') === '1' ? 'Active' : 'Inactive' }}</span>
-                            </label>
-                        </div>
-                        <p class="text-gray-500 text-xs mt-2 ml-12">Toggle to mark teacher as active or inactive</p>
-                        <input type="hidden" name="active" value="0" />
+                            </span>
+                        </label>
+                        <p class="text-gray-500 text-xs mt-2 ml-0 sm:ml-12">Toggle to mark teacher as active or inactive</p>
                     </div>
 
                     <!-- Form Actions -->
@@ -541,11 +541,4 @@
             document.getElementById('salary_amount').value = total.toFixed(2);
         }
     </script>
-</x-app-layout>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 </x-app-layout>
