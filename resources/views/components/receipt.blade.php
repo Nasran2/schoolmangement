@@ -122,13 +122,15 @@ if (empty($studentAddress) && $student) {
         <div>
             <div class="flex items-center gap-3">
                 @if(!empty($schoolLogoDataUri))
-                    <img src="{{ $schoolLogoDataUri }}" alt="Logo" class="h-10 w-10 object-contain" />
+                    <img src="{{ $schoolLogoDataUri }}" alt="Logo" class="h-12 w-12 object-contain" />
                 @endif
-                <h1 class="text-2xl font-extrabold uppercase">{{ $schoolName }}</h1>
+                <div class="leading-tight">
+                    @if($schoolAddress)
+                        <div class="text-xl font-extrabold uppercase">{{ $schoolAddress }}</div>
+                    @endif
+                    <div class="text-xl font-extrabold uppercase">{{ $schoolName }}</div>
+                </div>
             </div>
-            @if($schoolAddress)
-                <p class="text-sm">{{ $schoolAddress }}</p>
-            @endif
             @if($schoolPhone)
                 <p class="text-sm">Tel: {{ $schoolPhone }}</p>
             @endif

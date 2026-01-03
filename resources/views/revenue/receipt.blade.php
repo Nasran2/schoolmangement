@@ -35,6 +35,7 @@
                 :student="$revenue->student"
                 :category="$revenue->category"
                 :schoolInfo="$schoolInfo"
+                :schoolLogoDataUri="$schoolLogoDataUri"
             />
         </div>
     </div>

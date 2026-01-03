@@ -1,49 +1,85 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    <meta charset="utf-8" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Student Payment Slip</title>
-    <style>
-        body { font-family: ui-sans-serif, system-ui; }
-        .container { max-width: 640px; margin: 0 auto; }
-        .section { margin-top: 16px; }
-        .muted { color: #4b5563; }
-        .border { border: 1px solid #e5e7eb; padding: 12px; border-radius: 6px; }
-    </style>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script>window.onload = function() { window.print(); };</script>
     {!! $slipHeader !!}
 </head>
-<body>
-<div class="container">
-    <h2>Payment Slip</h2>
-    <div class="muted">{{ $schoolName ?? config('app.name') }}</div>
+<body class="bg-white font-sans text-gray-900 antialiased p-8">
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-1">Payment Slip</h2>
+        <div class="text-gray-600 mb-6">{{ $schoolName ?? config('app.name') }}</div>
 
-    <div class="section border">
-        <div><strong>Bill No:</strong> {{ $item->bill_no }}</div>
-        <div><strong>Paid Date:</strong> {{ optional($item->paid_at)->format('Y-m-d') }}</div>
-        <div><strong>Category:</strong> {{ $item->category?->name }}</div>
-        @if($item->student)
-            <div><strong>Admission No:</strong> {{ $item->student->admission_number }}</div>
-            <div><strong>Student:</strong> {{ $item->student->name }}</div>
-            <div><strong>Class/Year:</strong> {{ $item->student->classRoom?->name ?? $item->student->class }} / {{ $item->student->year }}</div>
-            <div><strong>Guardian:</strong> {{ $item->student->guardian_name }} {{ $item->student->guardian_phone ? '(' . $item->student->guardian_phone . ')' : '' }}</div>
-            <div><strong>Address:</strong> {{ $item->student->address }}</div>
-        @endif
-        <div><strong>Amount:</strong> {{ number_format((float) $item->amount, 2) }}</div>
-        @php $isMonthly = $item->student && $item->student->monthlyFeeCategoryId() && $item->student->monthlyFeeCategoryId() == $item->revenue_category_id; @endphp
-        @if($isMonthly)
-            <div><strong>Payment Type:</strong> Monthly Fee</div>
-            <div><strong>Payment Month:</strong> {{ optional($item->paid_at)->format('F Y') }}</div>
-        @endif
-        @if($item->student)
-            <div><strong>Current Due (after payment):</strong> {{ number_format((float) $item->student->computed_due_amount, 2) }}</div>
-        @endif
-        <div><strong>Notes:</strong> {{ $item->notes }}</div>
-    </div>
+        <div class="border border-gray-200 rounded-lg p-6 space-y-2">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="font-bold">Bill No:</div>
+                <div class="col-span-2">{{ $item->bill_no }}</div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="font-bold">Paid Date:</div>
+                <div class="col-span-2">{{ optional($item->paid_at)->format('Y-m-d') }}</div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="font-bold">Category:</div>
+                <div class="col-span-2">{{ $item->category?->name }}</div>
+            </div>
+            @if($item->student)
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="font-bold">Admission No:</div>
+                    <div class="col-span-2">{{ $item->student->admission_number }}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="font-bold">Student:</div>
+                    <div class="col-span-2">{{ $item->student->name }}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="font-bold">Class/Year:</div>
+                    <div class="col-span-2">{{ $item->student->classRoom?->name ?? $item->student->class }} / {{ $item->student->year }}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="font-bold">Guardian:</div>
+                    <div class="col-span-2">{{ $item->student->guardian_name }} {{ $item->student->guardian_phone ? '(' . $item->student->guardian_phone . ')' : '' }}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="font-bold">Address:</div>
+                    <div class="col-span-2">{{ $item->student->address }}</div>
+                </div>
+            @endif
+            <div class="grid grid-cols-3 gap-4">
+                <div class="font-bold">Amount:</div>
+                <div class="col-span-2 font-bold text-lg">{{ number_format((float) $item->amount, 2) }}</div>
+            </div>
+            @php $isMonthly = $item->student && $item->student->monthlyFeeCategoryId() && $item->student->monthlyFeeCategoryId() == $item->revenue_category_id; @endphp
+            @if($isMonthly)
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="font-bold">Payment Type:</div>
+                    <div class="col-span-2">Monthly Fee</div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="font-bold">Payment Month:</div>
+                    <div class="col-span-2">{{ optional($item->paid_at)->format('F Y') }}</div>
+                </div>
+            @endif
+            @if($item->student)
+                <div class="grid grid-cols-3 gap-4 border-t border-gray-100 pt-2 mt-2">
+                    <div class="font-bold">Current Due:</div>
+                    <div class="col-span-2 text-red-600 font-semibold">{{ number_format((float) $item->student->computed_due_amount, 2) }} <span class="text-xs text-gray-500 font-normal">(after payment)</span></div>
+                </div>
+            @endif
+            @if($item->notes)
+                <div class="grid grid-cols-3 gap-4 border-t border-gray-100 pt-2 mt-2">
+                    <div class="font-bold">Notes:</div>
+                    <div class="col-span-2 text-gray-600 italic">{{ $item->notes }}</div>
+                </div>
+            @endif
+        </div>
 
-    <div class="section">
-        {!! $slipFooter !!}
+        <div class="mt-6">
+            {!! $slipFooter !!}
+        </div>
     </div>
-</div>
 </body>
 </html>

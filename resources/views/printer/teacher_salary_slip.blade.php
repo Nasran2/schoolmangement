@@ -1,33 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
-    <meta charset="utf-8" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Teacher Salary Slip</title>
-    <style>
-        body { font-family: ui-sans-serif, system-ui; }
-        .container { max-width: 640px; margin: 0 auto; }
-        .section { margin-top: 16px; }
-        .muted { color: #4b5563; }
-        .border { border: 1px solid #e5e7eb; padding: 12px; border-radius: 6px; }
-    </style>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script>window.onload = function() { window.print(); };</script>
     {!! $slipHeader !!}
 </head>
-<body>
-<div class="container">
-    <h2>Salary Payment Slip</h2>
-    <div class="muted">{{ $schoolName ?? config('app.name') }}</div>
+<body class="bg-white font-sans text-gray-900 antialiased p-8">
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-1">Salary Payment Slip</h2>
+        <div class="text-gray-600 mb-6">{{ $schoolName ?? config('app.name') }}</div>
 
-    <div class="section border">
-        <div><strong>Teacher:</strong> {{ $payment->teacher?->name }}</div>
-        <div><strong>Date:</strong> {{ optional($payment->paid_at)->format('Y-m-d') }}</div>
-        <div><strong>Amount:</strong> {{ number_format((float) $payment->amount, 2) }}</div>
-        <div><strong>Notes:</strong> {{ $payment->notes }}</div>
-    </div>
+        <div class="border border-gray-200 rounded-lg p-6 space-y-2">
+            <div class="grid grid-cols-3 gap-4">
+                <div class="font-bold">Teacher:</div>
+                <div class="col-span-2">{{ $payment->teacher?->name }}</div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="font-bold">Date:</div>
+                <div class="col-span-2">{{ optional($payment->paid_at)->format('Y-m-d') }}</div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div class="font-bold">Amount:</div>
+                <div class="col-span-2 font-bold text-lg">{{ number_format((float) $payment->amount, 2) }}</div>
+            </div>
+            @if($payment->notes)
+                <div class="grid grid-cols-3 gap-4 border-t border-gray-100 pt-2 mt-2">
+                    <div class="font-bold">Notes:</div>
+                    <div class="col-span-2 text-gray-600 italic">{{ $payment->notes }}</div>
+                </div>
+            @endif
+        </div>
 
-    <div class="section">
-        {!! $slipFooter !!}
+        <div class="mt-6">
+            {!! $slipFooter !!}
+        </div>
     </div>
-</div>
 </body>
 </html>
