@@ -17,6 +17,9 @@ class TeacherSalaryPayment extends Model
         'payment_month',
         'receipt_number',
         'payment_method',
+        'bank_name',
+        'bank_branch',
+        'bank_account_no',
         'notes',
         'created_by',
     ];

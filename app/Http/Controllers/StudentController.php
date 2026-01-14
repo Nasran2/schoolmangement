@@ -6,13 +6,42 @@ use App\Models\ClassRoom;
 use App\Models\Revenue;
 use App\Models\RevenueAdjustment;
 use App\Models\Student;
+use App\Models\StudentPromotionHistory;
+use App\Models\StudentMonthlyFeeOverride;
+use App\Services\AuditLogger;
+use App\Services\Billing\MonthlyFeeAllocator;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Auth;
 
 class StudentController extends Controller
 {
+    private function computeNetDue(Student $student): float
+    {
+        if (! $student->fee_start_date) {
+            return 0.0;
+        }
+
+        $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
+        $ledger = $allocator->buildLedger($student, 0);
+        if (empty($ledger)) {
+            return 0.0;
+        }
+
+        $expectedBase = 0.0;
+        foreach ($ledger as $m) {
+            $expectedBase += (float) ($m['due'] ?? 0);
+        }
+        $paidMonthlyFeeNet = (float) $student->monthlyFeePaidAmount();
+        $waivedMonthlyFee = (float) $student->monthlyFeeWaiverAmount();
+        $expectedDueNet = max(0.0, $expectedBase - $waivedMonthlyFee);
+
+        return max(0.0, $expectedDueNet - $paidMonthlyFeeNet);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -34,10 +63,232 @@ class StudentController extends Controller
             });
         }
 
+        // Optional status filter: all | active | inactive | alumni
+        $status = (string) $request->query('status', 'all');
+        if ($status === 'active') {
+            $query->where('alumni', false)->where('active', true);
+        } elseif ($status === 'inactive') {
+            $query->where('alumni', false)->where('active', false);
+        } elseif ($status === 'alumni') {
+            $query->where('alumni', true);
+        } else {
+            // Default "all" excludes alumni by default as they have their own section
+            $query->where('alumni', false);
+        }
+
         return view('students.index', [
             'students' => $query->orderBy('name')->paginate(15)->withQueryString(),
-            'filters' => $request->only(['q']),
+            'filters' => $request->only(['q']) + ['status' => $status],
         ]);
+    }
+
+    /** Dedicated Alumni listing with optional CSV export */
+    public function alumni(Request $request)
+    {
+        $query = Student::query()->with('classRoom')->where('alumni', true);
+
+        if ($request->filled('q')) {
+            $q = '%'.$request->string('q').'%';
+            $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'like', $q)
+                    ->orWhere('phone', 'like', $q)
+                    ->orWhere('admission_number', 'like', $q)
+                    ->orWhere('class', 'like', $q)
+                    ->orWhere('year', 'like', $q)
+                    ->orWhereHas('classRoom', function ($sub2) use ($q) {
+                        $sub2->where('name', 'like', $q);
+                    });
+            });
+        }
+
+        $leavingDocs = (string) $request->query('leaving_docs', 'all');
+        if ($leavingDocs === 'issued') {
+            $query->where('leaving_docs_issued', true);
+        } elseif ($leavingDocs === 'not_issued') {
+            $query->where('leaving_docs_issued', false);
+        }
+
+        if ($request->boolean('download')) {
+            $rows = $query->orderBy('name')->get(['id','admission_number','name','phone','class_room_id','class','joining_date','leaving_docs_issued']);
+            return response()->streamDownload(function () use ($rows) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, ['Admission No', 'Student', 'Phone', 'Class', 'Joining Date', 'Leaving Docs Issued']);
+                foreach ($rows as $s) {
+                    $className = optional($s->classRoom)->name ?? $s->class;
+                    fputcsv($out, [
+                        $s->admission_number,
+                        $s->name,
+                        $s->phone,
+                        $className,
+                        optional($s->joining_date)->format('Y-m-d'),
+                        $s->leaving_docs_issued ? 'Yes' : 'No',
+                    ]);
+                }
+                fclose($out);
+            }, 'alumni-'.date('Ymd-His').'.csv', ['Content-Type' => 'text/csv']);
+        }
+
+        return view('students.alumni', [
+            'students' => $query->orderBy('name')->paginate(15)->withQueryString(),
+            'filters' => $request->only(['q']) + ['leaving_docs' => $leavingDocs],
+        ]);
+    }
+
+    /** Bulk toggle leaving documents issued for selected alumni */
+    public function alumniBulkLeavingDocs(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer'],
+            'value' => ['required', 'in:0,1'],
+        ]);
+
+        $ids = array_map('intval', $validated['ids']);
+        $val = (bool) ((int) $validated['value']);
+        $affected = Student::query()->whereIn('id', $ids)->where('alumni', true)->update([
+            'leaving_docs_issued' => $val,
+        ]);
+
+        return back()->with('status', ($val ? 'Marked' : 'Unmarked')." leaving documents on {$affected} alumni.");
+    }
+
+    /** Per-student toggle leaving documents issued with optional due-warning override */
+    public function updateLeavingDocs(Request $request, Student $student): RedirectResponse
+    {
+        abort_unless($student->alumni, 403);
+
+        $validated = $request->validate([
+            'value' => ['required', 'in:0,1'],
+            'reason' => ['nullable', 'string', 'max:500'],
+            'allow_due' => ['nullable', 'in:0,1'],
+        ]);
+
+        $val = (bool) ((string) $validated['value'] === '1');
+        $reason = trim((string) ($validated['reason'] ?? ''));
+        $allowDue = ((string) ($validated['allow_due'] ?? '0')) === '1';
+
+        // Require a reason when marking as issued.
+        if ($val && $reason === '') {
+            return back()->withErrors(['reason' => 'Reason is required when issuing leaving documents.']);
+        }
+
+        $netDue = $this->computeNetDue($student);
+        if ($val && $netDue > 0 && ! $allowDue) {
+            return back()->withErrors(['allow_due' => 'Student has a pending due amount. Confirm to proceed with due.']);
+        }
+
+        $student->update([
+            'leaving_docs_issued' => $val,
+        ]);
+
+        app(AuditLogger::class)->log(
+            $val ? 'students.leaving_docs_issued' : 'students.leaving_docs_unmarked',
+            $student,
+            $reason !== '' ? $reason : null,
+            [
+                'net_due' => $netDue,
+                'allow_due' => $allowDue,
+            ]
+        );
+
+        return back()->with('status', $val ? 'Leaving documents marked as issued.' : 'Leaving documents marked as not issued.');
+    }
+
+    /** Mark a student as alumni (left school) with required reason */
+    public function markAsAlumni(Request $request, Student $student): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        $reason = trim((string) $validated['reason']);
+        $netDue = $this->computeNetDue($student);
+
+        $fromClassRoomId = $student->class_room_id;
+        $academicYear = session('academic_year') ?? $student->year;
+
+        $student->update([
+            'alumni' => true,
+            'active' => false,
+        ]);
+
+        StudentPromotionHistory::create([
+            'student_id' => $student->id,
+            'from_class_room_id' => $fromClassRoomId,
+            'to_class_room_id' => null,
+            'action' => 'leave',
+            'academic_year' => $academicYear,
+            'performed_by' => Auth::id(),
+            'notes' => $reason,
+        ]);
+
+        app(AuditLogger::class)->log(
+            'students.marked_alumni',
+            $student,
+            $reason,
+            [
+                'net_due' => $netDue,
+            ]
+        );
+
+        return back()->with('status', 'Student marked as alumni.');
+    }
+
+    /** Re-admit an alumni student and assign a new grade (class room). */
+    public function reAdmit(Request $request, Student $student): RedirectResponse
+    {
+        abort_unless($student->alumni, 403);
+
+        $validated = $request->validate([
+            'class_room_id' => ['required', 'integer', 'exists:class_rooms,id'],
+            'reason' => ['nullable', 'string', 'max:500'],
+            're_admit_date' => ['nullable', 'date'],
+        ]);
+
+        $reason = trim((string) $validated['reason']);
+        $classRoom = ClassRoom::query()->find((int) $validated['class_room_id']);
+
+        $fromClassRoomId = $student->class_room_id;
+        $academicYear = session('academic_year') ?? $student->year;
+        $reAdmitDate = !empty($validated['re_admit_date'])
+            ? \Carbon\Carbon::parse($validated['re_admit_date'])->toDateString()
+            : now()->toDateString();
+
+        $student->update([
+            'alumni' => false,
+            'active' => true,
+            'leaving_docs_issued' => false,
+            'class_room_id' => $classRoom?->id,
+            'class' => $classRoom?->name,
+            'monthly_fee' => (float) ($classRoom?->monthly_fee ?? $student->monthly_fee ?? 0),
+            // On re-admission, restart fee cycle from the re-admit date.
+            'fee_start_date' => $reAdmitDate,
+            'joining_date' => $reAdmitDate,
+            'year' => $academicYear,
+        ]);
+
+        StudentPromotionHistory::create([
+            'student_id' => $student->id,
+            'from_class_room_id' => $fromClassRoomId,
+            'to_class_room_id' => $classRoom?->id,
+            'action' => 'readmit',
+            'academic_year' => $academicYear,
+            'performed_by' => Auth::id(),
+            'notes' => $reason,
+        ]);
+
+        app(AuditLogger::class)->log(
+            'students.readmitted',
+            $student,
+            $reason,
+            [
+                'from_class_room_id' => $fromClassRoomId,
+                'to_class_room_id' => $classRoom?->id,
+                'academic_year' => $academicYear,
+            ]
+        );
+
+        return back()->with('status', 'Student re-admitted and grade assigned.');
     }
 
     /**
@@ -60,7 +311,7 @@ class StudentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'admission_number' => ['required', 'string', 'max:50', 'unique:students,admission_number'],
+            'admission_number' => ['nullable', 'string', 'max:50', 'unique:students,admission_number'],
             'name' => ['required', 'string', 'max:120'],
             // Required admission fields
             'first_name' => ['required', 'string', 'max:120'],
@@ -68,7 +319,7 @@ class StudentController extends Controller
             'name_with_initial' => ['required', 'string', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
             'parent_address' => ['required', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            // 'phone' => ['nullable', 'string', 'max:30'],
             'gender' => ['required', 'string', 'max:20'],
             'date_of_birth' => ['required', 'date'],
             'use_guardian' => ['nullable', 'boolean'],
@@ -82,8 +333,9 @@ class StudentController extends Controller
             'monthly_fee' => ['nullable', 'numeric', 'min:0'],
             'active' => ['nullable', 'in:0,1'],
             // Admission extras
-            'religion' => ['required', 'string', 'max:60'],
-            'desired_class' => ['required', 'string', 'max:120'],
+            'religion' => ['required', 'string', 'in:Buddhism,Hinduism,Islam,Christianity,Other'],
+            'nationality' => ['nullable', 'string', 'max:60'],
+            'desired_class' => ['nullable', 'string', 'max:120'],
             'medical_history' => ['nullable', 'string'],
             'long_term_medication' => ['required', 'in:0,1'],
             'learning_disabilities' => ['required', 'in:0,1'],
@@ -93,7 +345,7 @@ class StudentController extends Controller
             'has_siblings_in_college' => ['required', 'in:0,1'],
             'father_name_with_initial' => ['nullable', 'required_if:use_guardian,0', 'string', 'max:120'],
             'father_nic_passport' => ['nullable', 'string', 'max:60'],
-            'father_religion' => ['nullable', 'string', 'max:60'],
+            'father_religion' => ['nullable', 'string', 'in:Buddhism,Hinduism,Islam,Christianity,Other'],
             'father_nationality' => ['nullable', 'string', 'max:60'],
             'father_occupation' => ['nullable', 'string', 'max:120'],
             'father_phone' => ['nullable', 'string', 'max:30'],
@@ -102,7 +354,7 @@ class StudentController extends Controller
             'father_emergency_number' => ['nullable', 'string', 'max:30'],
             'mother_name_with_initial' => ['nullable', 'string', 'max:120'],
             'mother_nic_passport' => ['nullable', 'string', 'max:60'],
-            'mother_religion' => ['nullable', 'string', 'max:60'],
+            'mother_religion' => ['nullable', 'string', 'in:Buddhism,Hinduism,Islam,Christianity,Other'],
             'mother_nationality' => ['nullable', 'string', 'max:60'],
             'mother_occupation' => ['nullable', 'string', 'max:120'],
             'mother_phone' => ['nullable', 'string', 'max:30'],
@@ -110,6 +362,7 @@ class StudentController extends Controller
             'mother_office_phone' => ['nullable', 'string', 'max:30'],
             'mother_emergency_number' => ['nullable', 'string', 'max:30'],
             'passport_photo_path' => ['nullable', 'string', 'max:255'],
+            'hear_about_us' => ['nullable', 'string', 'in:Facebook,Friends,TV,Ads,Other'],
         ]);
 
         $yearStart = null;
@@ -165,6 +418,7 @@ class StudentController extends Controller
             'class' => $classRoom?->name,
             'promoted_until_year' => $yearStart,
             'religion' => $validated['religion'] ?? null,
+            'nationality' => $validated['nationality'] ?? 'Sri Lankan',
             'desired_class' => $validated['desired_class'] ?? null,
             'medical_history' => $validated['medical_history'] ?? null,
             'long_term_medication' => (bool) ($validated['long_term_medication'] ?? false),
@@ -193,6 +447,8 @@ class StudentController extends Controller
             'mother_emergency_number' => $validated['mother_emergency_number'] ?? null,
             'passport_photo_path' => $validated['passport_photo_path'] ?? null,
             'admission_agree' => (bool) ($validated['admission_agree'] ?? false),
+            'hear_about_us' => $validated['hear_about_us'] ?? null,
+            'leaving_docs_issued' => false,
             'monthly_fee' => $monthlyFee,
             'due_amount' => $dueAmount,
             'active' => ($validated['active'] ?? '1') === '1',
@@ -259,16 +515,29 @@ class StudentController extends Controller
             ]);
         }
 
-        // Due breakdown
-        $monthlyFee = (float) $student->monthly_fee;
-        $monthsDue = 1;
+        // Due breakdown (promotion/demotion aware via MonthlyFeeAllocator)
+        $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
+        $ledgerForDue = $allocator->buildLedger($student, 0);
+
+        $monthsDue = count($ledgerForDue);
+        $expectedBase = 0.0;
+        foreach ($ledgerForDue as $m) {
+            $expectedBase += (float) ($m['due'] ?? 0);
+        }
+
+        $paidMonthlyFeeNet = (float) $student->monthlyFeePaidAmount();
+        $waivedMonthlyFee = (float) $student->monthlyFeeWaiverAmount();
+        $expectedDueNet = max(0.0, $expectedBase - $waivedMonthlyFee);
+        $netDue = max(0.0, $expectedDueNet - $paidMonthlyFeeNet);
+
+        $monthlyFee = (float) ($ledgerForDue[now()->format('Y-m')]['due'] ?? ($student->monthly_fee ?? 0));
+
         $cycles = [];
         if ($student->fee_start_date) {
             $start = \Carbon\Carbon::parse($student->fee_start_date)->startOfDay();
             $now = now();
-            $monthsDue = $now->lt($start) ? 0 : (int) ($start->diffInMonths($now) + 1); // ensure integer cycles
-
-            for ($i = 0; $i < $monthsDue; $i++) {
+            $count = $now->lt($start) ? 0 : (int) ($start->diffInMonths($now) + 1);
+            for ($i = 0; $i < $count; $i++) {
                 $s = $start->copy()->addMonthsNoOverflow($i);
                 $e = $start->copy()->addMonthsNoOverflow($i + 1);
                 $cycles[] = [
@@ -277,14 +546,32 @@ class StudentController extends Controller
                     'inProgress' => $now->betweenIncluded($s, $e),
                 ];
             }
-            // Normalize months to cycles length to avoid drift
-            $monthsDue = count($cycles);
         }
-        $expectedBase = $monthlyFee * max(0, (int) $monthsDue);
-        $paidMonthlyFeeNet = (float) $student->monthlyFeePaidAmount();
-        $waivedMonthlyFee = (float) $student->monthlyFeeWaiverAmount();
-        $expectedDueNet = max(0.0, $expectedBase - $waivedMonthlyFee);
-        $netDue = max(0.0, $expectedDueNet - $paidMonthlyFeeNet);
+
+        $currentMonthStart = now()->startOfMonth();
+        $currentMonthEnd = now()->endOfMonth();
+        $recentFeeChange = StudentPromotionHistory::query()
+            ->with(['fromClassRoom:id,monthly_fee', 'toClassRoom:id,monthly_fee'])
+            ->where('student_id', $student->id)
+            ->whereIn('action', ['promote', 'demote'])
+            ->whereBetween('created_at', [$currentMonthStart, $currentMonthEnd])
+            ->orderByDesc('created_at')
+            ->first();
+
+        $currentMonthOverride = StudentMonthlyFeeOverride::query()
+            ->where('student_id', $student->id)
+            ->where('year', (int) $currentMonthStart->format('Y'))
+            ->where('month', (int) $currentMonthStart->format('n'))
+            ->first();
+
+        $feeChoice = [
+            'enabled' => (bool) $recentFeeChange,
+            'oldFee' => (float) ($recentFeeChange?->fromClassRoom?->monthly_fee ?? 0),
+            'newFee' => (float) ($recentFeeChange?->toClassRoom?->monthly_fee ?? 0),
+            'overrideFee' => (float) ($currentMonthOverride?->fee_amount ?? 0),
+            'year' => (int) $currentMonthStart->format('Y'),
+            'month' => (int) $currentMonthStart->format('n'),
+        ];
 
         $history = \App\Models\StudentPromotionHistory::query()
             ->with(['fromClassRoom','toClassRoom','performer'])
@@ -336,8 +623,7 @@ class StudentController extends Controller
         $monthsDueCount = $student->monthlyCyclesCountToNow();
         
         // Use MonthlyFeeAllocator for accurate paid count
-        $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
-        $ledger = $allocator->buildLedger($student, 0);
+        $ledger = $ledgerForDue;
         $monthsPaidCount = 0;
         foreach ($ledger as $m) {
             if ($m['status'] === 'paid') {
@@ -362,10 +648,19 @@ class StudentController extends Controller
         
         $paidPct = ($monthsDueCount > 0) ? round(($monthsPaidCount / $monthsDueCount) * 100) : 0;
 
+        // Seminar enrollments & payments history for this student
+        $seminarEnrollments = \App\Models\SeminarStudent::query()
+            ->with('seminar')
+            ->where('student_id', $student->id)
+            ->orderByDesc('created_at')
+            ->paginate(10, ['*'], 'seminars_page')
+            ->withQueryString();
+
         return view('students.show', [
             'student' => $student,
             'payments' => $payments->paginate(15, ['*'], 'payments_page')->withQueryString(),
             'filters' => $request->only(['from', 'to']) + ['type' => $type],
+            'classRooms' => ClassRoom::query()->orderBy('name')->get(['id', 'name']),
             'dueBreakdown' => [
                 'monthlyFee' => $monthlyFee,
                 'startDate' => $student->fee_start_date,
@@ -376,15 +671,65 @@ class StudentController extends Controller
                 'waivedMonthlyFee' => $waivedMonthlyFee,
                 'cycles' => $cycles,
             ],
+            'feeChoice' => $feeChoice,
             'history' => $history,
             'adjustments' => $adjustments,
             'recentActivities' => $recentActivities,
+            'seminarEnrollments' => $seminarEnrollments,
             'progress' => [
                 'monthsDueCount' => $monthsDueCount,
                 'monthsPaidCount' => $monthsPaidCount,
                 'paidPct' => $paidPct,
             ],
         ]);
+    }
+
+    public function setCurrentMonthFee(Request $request, Student $student): RedirectResponse
+    {
+        $validated = $request->validate([
+            'choice' => ['required', 'in:old,new'],
+            'year' => ['required', 'integer'],
+            'month' => ['required', 'integer', 'min:1', 'max:12'],
+        ]);
+
+        $monthStart = now()->startOfMonth();
+        if ((int) $validated['year'] !== (int) $monthStart->format('Y') || (int) $validated['month'] !== (int) $monthStart->format('n')) {
+            return back()->with('status', 'Only the current month can be selected.');
+        }
+
+        $recentFeeChange = StudentPromotionHistory::query()
+            ->with(['fromClassRoom:id,monthly_fee', 'toClassRoom:id,monthly_fee'])
+            ->where('student_id', $student->id)
+            ->whereIn('action', ['promote', 'demote'])
+            ->whereBetween('created_at', [$monthStart, now()->endOfMonth()])
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $recentFeeChange) {
+            return back()->with('status', 'No promotion/demotion found for this month.');
+        }
+
+        $oldFee = (float) ($recentFeeChange->fromClassRoom?->monthly_fee ?? 0);
+        $newFee = (float) ($recentFeeChange->toClassRoom?->monthly_fee ?? 0);
+        $fee = $validated['choice'] === 'new' ? $newFee : $oldFee;
+
+        if ($fee <= 0) {
+            return back()->with('status', 'Monthly fee is not set for old/new class.');
+        }
+
+        StudentMonthlyFeeOverride::query()->updateOrCreate(
+            [
+                'student_id' => $student->id,
+                'year' => (int) $monthStart->format('Y'),
+                'month' => (int) $monthStart->format('n'),
+            ],
+            [
+                'fee_amount' => $fee,
+                'set_by' => $request->user()?->id,
+            ]
+        );
+
+        return back()->with('status', 'Current month fee updated.');
     }
 
     /** Download student statement as PDF */
@@ -396,8 +741,13 @@ class StudentController extends Controller
         if ($request->filled('to')) $payments->whereDate('paid_at', '<=', $request->string('to'));
         $rows = $payments->orderByDesc('paid_at')->get();
 
-        $monthlyFee = (float) $student->monthly_fee;
-        $monthsDue = 0;
+        $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
+        $ledger = $allocator->buildLedger($student, 0);
+        $expectedDue = 0.0;
+        foreach ($ledger as $m) {
+            $expectedDue += (float) ($m['due'] ?? 0);
+        }
+
         $cycles = [];
         if ($student->fee_start_date) {
             $start = \Carbon\Carbon::parse($student->fee_start_date)->startOfDay();
@@ -409,7 +759,6 @@ class StudentController extends Controller
                 $cycles[] = ['start' => $s->format('Y-m-d'), 'end' => $e->format('Y-m-d')];
             }
         }
-        $expectedDue = $monthlyFee * max(0, (int) $monthsDue);
         $monthlyCatId = $student->classRoom?->monthly_fee_revenue_category_id;
         $paidMonthlyFee = 0.0;
         if ($monthlyCatId) {
@@ -482,7 +831,7 @@ class StudentController extends Controller
     public function update(Request $request, Student $student): RedirectResponse
     {
         $validated = $request->validate([
-            'admission_number' => ['required', 'string', 'max:50', 'unique:students,admission_number,'.$student->id],
+            'admission_number' => ['nullable', 'string', 'max:50', 'unique:students,admission_number,'.$student->id],
             'name' => ['required', 'string', 'max:120'],
             // Required admission fields
             'first_name' => ['required', 'string', 'max:120'],
@@ -490,7 +839,7 @@ class StudentController extends Controller
             'name_with_initial' => ['required', 'string', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
             'parent_address' => ['required', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            // 'phone' => ['nullable', 'string', 'max:30'],
             'whatsapp_number' => ['nullable', 'string', 'max:30'],
             'gender' => ['required', 'string', 'max:20'],
             'date_of_birth' => ['required', 'date'],
@@ -505,8 +854,9 @@ class StudentController extends Controller
             'monthly_fee' => ['nullable', 'numeric', 'min:0'],
             'active' => ['nullable', 'in:0,1'],
             // Admission extras
-            'religion' => ['required', 'string', 'max:60'],
-            'desired_class' => ['required', 'string', 'max:120'],
+            'religion' => ['required', 'string', 'in:Buddhism,Hinduism,Islam,Christianity,Other'],
+            'nationality' => ['nullable', 'string', 'max:60'],
+            'desired_class' => ['nullable', 'string', 'max:120'],
             'medical_history' => ['nullable', 'string'],
             'long_term_medication' => ['required', 'in:0,1'],
             'learning_disabilities' => ['required', 'in:0,1'],
@@ -516,7 +866,7 @@ class StudentController extends Controller
             'has_siblings_in_college' => ['required', 'in:0,1'],
             'father_name_with_initial' => ['nullable', 'required_if:use_guardian,0', 'string', 'max:120'],
             'father_nic_passport' => ['nullable', 'string', 'max:60'],
-            'father_religion' => ['nullable', 'string', 'max:60'],
+            'father_religion' => ['nullable', 'string', 'in:Buddhism,Hinduism,Islam,Christianity,Other'],
             'father_nationality' => ['nullable', 'string', 'max:60'],
             'father_occupation' => ['nullable', 'string', 'max:120'],
             'father_phone' => ['nullable', 'string', 'max:30'],
@@ -525,7 +875,7 @@ class StudentController extends Controller
             'father_emergency_number' => ['nullable', 'string', 'max:30'],
             'mother_name_with_initial' => ['nullable', 'string', 'max:120'],
             'mother_nic_passport' => ['nullable', 'string', 'max:60'],
-            'mother_religion' => ['nullable', 'string', 'max:60'],
+            'mother_religion' => ['nullable', 'string', 'in:Buddhism,Hinduism,Islam,Christianity,Other'],
             'mother_nationality' => ['nullable', 'string', 'max:60'],
             'mother_occupation' => ['nullable', 'string', 'max:120'],
             'mother_phone' => ['nullable', 'string', 'max:30'],
@@ -533,6 +883,8 @@ class StudentController extends Controller
             'mother_office_phone' => ['nullable', 'string', 'max:30'],
             'mother_emergency_number' => ['nullable', 'string', 'max:30'],
             'passport_photo_path' => ['nullable', 'string', 'max:255'],
+            'hear_about_us' => ['nullable', 'string', 'in:Facebook,Friends,TV,Ads,Other'],
+            'leaving_docs_issued' => ['nullable', 'in:0,1'],
         ]);
 
         $classRoom = ClassRoom::query()->find($validated['class_room_id']);
@@ -575,6 +927,7 @@ class StudentController extends Controller
             'class_room_id' => $validated['class_room_id'],
             'class' => $classRoom?->name,
             'religion' => $validated['religion'] ?? $student->religion,
+            'nationality' => $validated['nationality'] ?? ($student->nationality ?: 'Sri Lankan'),
             'desired_class' => $validated['desired_class'] ?? $student->desired_class,
             'medical_history' => $validated['medical_history'] ?? $student->medical_history,
             'long_term_medication' => (bool) ($validated['long_term_medication'] ?? $student->long_term_medication),
@@ -603,6 +956,8 @@ class StudentController extends Controller
             'mother_emergency_number' => $validated['mother_emergency_number'] ?? $student->mother_emergency_number,
             'passport_photo_path' => $validated['passport_photo_path'] ?? $student->passport_photo_path,
             'admission_agree' => (bool) ($validated['admission_agree'] ?? $student->admission_agree),
+            'hear_about_us' => $validated['hear_about_us'] ?? $student->hear_about_us,
+            'leaving_docs_issued' => (bool) ($validated['leaving_docs_issued'] ?? $student->leaving_docs_issued),
             'monthly_fee' => $monthlyFee,
             'due_amount' => $dueAmount,
             'active' => ($validated['active'] ?? '1') === '1',
@@ -624,7 +979,7 @@ class StudentController extends Controller
     /**
      * Lightweight JSON search for students by admission number, name, phone, with optional class filter.
      */
-    public function search(Request $request)
+    public function search(Request $request, MonthlyFeeAllocator $allocator)
     {
         // If an explicit id is provided, return a single detailed record
         $id = $request->query('id');
@@ -634,56 +989,45 @@ class StudentController extends Controller
                 return response()->json(['results' => []]);
             }
 
-            // Calculate due months
-            $cycles = $s->monthlyCyclesToNow();
-            $allocations = \App\Models\StudentMonthFeeAllocation::where('student_id', $s->id)->get();
-            $paidCount = $s->monthlyFeePaidCyclesCount();
+            $ledger = $allocator->buildLedger($s, 12);
             $dueMonths = [];
-            
-            foreach ($cycles as $index => $cycle) {
-                // Check allocation by matching cycle's start month/year
-                $alloc = $allocations->first(function ($a) use ($cycle) {
-                    return ((int)$a->month === (int)$cycle['start']->month) && ((int)$a->year === (int)$cycle['start']->year);
-                });
 
-                $isAllocated = !is_null($alloc);
-                $isPartial = $isAllocated && (bool) $alloc->is_partial;
-
-                // Bucket logic (fallback for legacy revenues without allocations)
-                $isBucketPaid = $index < $paidCount;
-
-                // Determine if month is considered paid
-                $isPaid = ($isBucketPaid && !$isAllocated) || ($isAllocated && !$isPartial);
-
-                if (!$isPaid) {
-                    $label = $cycle['start']->format('F Y');
-                    $amount = (float) ($s->monthly_fee ?? 0);
-
-                    if ($isPartial) {
-                        $label .= ' (Partial)';
-                        // Use remaining_for_month reported by allocation for accurate balance
-                        $amount = (float) ($alloc->remaining_for_month ?? max(0.0, $amount - (float)($alloc->applied_amount ?? 0)));
-                    }
-
-                    $dueMonths[] = [
-                        'label' => $label,
-                        'amount' => $amount,
-                        'is_partial' => $isPartial,
-                        'month_key' => $cycle['start']->format('Y-m')
-                    ];
+            $currentMonthStart = now()->startOfMonth();
+            foreach ($ledger as $key => $m) {
+                $monthStart = Carbon::createFromDate((int) ($m['year'] ?? 0), (int) ($m['month'] ?? 0), 1)->startOfMonth();
+                if ($monthStart->gt($currentMonthStart)) {
+                    break;
                 }
+
+                $status = (string) ($m['status'] ?? 'unpaid');
+                if ($status === 'paid') {
+                    continue;
+                }
+
+                $isPartial = $status === 'partially_paid';
+                $remaining = (float) ($m['remaining'] ?? 0);
+                $label = $monthStart->format('F Y').($isPartial ? ' (Partial)' : '');
+
+                $dueMonths[] = [
+                    'label' => $label,
+                    'amount' => round($remaining, 2),
+                    'is_partial' => $isPartial,
+                    'month_key' => $monthStart->format('Y-m'),
+                ];
             }
 
-            // Build available advance months (next 12 from next month)
             $advanceMonths = [];
-            $base = \Carbon\Carbon::now()->startOfMonth()->addMonth();
+            $base = now()->startOfMonth()->addMonth();
             for ($i = 0; $i < 12; $i++) {
-                $d = $base->copy()->addMonthsNoOverflow($i);
+                $d = $base->copy()->addMonthsNoOverflow($i)->startOfMonth();
+                $monthKey = $d->format('Y-m');
+                $required = isset($ledger[$monthKey]) ? (float) ($ledger[$monthKey]['remaining'] ?? 0) : 0.0;
                 $advanceMonths[] = [
-                    'key' => $d->format('Y-m'),
+                    'key' => $monthKey,
                     'label' => $d->format('M Y'),
                     'month' => (int) $d->format('n'),
                     'year' => (int) $d->format('Y'),
+                    'required_amount' => round($required, 2),
                 ];
             }
 

@@ -170,37 +170,165 @@ class ReportController extends Controller
 
     public function financial(Request $request)
     {
-        $revenueQuery = Revenue::query();
-        $expenseQuery = Expense::query();
-        $refundQuery = DB::table('revenue_adjustments')
+        // Date range (default to today)
+        $start = $request->filled('from') ? \Carbon\Carbon::parse((string) $request->string('from'))->startOfDay() : now()->startOfDay();
+        $end = $request->filled('to') ? \Carbon\Carbon::parse((string) $request->string('to'))->startOfDay() : $start->copy();
+
+        $groupDaily = $request->boolean('daily'); // default off => aggregated
+
+        // Opening balance (B.B.F) = Net revenue - expenses before start date
+        $grossBefore = (float) Revenue::query()->whereDate('paid_at', '<', $start->toDateString())->sum('amount');
+        $refundBefore = (float) DB::table('revenue_adjustments')
             ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
-            ->where('revenue_adjustments.type', 'refund');
+            ->where('revenue_adjustments.type', 'refund')
+            ->whereDate('revenues.paid_at', '<', $start->toDateString())
+            ->sum('revenue_adjustments.amount');
+        $expenseBefore = (float) Expense::query()->whereDate('expense_date', '<', $start->toDateString())->sum('amount');
+        $openingBalance = ($grossBefore - $refundBefore) - $expenseBefore; // can be negative
 
-        if ($request->filled('from')) {
-            $revenueQuery->whereDate('paid_at', '>=', $request->string('from'));
-            $expenseQuery->whereDate('expense_date', '>=', $request->string('from'));
-            $refundQuery->whereDate('revenues.paid_at', '>=', $request->string('from'));
+        $days = [];
+        if ($groupDaily) {
+            // Per-day detailed ledger
+            $cursor = $start->copy();
+            $runningOpening = $openingBalance;
+            while ($cursor->lte($end)) {
+                $dateStr = $cursor->toDateString();
+
+                $incomes = Revenue::query()
+                    ->leftJoin('students', 'students.id', '=', 'revenues.student_id')
+                    ->leftJoin('revenue_categories', 'revenue_categories.id', '=', 'revenues.revenue_category_id')
+                    ->whereDate('revenues.paid_at', $dateStr)
+                    ->orderBy('revenues.paid_at')
+                    ->select([
+                        'revenues.id', 'revenues.bill_no', 'revenues.amount', 'revenues.notes',
+                        'students.name as student_name', 'revenue_categories.name as category_name',
+                    ])
+                    ->get()
+                    ->map(function ($r) {
+                        $desc = $r->student_name ? $r->student_name : ($r->category_name ?: 'Income');
+                        if (!empty($r->notes)) { $desc .= ' - ' . $r->notes; }
+                        return [
+                            'ref' => $r->bill_no ?: '—',
+                            'description' => $desc,
+                            'amount' => (float) $r->amount,
+                        ];
+                    })
+                    ->all();
+
+                $refunds = DB::table('revenue_adjustments')
+                    ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
+                    ->where('revenue_adjustments.type', 'refund')
+                    ->whereDate('revenues.paid_at', $dateStr)
+                    ->select(['revenue_adjustments.amount', 'revenues.bill_no', 'revenues.notes'])
+                    ->get()
+                    ->map(function ($r) {
+                        return [
+                            'ref' => $r->bill_no ?: '—',
+                            'description' => 'Refund',
+                            'amount' => -1 * (float) $r->amount,
+                        ];
+                    })
+                    ->all();
+
+                $expenses = Expense::query()
+                    ->leftJoin('expense_categories', 'expense_categories.id', '=', 'expenses.expense_category_id')
+                    ->whereDate('expenses.expense_date', $dateStr)
+                    ->orderBy('expenses.expense_date')
+                    ->select(['expenses.id', 'expenses.amount', 'expenses.notes', 'expense_categories.name as category_name'])
+                    ->get()
+                    ->map(function ($e) {
+                        $desc = $e->category_name ?: 'Expense';
+                        if (!empty($e->notes)) { $desc .= ' - ' . $e->notes; }
+                        return [
+                            'description' => $desc,
+                            'amount' => (float) $e->amount,
+                        ];
+                    })
+                    ->all();
+
+                $incomeTotal = array_sum(array_map(fn ($i) => (float) $i['amount'], array_merge($incomes, $refunds)));
+                $expenseTotal = array_sum(array_map(fn ($c) => (float) $c['amount'], $expenses));
+                $closing = $runningOpening + $incomeTotal - $expenseTotal;
+
+                $bbfDate = $cursor->copy()->subDay()->format('M d, Y');
+
+                $days[] = [
+                    'date' => $cursor->copy(),
+                    'opening' => $runningOpening,
+                    'debits' => array_merge([
+                        ['ref' => 'B.B.F', 'description' => "Balance Brought Forward (As of $bbfDate)", 'amount' => $runningOpening],
+                    ], $incomes, $refunds),
+                    'credits' => $expenses,
+                    'income_total' => $incomeTotal,
+                    'expense_total' => $expenseTotal,
+                    'closing' => $closing,
+                ];
+
+                $runningOpening = $closing;
+                $cursor->addDay();
+            }
+        } else {
+            // Aggregated ledger for whole range
+            $revenueSum = (float) Revenue::query()
+                ->whereDate('paid_at', '>=', $start->toDateString())
+                ->whereDate('paid_at', '<=', $end->toDateString())
+                ->sum('amount');
+
+            $refundSum = (float) DB::table('revenue_adjustments')
+                ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
+                ->where('revenue_adjustments.type', 'refund')
+                ->whereDate('revenues.paid_at', '>=', $start->toDateString())
+                ->whereDate('revenues.paid_at', '<=', $end->toDateString())
+                ->sum('revenue_adjustments.amount');
+
+            $expenseSum = (float) Expense::query()
+                ->whereDate('expense_date', '>=', $start->toDateString())
+                ->whereDate('expense_date', '<=', $end->toDateString())
+                ->sum('amount');
+
+            $incomeTotal = $revenueSum - $refundSum;
+            $expenseTotal = $expenseSum;
+            $closing = $openingBalance + $incomeTotal - $expenseTotal;
+
+            $bbfDate = $start->copy()->subDay()->format('M d, Y');
+            $days[] = [
+                'date' => $end->copy(), // used only when displaying single card; header will show range
+                'opening' => $openingBalance,
+                'debits' => [
+                    ['ref' => 'B.B.F', 'description' => "Balance Brought Forward (As of $bbfDate)", 'amount' => $openingBalance],
+                    ['ref' => null, 'description' => 'Income (Total)', 'amount' => $revenueSum],
+                    ['ref' => null, 'description' => 'Refunds (Total)', 'amount' => -1 * $refundSum],
+                ],
+                'credits' => [
+                    ['description' => 'Expenses (Total)', 'amount' => $expenseSum],
+                ],
+                'income_total' => $incomeTotal,
+                'expense_total' => $expenseTotal,
+                'closing' => $closing,
+            ];
         }
-        if ($request->filled('to')) {
-            $revenueQuery->whereDate('paid_at', '<=', $request->string('to'));
-            $expenseQuery->whereDate('expense_date', '<=', $request->string('to'));
-            $refundQuery->whereDate('revenues.paid_at', '<=', $request->string('to'));
-        }
 
-        $grossRevenue = (float) $revenueQuery->sum('amount');
-        $refunds = (float) $refundQuery->sum('revenue_adjustments.amount');
-        $totalRevenue = max(0.0, $grossRevenue - $refunds);
-        $totalExpense = (float) $expenseQuery->sum('amount');
-        $netProfit = $totalRevenue - $totalExpense;
+        $totalRevenueInRange = collect($days)->sum('income_total');
+        $totalExpenseInRange = collect($days)->sum('expense_total');
 
-        // Handle PDF Download
+        $settings = app('settings');
+        $school = [
+            'name' => (string) $settings->get('school.name', config('app.name')),
+            'logo' => (string) $settings->get('school.logo', ''),
+            'phone' => (string) $settings->get('school.phone', ''),
+            'address' => (string) $settings->get('school.address', ''),
+        ];
+
         if ($request->boolean('pdf')) {
             $this->authorizeDownload($request);
             $html = view('reports.financial-pdf', [
-                'totalRevenue' => $totalRevenue,
-                'totalExpense' => $totalExpense,
-                'netProfit' => $netProfit,
-                'filters' => $request->only(['from', 'to']),
+                'filters' => $request->only(['from', 'to']) + ['daily' => $groupDaily],
+                'days' => $days,
+                'school' => $school,
+                'totalRevenue' => $totalRevenueInRange,
+                'totalExpense' => $totalExpenseInRange,
+                'netProfit' => $totalRevenueInRange - $totalExpenseInRange,
+                'daily' => $groupDaily,
             ])->render();
 
             $pdf = Pdf::loadHTML($html)
@@ -214,10 +342,13 @@ class ReportController extends Controller
         }
 
         return view('reports.financial', [
-            'filters' => $request->only(['from', 'to']),
-            'totalRevenue' => $totalRevenue,
-            'totalExpense' => $totalExpense,
-            'netProfit' => $netProfit,
+            'filters' => $request->only(['from', 'to']) + ['daily' => $groupDaily],
+            'days' => $days,
+            'school' => $school,
+            'totalRevenue' => $totalRevenueInRange,
+            'totalExpense' => $totalExpenseInRange,
+            'netProfit' => $totalRevenueInRange - $totalExpenseInRange,
+            'daily' => $groupDaily,
         ]);
     }
 
@@ -229,6 +360,111 @@ class ReportController extends Controller
     public function teacherEtf(Request $request)
     {
         return $this->teacherDeductionReport($request, 'ETF');
+    }
+
+    public function seminarsCollection(Request $request)
+    {
+        // Aggregate seminar payments
+        $query = DB::table('seminar_students')
+            ->join('seminars', 'seminars.id', '=', 'seminar_students.seminar_id')
+            ->join('students', 'students.id', '=', 'seminar_students.student_id');
+
+        if ($request->filled('from')) {
+            $query->whereDate('seminars.date', '>=', $request->string('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('seminars.date', '<=', $request->string('to'));
+        }
+        if ($request->filled('class_room_id')) {
+            $query->where('seminars.class_room_id', $request->string('class_room_id'));
+        }
+        if ($request->filled('visiting_teacher_id')) {
+            $query->where('seminars.visiting_teacher_id', $request->string('visiting_teacher_id'));
+        }
+        if ($request->filled('q')) {
+            $query->where('seminars.name', 'like', '%' . $request->string('q') . '%');
+        }
+
+        // Sum teacher payout actually paid for seminars
+        $teacherPaidSub = DB::table('seminar_teacher_payouts')
+            ->selectRaw('seminar_id, SUM(CASE WHEN paid = 1 THEN amount ELSE 0 END) as teacher_paid')
+            ->groupBy('seminar_id');
+
+        $rows = $query
+            ->leftJoinSub($teacherPaidSub, 'spaid', 'spaid.seminar_id', '=', 'seminars.id')
+            ->selectRaw(
+                'seminars.id as seminar_id, seminars.name as seminar_name, seminars.date as date,'.
+                ' COUNT(seminar_students.id) as total,'.
+                ' SUM(CASE WHEN seminar_students.paid = 1 THEN 1 ELSE 0 END) as paid_count,'.
+                ' SUM(COALESCE(seminar_students.amount, seminars.fee_per_student)) as expected,'.
+                ' SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END) as collected,'.
+                ' (SUM(COALESCE(seminar_students.amount, seminars.fee_per_student)) - SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END)) as due_amount,'.
+                ' seminars.teacher_payment as teacher_payment,'.
+                ' COALESCE(spaid.teacher_paid, 0) as teacher_paid,'.
+                ' (seminars.teacher_payment - COALESCE(spaid.teacher_paid, 0)) as teacher_due,'.
+                ' (SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END) - seminars.teacher_payment) as net_margin'
+            )
+            ->groupBy('seminars.id', 'seminars.name', 'seminars.date', 'seminars.fee_per_student', 'seminars.teacher_payment', 'spaid.teacher_paid')
+            ->orderByDesc('seminars.date')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('reports.seminars-collection', [
+            'rows' => $rows,
+            'filters' => $request->only(['from','to','class_room_id','visiting_teacher_id','q']),
+            'classRooms' => \App\Models\ClassRoom::query()->orderBy('name')->get(),
+            'visitingTeachers' => \App\Models\VisitingTeacher::query()->orderBy('name')->get(),
+        ]);
+    }
+
+    public function extraClassesCollection(Request $request)
+    {
+        // Aggregate extra class payments
+        $query = DB::table('extra_class_students')
+            ->join('extra_classes', 'extra_classes.id', '=', 'extra_class_students.extra_class_id')
+            ->join('students', 'students.id', '=', 'extra_class_students.student_id');
+
+        if ($request->filled('from')) {
+            $query->whereDate('extra_classes.date', '>=', $request->string('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('extra_classes.date', '<=', $request->string('to'));
+        }
+        if ($request->filled('class_room_id')) {
+            $query->where('extra_classes.class_room_id', $request->string('class_room_id'));
+        }
+        if ($request->filled('visiting_teacher_id')) {
+            $query->where('extra_classes.visiting_teacher_id', $request->string('visiting_teacher_id'));
+        }
+        if ($request->filled('type')) {
+            $query->where('extra_classes.payment_type', $request->string('type'));
+        }
+        if ($request->filled('q')) {
+            $query->where('extra_classes.name', 'like', '%' . $request->string('q') . '%');
+        }
+
+        $rows = $query
+            ->selectRaw(
+                'extra_classes.id as class_id, extra_classes.name as class_name, extra_classes.date as date, extra_classes.payment_type as type,'.
+                ' COUNT(extra_class_students.id) as total,'.
+                ' SUM(CASE WHEN extra_class_students.paid = 1 THEN 1 ELSE 0 END) as paid_count,'.
+                ' SUM(COALESCE(extra_class_students.amount, extra_classes.fee)) as expected,'.
+                ' SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END) as collected,'.
+                ' (SUM(COALESCE(extra_class_students.amount, extra_classes.fee)) - SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END)) as due_amount,'.
+                ' COALESCE(extra_classes.teacher_payment, 0) as teacher_payment,'.
+                ' (SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END) - COALESCE(extra_classes.teacher_payment, 0)) as net_margin'
+            )
+            ->groupBy('extra_classes.id', 'extra_classes.name', 'extra_classes.date', 'extra_classes.payment_type', 'extra_classes.fee', 'extra_classes.teacher_payment')
+            ->orderByDesc('extra_classes.date')
+            ->paginate(25)
+            ->withQueryString();
+
+        return view('reports.extra-classes-collection', [
+            'rows' => $rows,
+            'filters' => $request->only(['from','to','class_room_id','visiting_teacher_id','type','q']),
+            'classRooms' => \App\Models\ClassRoom::query()->orderBy('name')->get(),
+            'visitingTeachers' => \App\Models\VisitingTeacher::query()->orderBy('name')->get(),
+        ]);
     }
 
     public function studentDue(Request $request)
@@ -454,9 +690,9 @@ class ReportController extends Controller
         $group = $request->input('group', 'day');
         $filters = $request->only(['category_id', 'from', 'to', 'group']);
 
-        $groupExpr = $group === 'month'
-            ? DB::raw("DATE_FORMAT(paid_at, '%Y-%m')")
-            : DB::raw("DATE_FORMAT(paid_at, '%Y-%m-%d')");
+        $groupSql = $group === 'month'
+            ? "DATE_FORMAT(paid_at, '%Y-%m')"
+            : "DATE_FORMAT(paid_at, '%Y-%m-%d')";
 
         $refundsSub = DB::table('revenue_adjustments')
             ->selectRaw('revenue_id, SUM(amount) as refund_amount')
@@ -466,7 +702,7 @@ class ReportController extends Controller
         $rows = (clone $query)
             ->leftJoinSub($refundsSub, 'refunds', 'refunds.revenue_id', '=', 'revenues.id')
             ->select([
-                $groupExpr . ' as grp',
+                DB::raw($groupSql . ' as grp'),
                 DB::raw('COUNT(DISTINCT revenues.id) as payments'),
                 DB::raw('SUM(revenues.amount) - COALESCE(SUM(refunds.refund_amount), 0) as total_amount'),
             ])
@@ -675,7 +911,7 @@ class ReportController extends Controller
                 ->selectRaw('revenue_adjustments.effective_year as y, revenue_adjustments.effective_month as m, SUM(revenue_adjustments.amount) as total')
                 ->whereIn('revenues.student_id', $studentIds)
                 ->where('revenue_adjustments.type', 'waiver')
-                ->where('revenue_categories.payment_type', 'monthly')
+                ->whereNotNull('revenue_categories.interval_months')
                 ->whereNotNull('revenue_adjustments.effective_year')
                 ->whereNotNull('revenue_adjustments.effective_month')
                 ->groupBy('y', 'm')
@@ -1026,9 +1262,26 @@ class ReportController extends Controller
             });
         }
 
+        // Default monthly range: start from day 1 if no explicit range provided
+        $defaultFrom = now()->startOfMonth()->toDateString();
+        $from = (string) ($request->string('from') ?: $defaultFrom);
+        $to = (string) ($request->string('to') ?: '');
+
+        // Ensure date filters are applied consistently
+        $query->whereDate('created_at', '>=', $from);
+        if ($to !== '') {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
         $query->orderByDesc('created_at');
 
-        $filters = $request->only(['category_id', 'class_room_id', 'from', 'to', 'q']);
+        $filters = [
+            'category_id' => $request->string('category_id'),
+            'class_room_id' => $request->string('class_room_id'),
+            'from' => $from,
+            'to' => $to !== '' ? $to : null,
+            'q' => $request->string('q'),
+        ];
         $totalAmount = (float) (clone $query)->sum('amount');
 
         // PDF download

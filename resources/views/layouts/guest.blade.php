@@ -15,10 +15,14 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
-        <div class="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600">
-            <!-- Animated background decorations -->
-            <span class="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-white/10 blur-3xl motion-safe:animate-pulse"></span>
-            <span class="pointer-events-none absolute -bottom-20 -right-16 h-80 w-80 rounded-full bg-black/10 blur-3xl motion-safe:animate-ping"></span>
+        @php($loginBg = app('settings')->get('ui.login.background'))
+        @php($loginBgUrl = $loginBg ? url('/storage/'.$loginBg) : null)
+        <div class="relative min-h-screen flex items-center justify-center overflow-hidden" style="{{ $loginBgUrl ? 'background-image:url('.$loginBgUrl.');background-size:cover;background-position:center;' : '' }}">
+            @if(!$loginBgUrl)
+                <div class="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600"></div>
+            @endif
+            <!-- Dark overlay for readability -->
+            <div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
 
             <div class="relative w-full max-w-lg">
                 <div class="mx-auto mb-6 flex flex-col items-center text-center">
@@ -31,7 +35,7 @@
                     <div class="mt-1 text-sm text-white/80">School Fee Management System</div>
                 </div>
 
-                <div class="rounded-2xl bg-white/95 shadow-xl backdrop-blur-sm">
+                <div class="rounded-2xl bg-white/95 shadow-xl backdrop-blur">
                     <div class="px-6 py-6 sm:px-8 sm:py-8">
                         {{ $slot }}
                         <div class="mt-6 flex items-center justify-center text-[11px] text-gray-500">

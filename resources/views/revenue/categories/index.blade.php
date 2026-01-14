@@ -11,7 +11,7 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    <form method="POST" action="{{ route('revenue.categories.store') }}" class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                    <form method="POST" action="{{ route('revenue.categories.store') }}" class="grid grid-cols-1 gap-4 sm:grid-cols-4" x-data="{ type: '{{ old('payment_type','monthly') }}' }">
                         @csrf
                         <div class="sm:col-span-2">
                             <x-input-label for="name" :value="__('Name')" />
@@ -21,15 +21,22 @@
 
                         <div>
                             <x-input-label for="payment_type" :value="__('Payment Type')" />
-                            <select id="payment_type" name="payment_type" class="mt-1 block w-full rounded-md border-gray-300">
+                            <select id="payment_type" name="payment_type" class="mt-1 block w-full rounded-md border-gray-300" x-model="type">
                                 <option value="monthly">Monthly</option>
                                 <option value="2_months">Every 2 Months</option>
                                 <option value="3_months">Every 3 Months</option>
                                 <option value="6_months">Every 6 Months</option>
                                 <option value="yearly">Yearly</option>
+                                <option value="custom_months">Custom (Every N Months)</option>
                                 <option value="one_time">One-time</option>
                             </select>
                             <x-input-error class="mt-2" :messages="$errors->get('payment_type')" />
+
+                            <div x-cloak x-show="type === 'custom_months'" class="mt-3">
+                                <x-input-label for="interval_months" :value="__('Interval (months)')" />
+                                <x-text-input id="interval_months" name="interval_months" type="number" min="1" max="24" class="mt-1 block w-full" :value="old('interval_months')" />
+                                <x-input-error class="mt-2" :messages="$errors->get('interval_months')" />
+                            </div>
                         </div>
 
                         <div class="flex items-end">
@@ -75,7 +82,23 @@
                         @forelse ($categories as $cat)
                             <div class="grid grid-cols-12 items-center px-4 py-3">
                                 <div class="col-span-5 text-sm font-medium text-gray-900">{{ $cat->name }}</div>
-                                <div class="col-span-3 text-sm text-gray-700">{{ $cat->payment_type }}</div>
+                                <div class="col-span-3 text-sm text-gray-700">
+                                    @php
+                                        $type = (string) $cat->payment_type;
+                                        $n = $cat->intervalMonths();
+                                        $label = match ($type) {
+                                            'monthly' => 'Monthly',
+                                            '2_months' => 'Every 2 Months',
+                                            '3_months' => 'Every 3 Months',
+                                            '6_months' => 'Every 6 Months',
+                                            'yearly' => 'Yearly',
+                                            'custom_months' => $n ? ('Every '.$n.' Months') : 'Custom',
+                                            'one_time' => 'One-time',
+                                            default => $type,
+                                        };
+                                    @endphp
+                                    {{ $label }}
+                                </div>
                                 <div class="col-span-2 text-sm text-gray-700">
                                     {{ $cat->applies_to_all ? 'All' : 'Selected' }}
                                     @if (! $cat->active)

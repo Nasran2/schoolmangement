@@ -28,6 +28,7 @@ class RoleController extends Controller
             'Dashboard' => ['dashboard.'],
             'Settings' => ['settings.'],
             'RBAC' => ['roles.'],
+            'Activity Logs' => ['audit_logs.'],
             'Students' => ['students.'],
             'Teachers' => ['teachers.'],
             'Revenue' => ['revenue.'],
@@ -108,6 +109,8 @@ class RoleController extends Controller
             'teachers.delete' => 'Delete Teachers',
             'teachers.bulk_upload' => 'Bulk Upload Teachers',
             'teachers.salary.pay' => 'Manage Salary Payments',
+            'teachers.salary.summary.view' => 'View Salary Due & Upcoming',
+            'teachers.salary.components' => 'Manage Salary Components',
             'teachers.reports.download' => 'Download Teacher Reports',
 
             // SMS
@@ -133,9 +136,14 @@ class RoleController extends Controller
             'reports.fee_collection_vs_expected.view' => 'View Collection vs Expected',
             'reports.fee_discounts.view' => 'View Fee Discounts Report',
             'reports.fee_refunds.view' => 'View Fee Refunds Report',
+            'reports.seminars_collection.view' => 'View Seminars Collection',
+            'reports.extra_classes_collection.view' => 'View Extra Classes Collection',
 
             // RBAC
             'roles.manage' => 'Manage Roles & Permissions',
+
+            // Activity Logs
+            'audit_logs.view' => 'View Activity Logs',
         ];
 
 

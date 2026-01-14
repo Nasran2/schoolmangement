@@ -106,8 +106,8 @@
                             <!-- Payment Date -->
                             <div>
                                 <x-input-label for="paid_at" :value="__('Payment Date *')" class="mb-2 font-semibold" />
-                                <x-text-input id="paid_at" name="paid_at" type="date" class="block w-full"
-                                    :value="old('paid_at', now()->format('Y-m-d'))" required />
+                                <x-text-input id="paid_at" name="paid_at" type="text" placeholder="DD-MM-YYYY" class="block w-full"
+                                    :value="old('paid_at', now()->format('d-m-Y'))" required />
                                 <x-input-error :messages="$errors->get('paid_at')" class="mt-2" />
                             </div>
 
@@ -129,6 +129,24 @@
                                     </label>
                                 </div>
                                 <x-input-error :messages="$errors->get('payment_method')" class="mt-2" />
+                            </div>
+
+                            <!-- Bank Details (shown for Bank/Cheque) -->
+                            <div id="bank_details" class="md:col-span-2 hidden">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                    <div>
+                                        <x-input-label for="bank_name" :value="__('Bank Name')" class="mb-2 font-semibold" />
+                                        <x-text-input id="bank_name" name="bank_name" type="text" class="block w-full" :value="old('bank_name')" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="bank_branch" :value="__('Branch')" class="mb-2 font-semibold" />
+                                        <x-text-input id="bank_branch" name="bank_branch" type="text" class="block w-full" :value="old('bank_branch')" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="bank_account_no" :value="__('Account No.')" class="mb-2 font-semibold" />
+                                        <x-text-input id="bank_account_no" name="bank_account_no" type="text" class="block w-full" :value="old('bank_account_no')" />
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Base Salary -->
@@ -174,6 +192,7 @@
 
                         <p class="text-sm text-gray-500 mt-3 italic">Examples: Leaves, Advance, Loan, Late Arrivals,
                             etc.</p>
+                        <p class="text-xs text-gray-600 mt-2">Note: EPF/ETF are calculated on a statutory minimum base of Rs 27,000 when applicable.</p>
                     </div>
 
                     <!-- Summary Section -->
@@ -532,7 +551,7 @@
                             <div class="inline-flex items-center gap-2">
                                 <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-700">EPF</span>
                                 <input type="hidden" name="deductions[${idx}][reason]" value="EPF" />
-                                <span class="text-xs text-gray-500">Auto-calculated from Basic Salary</span>
+                                <span class="text-xs text-gray-500">Auto-calculated (min base Rs 27,000)</span>
                             </div>
                         </div>
                         <div class="w-40">
@@ -563,7 +582,7 @@
                             <div class="inline-flex items-center gap-2">
                                 <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-700">ETF</span>
                                 <input type="hidden" name="deductions[${idx}][reason]" value="ETF" />
-                                <span class="text-xs text-gray-500">Auto-calculated from Basic Salary</span>
+                                <span class="text-xs text-gray-500">Auto-calculated (min base Rs 27,000)</span>
                             </div>
                         </div>
                         <div class="w-40">
@@ -595,6 +614,7 @@
 
         function calculateTotal() {
             const baseSalary = parseFloat(document.getElementById('base_salary').value) || 0;
+            const statutoryBase = Math.max(27000, baseSalary);
 
             // Update EPF/ETF amounts in their rows based on settings
             const epfPercent = {{ (float) (app(\App\Services\SettingsService::class)->get('salary_epf_percent', '0') ?: 0) }};
@@ -604,7 +624,7 @@
                 const epfRow = document.querySelector('#epf-row input[type="number"]');
                 if (epfRow) {
                     if (!userEditedEpf) {
-                        const epf = Math.round(baseSalary * (epfPercent / 100) * 100) / 100;
+                        const epf = Math.round(statutoryBase * (epfPercent / 100) * 100) / 100;
                         epfRow.value = epf.toFixed(2);
                     }
                 }
@@ -613,7 +633,7 @@
                 const etfRow = document.querySelector('#etf-row input[type="number"]');
                 if (etfRow) {
                     if (!userEditedEtf) {
-                        const etf = Math.round(baseSalary * (etfPercent / 100) * 100) / 100;
+                        const etf = Math.round(statutoryBase * (etfPercent / 100) * 100) / 100;
                         etfRow.value = etf.toFixed(2);
                     }
                 }
@@ -631,6 +651,24 @@
             document.getElementById('display-net-amount').textContent = `Rs ${netAmount.toFixed(2)}`;
         }
 
+        function syncBankDetailsVisibility() {
+            const method = (document.querySelector('input[name="payment_method"]:checked')?.value || '').toLowerCase();
+            const bankBox = document.getElementById('bank_details');
+            if (!bankBox) return;
+            if (method === 'bank' || method === 'cheque') {
+                bankBox.classList.remove('hidden');
+            } else {
+                bankBox.classList.add('hidden');
+            }
+        }
+
+        function initPaymentMethodWatcher() {
+            document.querySelectorAll('input[name="payment_method"]').forEach(r => {
+                r.addEventListener('change', syncBankDetailsVisibility);
+            });
+            syncBankDetailsVisibility();
+        }
+
         // Initialize when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function () {
@@ -638,6 +676,7 @@
                     initTeacherSearch();
                     syncStatutoryRows();
                     calculateTotal();
+                    initPaymentMethodWatcher();
                 }, 100);
             });
         } else {
@@ -645,6 +684,7 @@
                 initTeacherSearch();
                 syncStatutoryRows();
                 calculateTotal();
+                initPaymentMethodWatcher();
             }, 100);
         }
     </script>

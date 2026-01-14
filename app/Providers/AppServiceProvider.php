@@ -34,6 +34,16 @@ class AppServiceProvider extends ServiceProvider
         $this->applyMailSettings();
         View::share('schoolName', app('settings')->get('school.name', config('app.name')));
 
+        // Ensure permissions for new modules exist
+        if (Schema::hasTable('permissions')) {
+            try {
+                \Spatie\Permission\Models\Permission::findOrCreate('audit_logs.view');
+                \Spatie\Permission\Models\Permission::findOrCreate('dashboard.widget.recent_activity.view');
+            } catch (\Throwable $e) {
+                // ignore creation failures
+            }
+        }
+
         $defaultYear = app('settings')->get('school.academic_year', date('Y').'-'.(date('Y') + 1));
         $selectedYear = $defaultYear;
         if (! app()->runningInConsole() && request()?->hasSession()) {

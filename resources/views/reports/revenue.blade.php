@@ -26,7 +26,7 @@
                             <x-text-input 
                                 id="from" 
                                 name="from" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
                                 :value="$filters['from'] ?? ''" 
                             />
@@ -38,7 +38,7 @@
                             <x-text-input 
                                 id="to" 
                                 name="to" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
                                 :value="$filters['to'] ?? ''" 
                             />
@@ -172,7 +172,7 @@
                                     <td class="px-6 py-3 font-medium text-gray-900">{{ $item->bill_no }}</td>
                                     <td class="px-6 py-3 text-gray-600">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                            {{ optional($item->paid_at)->format('Y-m-d') }}
+                                            {{ optional($item->paid_at)->format('d-m-Y') }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-3 text-gray-600">

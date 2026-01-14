@@ -83,9 +83,9 @@
                             <x-text-input 
                                 id="joining_date" 
                                 name="joining_date" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
-                                :value="old('joining_date', optional($teacher->joining_date)->format('Y-m-d'))" 
+                                :value="old('joining_date', optional($teacher->joining_date)->format('d-m-Y'))" 
                             />
                             <x-input-error class="mt-2" :messages="$errors->get('joining_date')" />
                         </div>
@@ -96,9 +96,9 @@
                             <x-text-input 
                                 id="payment_start_date" 
                                 name="payment_start_date" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
-                                :value="old('payment_start_date', optional($teacher->payment_start_date)->format('Y-m-d'))" 
+                                :value="old('payment_start_date', optional($teacher->payment_start_date)->format('d-m-Y'))" 
                             />
                             <p class="text-gray-500 text-xs mt-1">Date when monthly salary payments should start</p>
                             <x-input-error class="mt-2" :messages="$errors->get('payment_start_date')" />

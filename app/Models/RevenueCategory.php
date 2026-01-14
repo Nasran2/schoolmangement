@@ -11,6 +11,7 @@ class RevenueCategory extends Model
     protected $fillable = [
         'name',
         'payment_type',
+        'interval_months',
         'applies_to_all',
         'description',
         'active',
@@ -19,7 +20,30 @@ class RevenueCategory extends Model
     protected $casts = [
         'active' => 'boolean',
         'applies_to_all' => 'boolean',
+        'interval_months' => 'integer',
     ];
+
+    public function isRecurring(): bool
+    {
+        return !is_null($this->interval_months);
+    }
+
+    public function intervalMonths(): ?int
+    {
+        if (!is_null($this->interval_months)) {
+            return (int) $this->interval_months;
+        }
+
+        $type = strtolower((string) $this->payment_type);
+        return match ($type) {
+            'monthly' => 1,
+            '2_months' => 2,
+            '3_months' => 3,
+            '6_months' => 6,
+            'yearly' => 12,
+            default => null,
+        };
+    }
 
     public function classRooms(): BelongsToMany
     {

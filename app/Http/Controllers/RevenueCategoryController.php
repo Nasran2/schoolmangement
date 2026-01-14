@@ -41,7 +41,8 @@ class RevenueCategoryController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:100', 'unique:revenue_categories,name'],
-            'payment_type' => ['required', 'in:monthly,one_time,yearly,2_months,3_months,6_months'],
+            'payment_type' => ['required', 'in:monthly,one_time,yearly,2_months,3_months,6_months,custom_months'],
+            'interval_months' => ['nullable', 'integer', 'min:1', 'max:24'],
             'applies_to_all' => ['required', 'in:0,1'],
             'class_room_ids' => ['array'],
             'class_room_ids.*' => ['integer', 'exists:class_rooms,id'],
@@ -55,15 +56,39 @@ class RevenueCategoryController extends Controller
             if (! $appliesToAll && count($ids) === 0) {
                 $v->errors()->add('class_room_ids', 'Select at least one class room or choose Applies to all classes.');
             }
+
+            $type = (string) $request->input('payment_type', '');
+            if ($type === 'custom_months') {
+                $n = (int) $request->input('interval_months', 0);
+                if ($n < 1) {
+                    $v->errors()->add('interval_months', 'Interval months is required for Custom (Every N Months).');
+                }
+            }
         });
 
         $validated = $validator->validate();
 
         $appliesToAll = ($validated['applies_to_all'] ?? '1') === '1';
 
+        $type = (string) $validated['payment_type'];
+        $intervalMonths = null;
+        if ($type === 'custom_months') {
+            $intervalMonths = isset($validated['interval_months']) ? (int) $validated['interval_months'] : null;
+        } else {
+            $intervalMonths = match ($type) {
+                'monthly' => 1,
+                '2_months' => 2,
+                '3_months' => 3,
+                '6_months' => 6,
+                'yearly' => 12,
+                default => null,
+            };
+        }
+
         $category = RevenueCategory::create([
             'name' => $validated['name'],
             'payment_type' => $validated['payment_type'],
+            'interval_months' => $intervalMonths,
             'applies_to_all' => $appliesToAll,
             'description' => $validated['description'] ?? null,
             'active' => ($validated['active'] ?? '1') === '1',
@@ -105,7 +130,8 @@ class RevenueCategoryController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:100', 'unique:revenue_categories,name,'.$category->id],
-            'payment_type' => ['required', 'in:monthly,one_time,yearly,2_months,3_months,6_months'],
+            'payment_type' => ['required', 'in:monthly,one_time,yearly,2_months,3_months,6_months,custom_months'],
+            'interval_months' => ['nullable', 'integer', 'min:1', 'max:24'],
             'applies_to_all' => ['required', 'in:0,1'],
             'class_room_ids' => ['array'],
             'class_room_ids.*' => ['integer', 'exists:class_rooms,id'],
@@ -119,15 +145,39 @@ class RevenueCategoryController extends Controller
             if (! $appliesToAll && count($ids) === 0) {
                 $v->errors()->add('class_room_ids', 'Select at least one class room or choose Applies to all classes.');
             }
+
+            $type = (string) $request->input('payment_type', '');
+            if ($type === 'custom_months') {
+                $n = (int) $request->input('interval_months', 0);
+                if ($n < 1) {
+                    $v->errors()->add('interval_months', 'Interval months is required for Custom (Every N Months).');
+                }
+            }
         });
 
         $validated = $validator->validate();
 
         $appliesToAll = ($validated['applies_to_all'] ?? '1') === '1';
 
+        $type = (string) $validated['payment_type'];
+        $intervalMonths = null;
+        if ($type === 'custom_months') {
+            $intervalMonths = isset($validated['interval_months']) ? (int) $validated['interval_months'] : null;
+        } else {
+            $intervalMonths = match ($type) {
+                'monthly' => 1,
+                '2_months' => 2,
+                '3_months' => 3,
+                '6_months' => 6,
+                'yearly' => 12,
+                default => null,
+            };
+        }
+
         $category->update([
             'name' => $validated['name'],
             'payment_type' => $validated['payment_type'],
+            'interval_months' => $intervalMonths,
             'applies_to_all' => $appliesToAll,
             'description' => $validated['description'] ?? null,
             'active' => ($validated['active'] ?? '1') === '1',

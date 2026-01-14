@@ -24,6 +24,23 @@ class RevenueController extends Controller
     {
         $query = Revenue::query()->with(['category', 'student']);
 
+        if ($request->filled('q')) {
+            $raw = (string) $request->string('q');
+            $q = '%' . str_replace('%', '\\%', $raw) . '%';
+            $query->where(function ($sub) use ($q) {
+                $sub->where('bill_no', 'like', $q)
+                    ->orWhere('notes', 'like', $q)
+                    ->orWhereHas('student', function ($s) use ($q) {
+                        $s->where('name', 'like', $q)
+                            ->orWhere('admission_number', 'like', $q)
+                            ->orWhere('whatsapp_number', 'like', $q);
+                    })
+                    ->orWhereHas('category', function ($c) use ($q) {
+                        $c->where('name', 'like', $q);
+                    });
+            });
+        }
+
         if ($request->filled('category_id')) {
             $query->where('revenue_category_id', $request->string('category_id'));
         }
@@ -39,7 +56,7 @@ class RevenueController extends Controller
         return view('revenue.index', [
             'items' => $query->orderByDesc('paid_at')->paginate(15)->withQueryString(),
             'categories' => RevenueCategory::query()->orderBy('name')->get(),
-            'filters' => $request->only(['category_id', 'from', 'to']),
+            'filters' => $request->only(['category_id', 'from', 'to', 'q']),
         ]);
     }
 
@@ -69,12 +86,16 @@ class RevenueController extends Controller
         // Auto-select monthly fee category if coming from Quick Monthly Payment
         $preselectedCategoryId = null;
         if ($request->query('quick') === 'monthly') {
-            $monthlyCategory = RevenueCategory::query()
-                ->where('active', true)
-                ->where('payment_type', 'monthly')
-                ->orderBy('name')
-                ->first();
-            $preselectedCategoryId = $monthlyCategory?->id;
+            // Prefer the student's configured monthly-fee category if available
+            $preselectedCategoryId = $monthlyCatId;
+            if (! $preselectedCategoryId) {
+                $monthlyCategory = RevenueCategory::query()
+                    ->where('active', true)
+                    ->where('payment_type', 'monthly')
+                    ->orderBy('name')
+                    ->first();
+                $preselectedCategoryId = $monthlyCategory?->id;
+            }
         }
 
         return view('revenue.create', [
@@ -133,20 +154,12 @@ class RevenueController extends Controller
         }
 
         $result = null;
-        if ($student && $category && strtolower((string)$category->payment_type) === 'monthly') {
+        $monthlyCatId = $student?->monthlyFeeCategoryId();
+        if ($student && $category && $monthlyCatId && (int) $category->id === (int) $monthlyCatId) {
             $adv = $validated['advance_months'] ?? [];
             $result = $allocator->allocate($student, (float)$validated['amount'], $adv);
 
             $errors = $result['summary']['errors'] ?? [];
-            if (! empty($adv)) {
-                $monthlyFee = (float) ($student->monthly_fee ?? 0);
-                if ((float)$validated['amount'] < 0.01) {
-                    $errors[] = 'Amount is not valid.';
-                }
-                if (count($adv) > 1 && (float)$validated['amount'] < $monthlyFee) {
-                    $errors[] = 'Amount is not enough to cover selected months. Please reduce selected months or increase amount.';
-                }
-            }
             if (! empty($errors)) {
                 return back()->withInput()->withErrors(['amount' => implode(' ', $errors)]);
             }
@@ -373,6 +386,7 @@ class RevenueController extends Controller
         }
         $validated = $request->validate([
             'student_id' => ['required', 'exists:students,id'],
+            'revenue_category_id' => ['nullable', 'integer', 'exists:revenue_categories,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'advance_months' => ['nullable', 'array'],
             'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
@@ -382,7 +396,59 @@ class RevenueController extends Controller
         $student = Student::query()->with('classRoom')->find((int) $validated['student_id']);
         if (! $student) return response()->json(['error' => 'Student not found'], 404);
 
-        $result = $allocator->allocate($student, (float)$validated['amount'], $validated['advance_months'] ?? []);
+        // Only allow allocation preview for the student's configured monthly-fee category
+        $monthlyCatId = $student->monthlyFeeCategoryId();
+        if (! $monthlyCatId) {
+            return response()->json([
+                'allocations' => [],
+                'summary' => [
+                    'total_applied' => 0.0,
+                    'unallocated_balance' => (float) $validated['amount'],
+                    'paid_due_months' => [],
+                    'advance_months' => [],
+                    'errors' => ['Monthly fee category is not set for this student.'],
+                ],
+            ]);
+        }
+
+        if (!empty($validated['revenue_category_id']) && (int) $validated['revenue_category_id'] !== (int) $monthlyCatId) {
+            return response()->json([
+                'allocations' => [],
+                'summary' => [
+                    'total_applied' => 0.0,
+                    'unallocated_balance' => (float) $validated['amount'],
+                    'paid_due_months' => [],
+                    'advance_months' => [],
+                    'errors' => [],
+                ],
+            ]);
+        }
+
+        $advanceMonths = $validated['advance_months'] ?? [];
+        $result = $allocator->allocate($student, (float) $validated['amount'], $advanceMonths);
+
+        // Month-aware required amount for selected advance months (respects promotion/demotion fee changes + partials)
+        $required = 0.0;
+        if (!empty($advanceMonths)) {
+            $ledger = $allocator->buildLedger($student, 24);
+            foreach ($advanceMonths as $am) {
+                $m = (int) ($am['month'] ?? 0);
+                $y = (int) ($am['year'] ?? 0);
+                if ($m < 1 || $m > 12 || $y < 2000) {
+                    continue;
+                }
+                $key = sprintf('%04d-%02d', $y, $m);
+                if (isset($ledger[$key])) {
+                    $required += (float) ($ledger[$key]['remaining'] ?? 0.0);
+                }
+            }
+        }
+
+        if (!isset($result['summary']) || !is_array($result['summary'])) {
+            $result['summary'] = [];
+        }
+        $result['summary']['selected_advance_months_required_amount'] = round($required, 2);
+
         return response()->json($result);
     }
 }

@@ -1,0 +1,75 @@
+System Overview (A→Z)
+Platform: Laravel-based school finance & administration suite with RBAC permissions, auth, and printer/SMS/email integrations.
+
+Security & Roles:
+- All core routes behind auth; fine-grained permission:* gates (see routes/web.php).
+- Role management under RBAC controllers.
+
+Master Data:
+- Students: CRUD, profile, statements, admissions, promotions/demotions (bulk/per-student), CSV bulk upload, search by admission/name/phone/class.
+- Teachers: CRUD, bulk upload, search for salary payout selection.
+- Classrooms: CRUD with permission-scoped actions.
+- Settings: general/system status, SMS, email, printer, promotion rules, salary components, backups (view/download/delete/run).
+
+Finance – Revenue:
+- Revenue categories CRUD.
+- Revenue items: list/create/edit/delete, monthly allocation preview, receipts.
+- Adjustments: refunds and waivers on revenue items.
+- Printing: revenue receipt and refund slip.
+
+Finance – Expense:
+- Expense categories CRUD.
+- Expense items: list/create/edit/update/delete.
+
+HR/Payroll:
+- Teacher salary payments: list/create/pay, receipt, payslip, email payslip.
+
+Reports (permission-scoped):
+- Revenue, expense, financial summary.
+- Teacher EPF/ETF.
+- Student dues: aging and top-due.
+- Fee collection: summary, by-class, by-category, vs-expected.
+- Placeholders for fee discounts/refunds.
+
+Communications:
+- SMS: individual student, bulk to due students, selected classes.
+- Email: SMTP settings + test; payslip emailing.
+- Printer: configurable settings; printable slips for revenue, refunds, teacher salary.
+
+Backups & Storage:
+- Backup config/run/download/delete.
+- Public storage served via /storage/{path} fallback without symlink.
+
+Auth Flows:
+- Registration, login, password reset, email verification, password update, logout.
+
+Data Layer:
+- Models for users, students, teachers, classrooms, revenue/expense categories and items, salary payments, settings, audit logs.
+- Migrations for permissions and finance entities; factories/seeders available.
+
+UI & Assets:
+- Blade views, Tailwind/Vite build pipeline.
+
+Auditing & Services:
+- Audit logging, promotion rules, settings helpers, billing/SMS helpers.
+
+Typical User Journey:
+1) Admin logs in → dashboard.
+2) Configure settings (general/SMS/email/printer/promotion/salary components); manage roles/permissions.
+3) Create classrooms; add students/teachers (or bulk upload); promote/demote students.
+4) Finance: record revenue items, print receipts, refund/waive; manage expenses; categorize revenue/expenses.
+5) Payroll: record salary payments; print/email payslips.
+6) Communications: send SMS to individuals/dues/selected classes.
+7) Reports: review finance, dues, EPF/ETF, fee collections.
+8) Ops: run/download/delete backups; monitor system status.
+
+Key Directories (paths relative to project root):
+- routes/web.php (all app routes and permissions)
+- routes/auth.php (auth flows)
+- app/Http/Controllers (feature controllers)
+- app/Models (core data models)
+- app/Services (audit, promotion, settings, billing/SMS helpers)
+- resources/views (Blade UI and printer slips)
+- database/migrations (schema), database/factories and database/seeders
+- config/* (app, auth, mail, queue, logging, etc.)
+- resources/js, resources/css (front-end assets)

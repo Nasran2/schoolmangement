@@ -125,14 +125,117 @@
                                             <div class="text-xs font-semibold text-green-700 uppercase">Monthly Salary</div>
                                             <div class="text-2xl font-bold text-green-700 mt-1">Rs {{ number_format($teacher->salary_amount, 2) }}</div>
                                         </div>
-                                        <div class="bg-green-200 rounded-full p-3">
-                                            <svg class="h-6 w-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                            </svg>
+                                        <div class="flex flex-col items-center gap-2">
+                                            <div class="bg-green-200 rounded-full p-3">
+                                                <svg class="h-6 w-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                            </div>
+                                            @canany(['teachers.manage','teachers.salary.components'])
+                                            <button type="button" onclick="document.getElementById('salary_modal').classList.remove('hidden')" class="inline-flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow">
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                </svg>
+                                                Update Salary
+                                            </button>
+                                            @endcan
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
+                            @can('teachers.manage')
+                            <!-- Quick Update Salary Modal -->
+                            <div id="salary_modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+                                <div class="absolute inset-0 bg-black/40" onclick="document.getElementById('salary_modal').classList.add('hidden')"></div>
+                                <div class="relative z-10 w-full max-w-xl rounded-xl bg-white p-6 shadow-2xl">
+                                    <h3 class="text-lg font-bold text-gray-900 mb-1">Update Monthly Salary</h3>
+                                    <p class="text-sm text-gray-600 mb-4">Adjust salary components below. The total will set the monthly salary.</p>
+
+                                    <form method="POST" action="{{ route('teachers.salary.update', $teacher) }}" class="space-y-4" x-data="salaryModal()" x-init="init()">
+                                        @csrf
+
+                                        <div class="flex items-center justify-between">
+                                            <h4 class="text-sm font-semibold text-gray-800">Salary Components</h4>
+                                            <button type="button" class="inline-flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-md shadow" x-on:click="addComponent()">
+                                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+                                                Add
+                                            </button>
+                                        </div>
+
+                                        <div id="salary-components-modal" class="space-y-2">
+                                            @php
+                                                $components = $teacher->salary_components;
+                                                if (!is_array($components) || count($components) === 0) {
+                                                    $components = [[ 'type' => 'Basic Salary', 'amount' => (float) ($teacher->salary_amount ?? 0) ]];
+                                                }
+                                            @endphp
+                                            @foreach($components as $idx => $c)
+                                            <div class="flex gap-2 items-start bg-gray-50 p-3 rounded-lg border border-gray-200" x-data="{ i: {{ $idx }} }">
+                                                <div class="flex-1">
+                                                    <select name="salary_components[{{ $idx }}][type]" class="block w-full border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-sm">
+                                                        @foreach($componentTypes as $t)
+                                                            <option value="{{ $t }}" {{ (string)($c['type'] ?? '') === (string)$t ? 'selected' : '' }}>{{ $t }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                                <div class="w-40">
+                                                    <div class="relative">
+                                                        <span class="absolute left-2 top-2 text-gray-500 text-xs">Rs</span>
+                                                        <input name="salary_components[{{ $idx }}][amount]" type="number" step="0.01" value="{{ number_format((float)($c['amount'] ?? 0), 2, '.', '') }}" class="block w-full pl-8 border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-sm" x-on:input="$dispatch('recalc')" />
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="p-2 text-red-600 hover:bg-red-50 rounded-md" x-on:click="removeComponent($el)">
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                </button>
+                                            </div>
+                                            @endforeach
+                                        </div>
+
+                                        <div class="flex items-center justify-between pt-2 border-t border-dashed border-gray-200">
+                                            <p class="text-sm text-gray-600">Total Monthly Salary</p>
+                                            <p class="text-lg font-bold text-green-700" id="salary-total-display">Rs {{ number_format((float)($teacher->salary_amount ?? 0), 2) }}</p>
+                                        </div>
+
+                                        <input type="hidden" id="modal_salary_amount" name="salary_amount" value="{{ number_format((float)($teacher->salary_amount ?? 0), 2, '.', '') }}" />
+
+                                        <div class="flex justify-end gap-3">
+                                            <button type="button" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50" onclick="document.getElementById('salary_modal').classList.add('hidden')">Cancel</button>
+                                            <button type="submit" class="px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700">Update</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            @endcan
+
+                            <!-- Salary Update History -->
+                            @if(isset($salaryHistory) && $salaryHistory->isNotEmpty())
+                            <div class="mt-6 pt-6 border-t border-gray-100">
+                                <h4 class="text-xs font-semibold text-gray-500 uppercase mb-3">Salary History</h4>
+                                <div class="space-y-4 max-h-48 overflow-y-auto pr-2">
+                                    @foreach($salaryHistory as $log)
+                                    <div class="flex items-start gap-3">
+                                        <div class="mt-1 flex-shrink-0">
+                                            <div class="h-1.5 w-1.5 rounded-full bg-green-500 shadow-sm shadow-green-200"></div>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center justify-between">
+                                                <p class="text-xs font-bold text-gray-900">
+                                                    Rs {{ number_format($log->metadata['after'] ?? 0, 2) }}
+                                                </p>
+                                                <span class="text-[10px] font-medium text-gray-400">
+                                                    {{ $log->created_at->format('M d, Y') }}
+                                                </span>
+                                            </div>
+                                            <p class="text-[10px] text-gray-500 mt-0.5">
+                                                by {{ $log->user->name ?? 'System' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -263,6 +366,13 @@
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                                         </svg>
                                                     </a>
+                                                    @can('teachers.salary.pay')
+                                                    <a href="{{ route('teacher-salary-payments.edit', $p) }}" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Edit">
+                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                        </svg>
+                                                    </a>
+                                                    @endcan
                                                     <a href="{{ route('teacher-salary-payments.receipt', $p) }}" class="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Print Receipt">
                                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
@@ -315,8 +425,115 @@
                             </div>
                         @endif
                     </div>
+
+                    <!-- Payment Update Logs -->
+                    @if(isset($paymentUpdates) && $paymentUpdates->isNotEmpty())
+                    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="p-2 bg-amber-50 rounded-lg">
+                                <svg class="h-5 w-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-900">Payment Update History</h3>
+                        </div>
+                        <div class="space-y-4">
+                            @foreach($paymentUpdates as $log)
+                                <div class="flex items-start gap-4 p-4 rounded-xl bg-gray-50/50 border border-gray-100 hover:bg-gray-50 transition-colors">
+                                    <div class="flex-1">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-mono bg-white border border-gray-200 px-2 py-0.5 rounded text-gray-600">
+                                                    {{ $log->auditable->receipt_number ?? 'N/A' }}
+                                                </span>
+                                                <span class="text-sm font-bold text-gray-800">
+                                                    {{ $log->metadata['before']['payment_month'] ? \Carbon\Carbon::parse($log->metadata['before']['payment_month'] . '-01')->format('M Y') : 'N/A' }}
+                                                </span>
+                                            </div>
+                                            <span class="text-[10px] font-medium text-gray-400 bg-white px-2 py-0.5 rounded-full border border-gray-100">
+                                                {{ $log->created_at->format('M d, Y h:i A') }}
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-2 gap-4 py-2 border-y border-gray-100 border-dashed my-2">
+                                            <div>
+                                                <p class="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1">Previous Amount</p>
+                                                <p class="text-sm font-semibold text-gray-500 line-through">Rs {{ number_format($log->metadata['before']['amount'] ?? 0, 2) }}</p>
+                                            </div>
+                                            <div>
+                                                <p class="text-[10px] uppercase tracking-wider font-bold text-green-600 mb-1">Updated Amount</p>
+                                                <p class="text-sm font-bold text-green-700">Rs {{ number_format($log->metadata['after']['amount'] ?? 0, 2) }}</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center justify-between mt-2">
+                                            <p class="text-[10px] text-gray-500 italic">
+                                                Note: {{ $log->metadata['after']['notes'] ?? 'No notes' }}
+                                            </p>
+                                            <p class="text-[10px] font-medium text-gray-600">
+                                                Modified by: <span class="text-gray-900">{{ $log->user->name ?? 'System' }}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 </x-app-layout>
+<script>
+    function salaryModal() {
+        return {
+            init() {
+                this.recalc();
+                document.getElementById('salary-components-modal')?.addEventListener('recalc', () => this.recalc());
+            },
+            addComponent() {
+                const container = document.getElementById('salary-components-modal');
+                const index = container.querySelectorAll('.salary-comp-row').length || container.children.length;
+                const tpl = document.createElement('div');
+                tpl.className = 'flex gap-2 items-start bg-gray-50 p-3 rounded-lg border border-gray-200 salary-comp-row';
+                const componentTypes = @json($componentTypes ?? []);
+                const options = componentTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+                tpl.innerHTML = `
+                    <div class="flex-1">
+                        <select name="salary_components[${index}][type]" class="block w-full border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-sm">
+                            ${options}
+                        </select>
+                    </div>
+                    <div class="w-40">
+                        <div class="relative">
+                            <span class="absolute left-2 top-2 text-gray-500 text-xs">Rs</span>
+                            <input name="salary_components[${index}][amount]" type="number" step="0.01" value="0.00" class="block w-full pl-8 border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500 text-sm" />
+                        </div>
+                    </div>
+                    <button type="button" class="p-2 text-red-600 hover:bg-red-50 rounded-md" onclick="this.parentElement.remove(); document.getElementById('salary-components-modal').dispatchEvent(new Event('recalc',{bubbles:true}))">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                `;
+                container.appendChild(tpl);
+                this.recalc();
+            },
+            removeComponent(el) {
+                el.closest('.flex')?.remove();
+                this.recalc();
+            },
+            recalc() {
+                const container = document.getElementById('salary-components-modal');
+                let total = 0;
+                if (container) {
+                    const inputs = container.querySelectorAll('input[name^="salary_components"][name$="[amount]"]');
+                    inputs.forEach(i => { total += parseFloat(i.value || '0'); });
+                }
+                const display = document.getElementById('salary-total-display');
+                if (display) display.textContent = 'Rs ' + total.toFixed(2);
+                const hidden = document.getElementById('modal_salary_amount');
+                if (hidden) hidden.value = total.toFixed(2);
+            }
+        }
+    }
+</script>

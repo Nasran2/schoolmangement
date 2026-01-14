@@ -5,11 +5,48 @@ namespace App\Services\Billing;
 use App\Models\Revenue;
 use App\Models\RevenueAdjustment;
 use App\Models\Student;
+use App\Models\StudentMonthlyFeeOverride;
 use App\Models\StudentMonthFeeAllocation;
+use App\Models\StudentPromotionHistory;
 use Carbon\Carbon;
 
 class MonthlyFeeAllocator
 {
+    /**
+     * Resolve the monthly fee for a given month start, honoring:
+     * - explicit month override (current-month old/new selection)
+     * - promotion/demotion history: old fee stays for current & previous months, new fee applies from next month
+     */
+    private function resolveMonthlyFeeForMonth(
+        Student $student,
+        Carbon $monthStart,
+        array $overridesByKey,
+        $histories
+    ): float {
+        $key = $monthStart->format('Y-m');
+        if (isset($overridesByKey[$key])) {
+            return (float) $overridesByKey[$key];
+        }
+
+        $baseline = null;
+        $fee = null;
+        foreach ($histories as $h) {
+            if ($baseline === null) {
+                $baseline = (float) ($h->fromClassRoom?->monthly_fee ?? 0);
+            }
+            $effectiveFrom = Carbon::parse($h->created_at)->addMonthNoOverflow()->startOfMonth();
+            if ($monthStart->greaterThanOrEqualTo($effectiveFrom)) {
+                $fee = (float) ($h->toClassRoom?->monthly_fee ?? 0);
+            }
+        }
+
+        $resolved = $fee ?? $baseline;
+        if (! $resolved || $resolved <= 0) {
+            $resolved = (float) ($student->classRoom?->monthly_fee ?? $student->monthly_fee ?? 0);
+        }
+        return (float) $resolved;
+    }
+
     /**
      * Build a ledger of months from fee_start_date to now + optional horizon, and mark paid/partial via existing allocations and legacy revenues.
      * Returns array keyed by 'Y-m' with fields: month, year, due, paid, status ('unpaid'|'partially_paid'|'paid'), remaining.
@@ -21,9 +58,27 @@ class MonthlyFeeAllocator
      */
     public function buildLedger(Student $student, int $horizonMonths = 12): array
     {
-        $fee = (float) ($student->monthly_fee ?? 0);
         $start = $student->fee_start_date ? Carbon::parse($student->fee_start_date)->startOfDay() : null;
-        if (! $start || $fee <= 0) return [];
+        if (! $start) return [];
+
+        $histories = StudentPromotionHistory::query()
+            ->with([
+                'fromClassRoom:id,monthly_fee',
+                'toClassRoom:id,monthly_fee',
+            ])
+            ->where('student_id', $student->id)
+            ->whereIn('action', ['promote', 'demote'])
+            ->orderBy('created_at')
+            ->get();
+
+        $overridesByKey = StudentMonthlyFeeOverride::query()
+            ->where('student_id', $student->id)
+            ->get(['year', 'month', 'fee_amount'])
+            ->mapWithKeys(function ($o) {
+                $key = sprintf('%04d-%02d', (int) $o->year, (int) $o->month);
+                return [$key => (float) $o->fee_amount];
+            })
+            ->all();
 
         $now = now();
         $monthsCount = $now->lt($start) ? 0 : (int) ($start->diffInMonths($now) + 1);
@@ -35,6 +90,10 @@ class MonthlyFeeAllocator
         for ($i = 0; $i < $totalMonths; $i++) {
             $date = $start->copy()->addMonthsNoOverflow($i);
             $key = $date->format('Y-m');
+            $fee = $this->resolveMonthlyFeeForMonth($student, $date->copy()->startOfMonth(), $overridesByKey, $histories);
+            if ($fee <= 0) {
+                return [];
+            }
             $ledger[$key] = [
                 'month' => (int) $date->format('n'),
                 'year' => (int) $date->format('Y'),
@@ -111,8 +170,8 @@ class MonthlyFeeAllocator
      */
     public function allocate(Student $student, float $amount, array $selectedAdvanceMonths = []): array
     {
-        $fee = (float) ($student->monthly_fee ?? 0);
-        if ($fee <= 0) {
+        $ledger = $this->buildLedger($student, 24);
+        if (empty($ledger)) {
             return [
                 'allocations' => [],
                 'summary' => [
@@ -124,8 +183,6 @@ class MonthlyFeeAllocator
                 ],
             ];
         }
-
-        $ledger = $this->buildLedger($student, 24);
         $allocations = [];
         $paidDueMonths = [];
         $advanceMonthsCovered = [];
@@ -183,9 +240,21 @@ class MonthlyFeeAllocator
                     $m = (int) ($am['month'] ?? 0);
                     $y = (int) ($am['year'] ?? 0);
                     if ($m < 1 || $m > 12 || $y < 2000) continue;
-                    $toApply = min($remainingAmount, $fee);
-                    $isPartial = ($toApply + 0.001) < $fee;
-                    $remainingAfter = max(0.0, $fee - $toApply);
+                    $key = sprintf('%04d-%02d', $y, $m);
+                    $monthDue = isset($ledger[$key]) ? (float) ($ledger[$key]['due'] ?? 0) : (float) ($student->monthly_fee ?? 0);
+                    $monthRemaining = isset($ledger[$key]) ? (float) ($ledger[$key]['remaining'] ?? $monthDue) : $monthDue;
+                    $monthStatus = isset($ledger[$key]) ? (string) ($ledger[$key]['status'] ?? 'unpaid') : 'unpaid';
+
+                    if ($monthDue <= 0 || $monthRemaining <= 0) {
+                        $errors[] = 'Monthly fee is not set for the selected month.';
+                        break;
+                    }
+                    if ($monthStatus === 'paid') {
+                        continue;
+                    }
+                    $toApply = min($remainingAmount, $monthRemaining);
+                    $isPartial = ($toApply + 0.001) < $monthRemaining;
+                    $remainingAfter = max(0.0, $monthRemaining - $toApply);
                     $allocations[] = [
                         'month' => $m,
                         'year' => $y,
@@ -201,6 +270,74 @@ class MonthlyFeeAllocator
                     ];
                     $remainingAmount -= $toApply;
                     if ($isPartial) break; // stop on partial for last selected month
+                }
+            }
+        }
+
+        // 3) Auto-roll any remaining amount into next future months (advance), month-by-month.
+        // This ensures: if cashier pays more than a month's fee, it continues to the after-next month.
+        if ($remainingAmount > 0 && empty($errors)) {
+            // Re-check dues rule (same as advance selection)
+            $hasUnpaidEarlier = false;
+            foreach ($ledger as $m) {
+                $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1);
+                if ($monthDate->gt(now()->startOfMonth())) break;
+                if (in_array($m['status'], ['unpaid', 'partially_paid'], true)) {
+                    $hasUnpaidEarlier = true;
+                    break;
+                }
+            }
+
+            if (! $hasUnpaidEarlier) {
+                $startAfter = now()->addMonthNoOverflow()->startOfMonth();
+                if (!empty($selectedAdvanceMonths)) {
+                    // Start after the latest selected month
+                    usort($selectedAdvanceMonths, function ($a, $b) {
+                        $ya = (int) ($a['year'] ?? 0);
+                        $ma = (int) ($a['month'] ?? 0);
+                        $yb = (int) ($b['year'] ?? 0);
+                        $mb = (int) ($b['month'] ?? 0);
+                        return ($ya * 100 + $ma) <=> ($yb * 100 + $mb);
+                    });
+                    $last = end($selectedAdvanceMonths);
+                    if (is_array($last) && isset($last['year'], $last['month'])) {
+                        $startAfter = Carbon::createFromDate((int) $last['year'], (int) $last['month'], 1)
+                            ->addMonthNoOverflow()
+                            ->startOfMonth();
+                    }
+                }
+
+                foreach ($ledger as $key => $m) {
+                    if ($remainingAmount <= 0) break;
+                    $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1)->startOfMonth();
+                    if ($monthDate->lt($startAfter)) continue;
+                    if ($m['status'] === 'paid') continue;
+
+                    $monthRemaining = (float) ($m['remaining'] ?? 0);
+                    if ($monthRemaining <= 0) continue;
+
+                    $toApply = min($remainingAmount, $monthRemaining);
+                    $isPartial = ($toApply + 0.001) < $monthRemaining;
+                    $remainingAfter = max(0.0, $monthRemaining - $toApply);
+
+                    $allocations[] = [
+                        'month' => (int) $m['month'],
+                        'year' => (int) $m['year'],
+                        'type' => 'advance',
+                        'applied_amount' => round($toApply, 2),
+                        'is_partial' => $isPartial,
+                        'remaining_for_month' => round($remainingAfter, 2),
+                    ];
+                    $advanceMonthsCovered[] = [
+                        'month' => (int) $m['month'],
+                        'year' => (int) $m['year'],
+                        'partial' => $isPartial,
+                    ];
+                    $remainingAmount -= $toApply;
+
+                    if ($isPartial) {
+                        break;
+                    }
                 }
             }
         }

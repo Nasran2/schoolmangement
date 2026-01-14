@@ -33,7 +33,7 @@
                             </div>
                             <div>
                                 <x-input-label for="expense_date" :value="__('Date')" />
-                                <x-text-input id="expense_date" name="expense_date" type="date" class="mt-1 block w-full" :value="old('expense_date', optional($item->expense_date)->format('Y-m-d'))" required />
+                                <x-text-input id="expense_date" name="expense_date" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="old('expense_date', optional($item->expense_date)->format('d-m-Y'))" required />
                                 <x-input-error class="mt-2" :messages="$errors->get('expense_date')" />
                             </div>
                         </div>

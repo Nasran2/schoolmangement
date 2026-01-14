@@ -12,10 +12,10 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #333;
-            background-color: #f9fafb;
-            line-height: 1.6;
+            font-family: Georgia, 'Times New Roman', serif;
+            color: #222;
+            background-color: #ffffff;
+            line-height: 1.5;
         }
 
         .container {
@@ -26,23 +26,50 @@
         }
 
         .header {
-            text-align: center;
-            border-bottom: 3px solid #7c3aed;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #b8860b;
+            padding: 15px 0;
+            margin-bottom: 20px;
         }
-
-        .header h1 {
-            color: #1f2937;
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 5px;
+        .header-left {
+            display: flex;
+            align-items: center;
         }
-
-        .header p {
-            color: #6b7280;
-            font-size: 12px;
+        .header-left .logo {
+            height: 65px;
+            margin-right: 20px;
+            object-fit: contain;
+            width: auto;
+            max-width: 80px;
         }
+        .header-left h1 {
+            color: #002147;
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 0.02em;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            font-family: 'Times New Roman', serif;
+        }
+        .header-right {
+            text-align: right;
+        }
+        .header-right .subhead {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+        .header-right p {
+            font-size: 10px;
+            color: #374151;
+        }
+        .header-right .generated-date {
+            font-size: 9px;
+            color: #9ca3af;
+        }
+        .subhead { font-size: 11px; color: #555; }
 
         .filters {
             background-color: #f3f4f6;
@@ -63,13 +90,17 @@
         }
 
         .filter-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            display: table;
+            width: 100%;
+            table-layout: fixed;
             margin-top: 10px;
         }
 
         .filter-item {
+            display: table-cell;
+            width: 50%;
+            padding-right: 15px;
+            vertical-align: top;
             margin-bottom: 8px;
         }
 
@@ -85,12 +116,20 @@
             display: block;
         }
 
-        .main-cards {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 25px;
-        }
+        .day { margin-bottom: 18px; page-break-inside: avoid; }
+        .day-title { font-weight: 700; margin-bottom: 6px; }
+        .columns { width: 100%; border-collapse: collapse; }
+        .columns > div { width: 48%; display: inline-block; vertical-align: top; }
+        .columns > div:last-child { margin-left: 2%; }
+        .table { width: 100%; border-collapse: collapse; }
+        .table th, .table td { font-size: 11px; padding: 6px; border-bottom: 1px solid #e5e7eb; }
+        .table th { text-align: left; color: #6b7280; }
+        .amount { text-align: right; }
+        .summary { width: 100%; margin-top: 8px; font-size: 11px; border-top: 1px dotted #ccc; padding-top: 4px; }
+        .summary-left { width: 50%; float: left; }
+        .summary-right { width: 50%; float: right; text-align: right; }
+        .summary:after { content: ""; display: table; clear: both; }
+        .closing { font-weight: 800; }
 
         .card {
             border: 1px solid #e5e7eb;
@@ -145,18 +184,21 @@
         }
 
         .metrics {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            width: 100%;
             margin-bottom: 25px;
         }
+        .metrics:after { content: ""; display: table; clear: both; }
 
         .metric-box {
+            width: 47%;
+            float: left;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             padding: 15px;
             background-color: #f9fafb;
+            margin-bottom: 10px;
         }
+        .metric-box:last-child { float: right; }
 
         .metric-box h4 {
             font-size: 12px;
@@ -165,21 +207,23 @@
             margin-bottom: 10px;
         }
 
-        .metric-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
+        .metric-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 12px;
         }
-
-        .metric-label {
-            color: #6b7280;
+        .metric-table td {
+            padding-bottom: 8px;
+            vertical-align: top;
         }
-
-        .metric-value {
+        .metric-table .label {
+            color: #6b7280;
+            text-align: left;
+        }
+        .metric-table .value {
             font-weight: 700;
             color: #1f2937;
+            text-align: right;
         }
 
         .progress-bar {
@@ -268,8 +312,23 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>📊 Financial Summary Report</h1>
-            <p>Generated on {{ now()->format('M d, Y - H:i A') }}</p>
+            <div class="header-left">
+                @if (!empty($school['logo']))
+                    <img class="logo" src="{{ public_path('storage/' . $school['logo']) }}" alt="Logo">
+                @endif
+                <div style="padding-top: 2px;">
+                    @if(!empty($school['address']))
+                        <h1 style="font-size: 16px; margin-bottom: 0; color: #002147;">{{ strtoupper($school['address']) }}</h1>
+                    @endif
+                    <h1 style="margin-bottom: 4px; color: #002147; font-size: 22px; font-weight: bold; text-transform: uppercase;">{{ strtoupper($school['name'] ?? 'SCHOOL') }}</h1>
+                    <div class="subhead" style="font-size: 11px; color: #555;">Tel: {{ $school['phone'] ?? '' }}</div>
+                </div>
+            </div>
+            <div class="header-right" style="text-align: right;">
+                <div class="subhead" style="font-size: 13px; font-weight: 600; color: #374151;">{{ !empty($daily) ? 'Financial Daily Ledger' : 'Financial Ledger (Aggregated)' }}</div>
+                <p style="font-size: 10px; color: #374151;">Generated on {{ now()->format('M d, Y') }}</p>
+                <p style="font-size: 9px; color: #9ca3af;">{{ now()->format('H:i A') }}</p>
+            </div>
         </div>
 
         <!-- Filters Applied -->
@@ -293,88 +352,97 @@
             </div>
         @endif
 
-        <!-- Main Financial Cards -->
-        <div class="main-cards">
-            <div class="card blue">
-                <h3>Total Revenue</h3>
-                <p>Rs {{ number_format($totalRevenue, 2) }}</p>
-                <small>Income from all sources</small>
-            </div>
+        @foreach($days as $d)
+            <div class="day">
+                @if(!empty($daily))
+                    <div class="day-title">Date: {{ $d['date']->format('M d, Y') }}</div>
+                @else
+                    <div class="day-title">Period: {{ \Carbon\Carbon::parse($filters['from'] ?? $d['date'])->format('M d, Y') }} — {{ \Carbon\Carbon::parse($filters['to'] ?? $d['date'])->format('M d, Y') }}</div>
+                @endif
+                <div class="columns">
+                    <!-- Debit -->
+                    <div>
+                        <div style="font-weight:700; margin-bottom:4px;">Debit (Income)</div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Folio</th>
+                                    <th class="amount">Amount (Rs)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($d['debits'] as $row)
+                                    <tr>
+                                        <td>{{ $row['description'] }}</td>
+                                        <td>{{ $row['ref'] ?? '—' }}</td>
+                                        <td class="amount">{{ number_format($row['amount'], 2) }}</td>
+                                    </tr>
+                                @endforeach
+                                <tr>
+                                    <td style="font-weight:700;">Total Debit</td>
+                                    <td></td>
+                                    <td class="amount" style="font-weight:700;">{{ number_format($d['opening'] + $d['income_total'], 2) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
-            <div class="card red">
-                <h3>Total Expenses</h3>
-                <p>Rs {{ number_format($totalExpense, 2) }}</p>
-                <small>Outflows and payables</small>
+                    <!-- Credit -->
+                    <div>
+                        <div style="font-weight:700; margin-bottom:4px;">Credit (Expense)</div>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="amount">Amount (Rs)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($d['credits'] as $row)
+                                    <tr>
+                                        <td>{{ $row['description'] }}</td>
+                                        <td class="amount">{{ number_format($row['amount'], 2) }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td>No expenses</td>
+                                        <td class="amount">0.00</td>
+                                    </tr>
+                                @endforelse
+                                <tr>
+                                    <td style="font-weight:700;">Total Credit</td>
+                                    <td class="amount" style="font-weight:700;">{{ number_format($d['expense_total'], 2) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="summary">
+                    <div class="summary-left">B.B.F (Opening): <strong>Rs {{ number_format($d['opening'], 2) }}</strong></div>
+                    <div class="summary-right"><span class="closing">Closing Balance: Rs {{ number_format($d['closing'], 2) }}</span></div>
+                </div>
             </div>
-
-            <div class="card {{ $netProfit >= 0 ? 'green' : 'red' }}">
-                <h3>Net Profit/Loss</h3>
-                <p class="{{ $netProfit >= 0 ? 'text-positive' : 'text-negative' }}">
-                    Rs {{ number_format($netProfit, 2) }}
-                </p>
-                <small>{{ $netProfit >= 0 ? 'Positive balance' : 'Negative balance' }}</small>
-            </div>
-        </div>
+        @endforeach
 
         <!-- Info Box -->
         <div class="info-box">
-            <strong>📌 Report Overview:</strong> This financial summary provides a comprehensive overview of your school's revenue, expenses, and net profit for the selected period. Use this data to analyze financial performance and make informed business decisions.
-        </div>
-
-        <!-- Financial Metrics -->
-        <div class="metrics">
-            <!-- Revenue to Expense Ratio -->
-            <div class="metric-box">
-                <h4>Financial Ratio Analysis</h4>
-                <div class="metric-row">
-                    <span class="metric-label">Revenue to Expense Ratio</span>
-                    <span class="metric-value">
-                        @if($totalExpense > 0)
-                            {{ number_format($totalRevenue / $totalExpense, 2) }}:1
-                        @else
-                            ∞ (No expenses)
-                        @endif
-                    </span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: {{ min(($totalRevenue / max($totalRevenue, $totalExpense)) * 100, 100) }}%"></div>
-                </div>
-                <small style="color: #6b7280; display: block; margin-top: 5px;">Shows relationship between income and spending</small>
-            </div>
-
-            <!-- Budget Allocation -->
-            <div class="metric-box">
-                <h4>Budget Allocation</h4>
-                <div class="metric-row">
-                    <span class="metric-label">Expense Percentage</span>
-                    <span class="metric-value">
-                        @if($totalRevenue > 0)
-                            {{ number_format(($totalExpense / $totalRevenue) * 100, 1) }}%
-                        @else
-                            0%
-                        @endif
-                    </span>
-                </div>
-                <div class="progress-bar">
-                    <div class="progress-fill red" style="width: {{ min(($totalExpense / max($totalRevenue, 1)) * 100, 100) }}%"></div>
-                </div>
-                <small style="color: #6b7280; display: block; margin-top: 5px;">Percentage of revenue spent on expenses</small>
-            </div>
+            <strong> Report Overview:</strong> This financial summary provides a comprehensive overview of your school's revenue, expenses, and net profit for the selected period. Use this data to analyze financial performance and make informed business decisions.
         </div>
 
         <!-- Summary Table -->
         <table class="summary-table">
             <tbody>
                 <tr>
-                    <td>💰 Total Revenue</td>
+                    <td>Total Revenue</td>
                     <td>Rs {{ number_format($totalRevenue, 2) }}</td>
                 </tr>
                 <tr>
-                    <td>💸 Total Expenses</td>
+                    <td>Total Expenses</td>
                     <td>Rs {{ number_format($totalExpense, 2) }}</td>
                 </tr>
                 <tr>
-                    <td style="background-color: #f9fafb; font-weight: 700;">📈 Net Profit/Loss</td>
+                    <td style="background-color: #f9fafb; font-weight: 700;">Net Profit/Loss</td>
                     <td style="background-color: #f9fafb; {{ $netProfit >= 0 ? 'color: #10b981' : 'color: #dc2626' }}">
                         Rs {{ number_format($netProfit, 2) }}
                     </td>
@@ -383,39 +451,41 @@
         </table>
 
         <!-- Additional Metrics -->
-        <div class="metric-box" style="margin-bottom: 25px;">
+        <div style="clear: both; margin-bottom: 25px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px; background-color: #f9fafb;">
             <h4>Detailed Breakdown</h4>
-            <div class="metric-row">
-                <span class="metric-label">Remaining Balance</span>
-                <span class="metric-value {{ $netProfit >= 0 ? 'text-positive' : 'text-negative' }}">
-                    Rs {{ number_format($netProfit, 2) }}
-                </span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">Profit Margin</span>
-                <span class="metric-value">
-                    @if($totalRevenue > 0)
-                        {{ number_format(($netProfit / $totalRevenue) * 100, 2) }}%
-                    @else
-                        0%
-                    @endif
-                </span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">Expense Ratio</span>
-                <span class="metric-value">
-                    @if($totalRevenue > 0)
-                        {{ number_format(($totalExpense / $totalRevenue) * 100, 2) }}%
-                    @else
-                        0%
-                    @endif
-                </span>
-            </div>
+            <table class="metric-table">
+                <tr>
+                    <td class="label">Remaining Balance</td>
+                    <td class="value {{ $netProfit >= 0 ? 'text-positive' : 'text-negative' }}">
+                        Rs {{ number_format($netProfit, 2) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">Profit Margin</td>
+                    <td class="value">
+                        @if($totalRevenue > 0)
+                            {{ number_format(($netProfit / $totalRevenue) * 100, 2) }}%
+                        @else
+                            0%
+                        @endif
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">Expense Ratio</td>
+                    <td class="value">
+                        @if($totalRevenue > 0)
+                            {{ number_format(($totalExpense / $totalRevenue) * 100, 2) }}%
+                        @else
+                            0%
+                        @endif
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <!-- Footer -->
-        <div class="footer">
-            <div class="footer-text">This is an automatically generated report from School Management System</div>
+        <div class="footer" style="clear: both;">
+            <div class="footer-text">Generated by School Management System</div>
             <div class="generated-date">Report ID: FIN-{{ now()->format('YmdHis') }}</div>
         </div>
     </div>

@@ -15,7 +15,7 @@
         <div class="flex items-center gap-6">
             <div class="text-right">
                 {{-- <div class="text-xs text-gray-600">Sri Lanka Time</div> --}}
-                <div id="colombo_time" class="text-sm font-medium text-gray-900">{{ \Carbon\Carbon::now('Asia/Colombo')->format('Y-m-d H:i') }}</div>
+                <div id="colombo_time" class="text-sm font-medium text-gray-900">{{ \Carbon\Carbon::now('Asia/Colombo')->format('d-m-Y H:i') }}</div>
             </div>
             <form method="POST" action="{{ route('academic-year.set') }}" class="flex items-center gap-2">
                 @csrf

@@ -66,6 +66,7 @@ class RbacSeeder extends Seeder
             'teachers.delete',
             'teachers.bulk_upload',
             'teachers.salary.pay',
+            'teachers.salary.summary.view',
             'teachers.reports.download',
 
             // SMS
@@ -93,6 +94,8 @@ class RbacSeeder extends Seeder
             'reports.fee_collection_vs_expected.view',
             'reports.fee_discounts.view',
             'reports.fee_refunds.view',
+            'reports.seminars_collection.view',
+            'reports.extra_classes_collection.view',
 
             // RBAC
             'roles.manage',
@@ -104,6 +107,9 @@ class RbacSeeder extends Seeder
 
         $superAdminRole = Role::firstOrCreate(['name' => 'Super Admin']);
         $superAdminRole->syncPermissions(Permission::all());
+
+        $adminRole = Role::firstOrCreate(['name' => 'Admin']);
+        $adminRole->syncPermissions(Permission::all());
 
         $user = User::query()->updateOrCreate(
             ['email' => 'admin@school.local'],

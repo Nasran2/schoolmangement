@@ -3,7 +3,11 @@
 namespace Tests\Unit;
 
 use App\Models\ClassRoom;
+use App\Models\Revenue;
+use App\Models\RevenueAdjustment;
+use App\Models\RevenueCategory;
 use App\Models\Student;
+use App\Models\StudentPromotionHistory;
 use App\Services\Billing\MonthlyFeeAllocator;
 use Carbon\Carbon;
 use Tests\TestCase;
@@ -68,10 +72,104 @@ class MonthlyFeeAllocatorTest extends TestCase
         ];
 
         $res = $svc->allocate($student, 12000.0, $adv);
-        $this->assertCount(2, $res['allocations']);
+        $this->assertCount(3, $res['allocations']);
         $this->assertSame('advance', $res['allocations'][0]['type']);
         $this->assertSame('advance', $res['allocations'][1]['type']);
+        $this->assertSame('advance', $res['allocations'][2]['type']);
         $this->assertFalse($res['allocations'][0]['is_partial']);
+        $this->assertTrue((bool) $res['allocations'][2]['is_partial']);
         $this->assertTrue($res['summary']['unallocated_balance'] >= 0);
+    }
+
+    /** @test */
+    public function resolves_monthly_fee_across_multiple_promotions_and_demotions_effective_next_month()
+    {
+        Carbon::setTestNow(Carbon::create(2026, 1, 13, 10, 0, 0));
+
+        $cat = RevenueCategory::create(['name' => 'Monthly Fee', 'payment_type' => 'monthly', 'active' => true]);
+
+        $classOld = ClassRoom::create(['name' => 'Grade Old', 'monthly_fee' => 5000, 'monthly_fee_revenue_category_id' => $cat->id]);
+        $classHigh = ClassRoom::create(['name' => 'Grade High', 'monthly_fee' => 7000, 'monthly_fee_revenue_category_id' => $cat->id]);
+        $classLow = ClassRoom::create(['name' => 'Grade Low', 'monthly_fee' => 6000, 'monthly_fee_revenue_category_id' => $cat->id]);
+
+        $student = Student::create([
+            'admission_number' => 'A100',
+            'name' => 'Promo Demo',
+            'class_room_id' => $classOld->id,
+            'class' => $classOld->name,
+            'monthly_fee' => 5000,
+            'fee_start_date' => Carbon::create(2025, 9, 1)->format('Y-m-d'),
+            'active' => true,
+        ]);
+
+        $promote = StudentPromotionHistory::create([
+            'student_id' => $student->id,
+            'from_class_room_id' => $classOld->id,
+            'to_class_room_id' => $classHigh->id,
+            'action' => 'promote',
+            'academic_year' => '2025',
+        ]);
+        $promote->created_at = Carbon::create(2025, 10, 15, 9, 0, 0);
+        $promote->save();
+
+        $demote = StudentPromotionHistory::create([
+            'student_id' => $student->id,
+            'from_class_room_id' => $classHigh->id,
+            'to_class_room_id' => $classLow->id,
+            'action' => 'demote',
+            'academic_year' => '2025',
+        ]);
+        $demote->created_at = Carbon::create(2025, 12, 10, 9, 0, 0);
+        $demote->save();
+
+        $svc = new MonthlyFeeAllocator();
+        $ledger = $svc->buildLedger($student, 0);
+
+        $this->assertEquals(5000.0, (float) ($ledger['2025-09']['due'] ?? 0));
+        $this->assertEquals(5000.0, (float) ($ledger['2025-10']['due'] ?? 0)); // promote effective from Nov
+        $this->assertEquals(7000.0, (float) ($ledger['2025-11']['due'] ?? 0));
+        $this->assertEquals(7000.0, (float) ($ledger['2025-12']['due'] ?? 0));
+        $this->assertEquals(6000.0, (float) ($ledger['2026-01']['due'] ?? 0)); // demote effective from Jan
+    }
+
+    /** @test */
+    public function legacy_revenue_refund_reduces_applied_amount_in_ledger()
+    {
+        Carbon::setTestNow(Carbon::create(2026, 1, 13, 10, 0, 0));
+
+        $cat = RevenueCategory::create(['name' => 'Monthly Fee', 'payment_type' => 'monthly', 'active' => true]);
+        $class = ClassRoom::create(['name' => 'Grade 3', 'monthly_fee' => 5000, 'monthly_fee_revenue_category_id' => $cat->id]);
+        $student = Student::create([
+            'admission_number' => 'A200',
+            'name' => 'Refund Case',
+            'class_room_id' => $class->id,
+            'class' => $class->name,
+            'monthly_fee' => 5000,
+            'fee_start_date' => Carbon::create(2025, 12, 1)->format('Y-m-d'),
+            'active' => true,
+        ]);
+
+        $rev = Revenue::create([
+            'student_id' => $student->id,
+            'revenue_category_id' => $cat->id,
+            'amount' => 5000,
+            'paid_at' => Carbon::create(2026, 1, 5)->format('Y-m-d'),
+            'bill_no' => 'R-1',
+        ]);
+
+        RevenueAdjustment::create([
+            'revenue_id' => $rev->id,
+            'type' => 'refund',
+            'amount' => 2000,
+            'reason' => 'Test refund',
+        ]);
+
+        $svc = new MonthlyFeeAllocator();
+        $ledger = $svc->buildLedger($student, 0);
+
+        // Oldest month is Dec 2025, fee 5000. Revenue net is 3000 after refund -> should be partial.
+        $this->assertEquals(3000.0, (float) ($ledger['2025-12']['paid'] ?? 0));
+        $this->assertEquals(2000.0, (float) ($ledger['2025-12']['remaining'] ?? 0));
+        $this->assertSame('partially_paid', (string) ($ledger['2025-12']['status'] ?? ''));
     }
 }

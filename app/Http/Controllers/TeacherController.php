@@ -125,9 +125,29 @@ class TeacherController extends Controller
             ->orderByDesc('paid_at')
             ->paginate(15);
 
+        $salaryHistory = \App\Models\AuditLog::query()
+            ->where('auditable_type', get_class($teacher))
+            ->where('auditable_id', $teacher->id)
+            ->where('action', 'teacher.salary_updated')
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $paymentUpdates = \App\Models\AuditLog::query()
+            ->where('action', 'salary_payment.updated')
+            ->where('auditable_type', \App\Models\TeacherSalaryPayment::class)
+            ->whereIn('auditable_id', $teacher->salaryPayments()->pluck('id'))
+            ->with(['user', 'auditable'])
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
         return view('teachers.show', [
             'teacher' => $teacher,
             'payments' => $payments,
+            'salaryHistory' => $salaryHistory,
+            'paymentUpdates' => $paymentUpdates,
+            'componentTypes' => $this->getComponentTypes(),
         ]);
     }
 
@@ -215,6 +235,71 @@ class TeacherController extends Controller
         ]);
 
         return back()->with('status', 'Teacher updated successfully.');
+    }
+
+    /**
+     * Quickly update only the teacher's base monthly salary from the details page.
+     */
+    public function updateSalary(Request $request, Teacher $teacher): RedirectResponse
+    {
+        $validated = $request->validate([
+            'salary_amount' => ['nullable', 'numeric', 'min:0'],
+            'salary_components' => ['nullable', 'array'],
+            'salary_components.*.type' => ['required_with:salary_components', 'string', 'max:120'],
+            'salary_components.*.amount' => ['required_with:salary_components', 'numeric', 'min:0'],
+        ]);
+
+        $before = [
+            'amount' => (float) ($teacher->salary_amount ?? 0),
+            'components' => $teacher->salary_components,
+        ];
+
+        $components = $validated['salary_components'] ?? null;
+        $newAmount = $validated['salary_amount'] ?? null;
+
+        if (is_array($components) && count($components) > 0) {
+            $total = 0.0;
+            $normalized = [];
+            foreach ($components as $c) {
+                $type = (string) ($c['type'] ?? '');
+                $amount = (float) ($c['amount'] ?? 0);
+                if ($type === '' && $amount <= 0) { continue; }
+                $normalized[] = ['type' => $type, 'amount' => $amount];
+                $total += $amount;
+            }
+            $components = $normalized;
+            // If components provided, salary is the sum
+            $newAmount = $total;
+        }
+
+        // Fallback: if nothing provided, keep existing
+        if ($newAmount === null) {
+            $newAmount = (float) ($teacher->salary_amount ?? 0);
+        }
+
+        $teacher->update([
+            'salary_amount' => (float) $newAmount,
+            'salary_components' => $components,
+        ]);
+
+        try {
+            app(\App\Services\AuditLogger::class)->log(
+                'teacher.salary_updated',
+                $teacher,
+                'Teacher monthly salary updated',
+                [
+                    'before' => $before,
+                    'after' => [
+                        'amount' => (float) $teacher->salary_amount,
+                        'components' => $teacher->salary_components,
+                    ],
+                ]
+            );
+        } catch (\Throwable $e) {
+            // non-blocking
+        }
+
+        return back()->with('status', 'Monthly salary updated to Rs '.number_format((float)$teacher->salary_amount, 2));
     }
 
     /**

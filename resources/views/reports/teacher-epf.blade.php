@@ -21,11 +21,11 @@
                     <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
                         <div>
                             <x-input-label for="from" :value="__('From Date')" class="font-semibold mb-2" />
-                            <x-text-input id="from" name="from" type="date" class="mt-1 block w-full" :value="$filters['from'] ?? ''" />
+                            <x-text-input id="from" name="from" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="$filters['from'] ?? ''" />
                         </div>
                         <div>
                             <x-input-label for="to" :value="__('To Date')" class="font-semibold mb-2" />
-                            <x-text-input id="to" name="to" type="date" class="mt-1 block w-full" :value="$filters['to'] ?? ''" />
+                            <x-text-input id="to" name="to" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="$filters['to'] ?? ''" />
                         </div>
                         <div>
                             <x-input-label for="payment_month" :value="__('Payment Month')" class="font-semibold mb-2" />
@@ -171,7 +171,7 @@
                             @forelse($items as $row)
                                 <tr>
                                     <td class="px-6 py-4 text-sm text-gray-900">{{ $row->receipt_number }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-700">{{ optional($row->paid_at)->format('Y-m-d') }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-700">{{ optional($row->paid_at)->format('d-m-Y') }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-700">{{ $row->payment_month ? \Carbon\Carbon::parse($row->payment_month . '-01')->format('M Y') : 'N/A' }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900">{{ $row->teacher?->name }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-700 text-right">Rs {{ number_format((float) $row->base_salary, 2) }}</td>

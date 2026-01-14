@@ -8,7 +8,7 @@
         <title>{{ $schoolName ?? config('app.name', 'Laravel') }}</title>
 
         @if($logo = app('settings')->get('school.logo'))
-            <link rel="icon" href="{{ Storage::url($logo) }}">
+            <link rel="icon" href="{{ url('/storage/'.$logo) }}">
         @endif
 
         <!-- Fonts -->

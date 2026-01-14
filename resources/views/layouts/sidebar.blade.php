@@ -30,7 +30,7 @@
         </div>
     </div>
 
-    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ open: { revenue: @js($isRevenue), expense: @js($isExpense), students: @js($isStudents), teachers: @js($isTeachers), reports: @js($isReports), classrooms: @js($isClassrooms), settings: @js($isSettings) } }">
+    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ open: { revenue: @js($isRevenue), expense: @js($isExpense), students: @js($isStudents), teachers: @js($isTeachers), reports: @js($isReports), classrooms: @js($isClassrooms), settings: @js($isSettings), seminars: false, extraClasses: false } }">
         @can('dashboard.view')
             <a href="{{ route('dashboard') }}"
                class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDashboard ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -107,6 +107,7 @@
                     @endcan
                     @can('students.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('students.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('students.index') }}">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('students.alumni*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('students.alumni') }}">Alumni</a>
                     @endcan
                     @can('students.bulk_upload')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('students.bulk.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('students.bulk.create') }}">Bulk Upload</a>
@@ -154,12 +155,48 @@
                     @can('teachers.salary.pay')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teacher-salary-payments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teacher-salary-payments.index') }}">Salary Payments</a>
                     @endcan
+                    @canany(['teachers.salary.pay','teachers.salary.summary.view'])
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teacher-salary-payments.summary') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teacher-salary-payments.summary') }}">Salary Due & Upcoming</a>
+                    @endcanany
                     @can('teachers.bulk_upload')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.bulk.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.bulk.create') }}">Bulk Upload</a>
                     @endcan
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('visiting-teachers.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('visiting-teachers.index') }}">Visiting Teachers</a>
                 </div>
             </div>
         @endcanany
+
+        <!-- Seminars -->
+        <div class="mt-2">
+            <button type="button" @click="open.seminars = !open.seminars" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                    <span>Seminars</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="open.seminars ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="open.seminars" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.create') }}">Add New Seminar</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.index') || request()->routeIs('seminars.edit') || request()->routeIs('seminars.show') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.index') }}">Manage</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.payments') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.index') }}">Payment</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.reports.due') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.reports.due') }}">Due Payment Report</a>
+            </div>
+        </div>
+
+        <!-- Extra Classes -->
+        <div class="mt-2">
+            <button type="button" @click="open.extraClasses = !open.extraClasses" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 10h16"/><path d="M4 14h16"/><path d="M4 18h16"/></svg>
+                    <span>Extra Classes</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="open.extraClasses ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="open.extraClasses" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('extra-classes.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('extra-classes.create') }}">Add Extra Class</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('extra-classes.index') || request()->routeIs('extra-classes.edit') || request()->routeIs('extra-classes.show') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('extra-classes.index') }}">Manage</a>
+            </div>
+        </div>
 
         @can('reports.view')
             <div class="mt-2">
@@ -213,6 +250,8 @@
                     @can('reports.fee_refunds.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.fee_refunds') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.fee_refunds') }}">Refund/Cancellation</a>
                     @endcan
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.seminars_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.seminars_collection') }}">Seminars Collection</a>
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.extra_classes_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.extra_classes_collection') }}">Extra Classes Collection</a>
             </div>
         @endcan
 
@@ -242,6 +281,15 @@
                 </div>
             </div>
         @endcanany
+
+        @can('audit_logs.view')
+            <div class="mt-2">
+                <a href="{{ route('audit_logs.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('audit_logs.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
+                    <span>Activity Logs</span>
+                </a>
+            </div>
+        @endcan
 
         <div class="mt-4 pt-4 border-t border-gray-200">
             <form method="POST" action="{{ route('logout') }}">
@@ -276,7 +324,7 @@
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6"/><path d="M6 6l12 12"/></svg>
                 </button>
             </div>
-    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ menus: { revenue: @js($isRevenue), expense: @js($isExpense), students: @js($isStudents), teachers: @js($isTeachers), reports: @js($isReports), classrooms: @js($isClassrooms), settings: @js($isSettings) } }">
+    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ menus: { revenue: @js($isRevenue), expense: @js($isExpense), students: @js($isStudents), teachers: @js($isTeachers), reports: @js($isReports), classrooms: @js($isClassrooms), settings: @js($isSettings), seminars: false, extraClasses: false } }">
         @can('dashboard.view')
             <a href="{{ route('dashboard') }}"
                class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDashboard ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -309,6 +357,15 @@
                 </div>
             </div>
         @endcanany
+
+        @can('audit_logs.view')
+            <div class="mt-2">
+                <a href="{{ route('audit_logs.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('audit_logs.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
+                    <span>Activity Logs</span>
+                </a>
+            </div>
+        @endcan
 
         @canany(['expense.add','expense.manage','expense.categories.manage'])
             <div class="mt-2">
@@ -403,9 +460,42 @@
                     @can('teachers.bulk_upload')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.bulk.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.bulk.create') }}">Bulk Upload</a>
                     @endcan
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('visiting-teachers.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('visiting-teachers.index') }}">Visiting Teachers</a>
                 </div>
             </div>
         @endcanany
+
+        <!-- Seminars -->
+        <div class="mt-2">
+            <button type="button" @click="menus.seminars = !menus.seminars" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                    <span>Seminars</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="menus.seminars ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="menus.seminars" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.create') }}">Add New Seminar</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.index') || request()->routeIs('seminars.edit') || request()->routeIs('seminars.show') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.index') }}">Manage</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.payments') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.index') }}">Payment</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('seminars.reports.due') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('seminars.reports.due') }}">Due Payment Report</a>
+            </div>
+        </div>
+
+        <!-- Extra Classes -->
+        <div class="mt-2">
+            <button type="button" @click="menus.extraClasses = !menus.extraClasses" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 10h16"/><path d="M4 14h16"/><path d="M4 18h16"/></svg>
+                    <span>Extra Classes</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="menus.extraClasses ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="menus.extraClasses" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('extra-classes.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('extra-classes.create') }}">Add Extra Class</a>
+                <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('extra-classes.index') || request()->routeIs('extra-classes.edit') || request()->routeIs('extra-classes.show') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('extra-classes.index') }}">Manage</a>
+            </div>
+        </div>
 
         @can('reports.view')
             <div class="mt-2">
@@ -459,6 +549,8 @@
                     @can('reports.fee_refunds.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.fee_refunds') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.fee_refunds') }}">Refund/Cancellation</a>
                     @endcan
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.seminars_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.seminars_collection') }}">Seminars Collection</a>
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.extra_classes_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.extra_classes_collection') }}">Extra Classes Collection</a>
             </div>
         @endcan
 

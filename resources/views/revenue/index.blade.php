@@ -42,12 +42,16 @@
                         </select>
                     </div>
                     <div>
+                        <label class="text-sm font-medium text-gray-700">Search</label>
+                        <input id="q" name="q" type="text" placeholder="Bill / Student / Category" value="{{ $filters['q'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                    <div>
                         <label class="text-sm font-medium text-gray-700">From</label>
-                        <input id="from" name="from" type="date" value="{{ $filters['from'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <input id="from" name="from" type="text" placeholder="DD-MM-YYYY" value="{{ $filters['from'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
                     <div>
                         <label class="text-sm font-medium text-gray-700">To</label>
-                        <input id="to" name="to" type="date" value="{{ $filters['to'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <input id="to" name="to" type="text" placeholder="DD-MM-YYYY" value="{{ $filters['to'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
                     <div class="flex items-end">
                         <div class="flex w-full items-center gap-3 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-gray-600">
@@ -90,7 +94,7 @@
                             @forelse ($items as $item)
                                 <tr class="hover:bg-slate-50">
                                     <td class="px-4 py-3 font-medium text-gray-900">{{ $item->bill_no ?? '-' }}</td>
-                                    <td class="px-4 py-3">{{ optional($item->paid_at)->format('Y-m-d') }}</td>
+                                    <td class="px-4 py-3">{{ optional($item->paid_at)->format('d-m-Y') }}</td>
                                     <td class="px-4 py-3">{{ $item->category?->name }}</td>
                                     <td class="px-4 py-3">
                                         @if ($item->student)

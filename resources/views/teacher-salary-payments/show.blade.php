@@ -68,6 +68,21 @@
                         <p class="text-lg font-semibold text-gray-900 mt-1">{{ optional($payment->paid_at)->format('F d, Y') }}</p>
                     </div>
                     <div>
+                        <p class="text-sm text-gray-600 font-medium">Payment Method</p>
+                        <p class="text-lg font-semibold text-gray-900 mt-1">{{ ucfirst($payment->payment_method ?? 'cash') }}</p>
+                    </div>
+                    @php $m = strtolower((string)($payment->payment_method ?? '')); @endphp
+                    @if(in_array($m, ['bank','cheque']))
+                    <div>
+                        <p class="text-sm text-gray-600 font-medium">Bank</p>
+                        <p class="text-lg font-semibold text-gray-900 mt-1">{{ $payment->bank_name ?? 'N/A' }}{{ $payment->bank_branch ? ' - '.$payment->bank_branch : '' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600 font-medium">Account No.</p>
+                        <p class="text-lg font-semibold text-gray-900 mt-1">{{ $payment->bank_account_no ?? 'N/A' }}</p>
+                    </div>
+                    @endif
+                    <div>
                         <p class="text-sm text-gray-600 font-medium">Processed By</p>
                         <p class="text-lg font-semibold text-gray-900 mt-1">{{ $payment->creator?->name ?? 'N/A' }}</p>
                     </div>

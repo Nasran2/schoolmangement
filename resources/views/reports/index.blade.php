@@ -69,6 +69,15 @@
                             <div class="font-semibold">Refund/Cancellation Report</div>
                             <div class="text-sm text-gray-600">Requires refund/cancellation tracking fields.</div>
                         </a>
+
+                        <a href="{{ route('reports.seminars_collection') }}" class="block border rounded-lg p-4 hover:bg-gray-50">
+                            <div class="font-semibold">Seminars Collection</div>
+                            <div class="text-sm text-gray-600">Attendance & payments summary for seminars.</div>
+                        </a>
+                        <a href="{{ route('reports.extra_classes_collection') }}" class="block border rounded-lg p-4 hover:bg-gray-50">
+                            <div class="font-semibold">Extra Classes Collection</div>
+                            <div class="text-sm text-gray-600">Payments summary for extra classes.</div>
+                        </a>
                     </div>
                 </div>
             </div>

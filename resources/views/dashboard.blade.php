@@ -22,8 +22,8 @@
                         <option value="custom" @selected(($dashboardRange['key'] ?? '') === 'custom')>Custom</option>
                     </select>
                     <div class="flex gap-2" x-data="{ show: '{{ $dashboardRange['key'] ?? '' }}' === 'custom' }" x-init="show = ('{{ $dashboardRange['key'] ?? '' }}' === 'custom')">
-                        <input type="date" name="from" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['from'] ?? '' }}" x-show="show" x-cloak>
-                        <input type="date" name="to" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['to'] ?? '' }}" x-show="show" x-cloak>
+                        <input type="text" name="from" placeholder="DD-MM-YYYY" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['from'] ?? '' }}" x-show="show" x-cloak>
+                        <input type="text" name="to" placeholder="DD-MM-YYYY" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['to'] ?? '' }}" x-show="show" x-cloak>
                         <button type="submit" class="inline-flex items-center px-3 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700" x-show="show" x-cloak>Apply</button>
                     </div>
                 </form>
@@ -191,6 +191,10 @@
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Upcoming Teacher Salary Payments</div>
                     <div class="mt-2 text-2xl font-semibold text-gray-900">{{ ($dueTeachers ?? collect())->count() }}</div>
+                    <div class="mt-1 text-sm font-semibold text-red-600">Rs {{ number_format($dueTeachersTotal ?? 0, 2) }}</div>
+                    @if(!empty($salaryDeadline))
+                        <div class="mt-1 text-xs text-gray-600">Deadline: {{ \Carbon\Carbon::parse($salaryDeadline)->format('d M Y') }}</div>
+                    @endif
                     <div class="mt-4 divide-y rounded border">
                         @forelse(($dueTeachers ?? collect()) as $teacher)
                             <div class="flex items-center justify-between px-4 py-3">
@@ -205,9 +209,9 @@
                         @endforelse
                     </div>
                     <div class="mt-4">
-                        @can('teachers.manage')
-                            <a class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700" href="{{ route('teachers.index') }}">Manage Teacher Payments</a>
-                        @endcan
+                        @canany(['teachers.salary.pay','teachers.salary.summary.view'])
+                            <a class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700" href="{{ route('teacher-salary-payments.summary') }}">View Due & Upcoming</a>
+                        @endcanany
                     </div>
                 </div>
             </div>
@@ -243,23 +247,94 @@
         </div>
 
         @can('dashboard.widget.recent_activity.view')
-        <div class="mt-6 bg-white overflow-hidden shadow-sm sm:rounded-lg">
-            <div class="p-6">
-                <div class="text-base font-semibold text-gray-900">Recent Financial Activity</div>
-                <div class="mt-4 divide-y rounded border">
-                    @forelse(($recentActivity ?? collect()) as $item)
-                        <div class="flex items-center justify-between px-4 py-3">
-                            <div class="min-w-0">
-                                <div class="text-sm font-medium text-gray-900 truncate">{{ $item['label'] }}</div>
-                                <div class="text-xs text-gray-600">{{ $item['type'] }}</div>
+        <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <div class="text-base font-semibold text-gray-900">Recent Financial Activity</div>
+                    <div class="mt-4 divide-y rounded border">
+                        @forelse(($recentActivity ?? collect()) as $item)
+                            <div class="flex items-center justify-between px-4 py-3">
+                                <div class="min-w-0">
+                                    <div class="text-sm font-medium text-gray-900 truncate">{{ $item['label'] }}</div>
+                                    <div class="text-xs text-gray-600">{{ $item['type'] }}</div>
+                                </div>
+                                <div class="text-sm font-semibold {{ ($item['direction'] ?? '') === 'in' ? 'text-green-700' : 'text-red-700' }}">
+                                    {{ ($item['direction'] ?? '') === 'in' ? '+' : '-' }} Rs {{ number_format($item['amount'] ?? 0, 2) }}
+                                </div>
                             </div>
-                            <div class="text-sm font-semibold {{ ($item['direction'] ?? '') === 'in' ? 'text-green-700' : 'text-red-700' }}">
-                                {{ ($item['direction'] ?? '') === 'in' ? '+' : '-' }} Rs {{ number_format($item['amount'] ?? 0, 2) }}
+                        @empty
+                            <div class="px-4 py-3 text-sm text-gray-600">No activity yet.</div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                <div class="p-6">
+                    <div class="flex items-center justify-between">
+                        <div class="text-base font-semibold text-gray-900">Recent Activity</div>
+                        <form method="GET" class="flex items-end gap-2">
+                            <div>
+                                <label class="block text-xs text-gray-600">Range</label>
+                                <select name="activity_range" class="border-gray-300 rounded-md shadow-sm text-xs">
+                                    <option value="today" @selected(($activityFilters['range'] ?? '')==='today')>Today</option>
+                                    <option value="last_7_days" @selected(($activityFilters['range'] ?? '')==='last_7_days')>Last 7 Days</option>
+                                    <option value="last_30_days" @selected(($activityFilters['range'] ?? '')==='last_30_days')>Last 30 Days</option>
+                                    <option value="this_month" @selected(($activityFilters['range'] ?? '')==='this_month')>This Month</option>
+                                    <option value="this_year" @selected(($activityFilters['range'] ?? '')==='this_year')>This Year</option>
+                                </select>
                             </div>
-                        </div>
-                    @empty
-                        <div class="px-4 py-3 text-sm text-gray-600">No activity yet.</div>
-                    @endforelse
+                            <div>
+                                <label class="block text-xs text-gray-600">Action</label>
+                                <select name="activity_action" class="border-gray-300 rounded-md shadow-sm text-xs">
+                                    <option value="">All</option>
+                                    @foreach(($activityFilters['actions'] ?? collect()) as $act)
+                                        <option value="{{ $act }}" @selected(($activityFilters['action'] ?? '')===$act)>{{ $act }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600">User</label>
+                                <select name="activity_user" class="border-gray-300 rounded-md shadow-sm text-xs">
+                                    <option value="">All</option>
+                                    @foreach(($activityFilters['users'] ?? collect()) as $u)
+                                        <option value="{{ $u->id }}" @selected(($activityFilters['user'] ?? '')==$u->id)>{{ $u->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600">Search</label>
+                                <input type="text" name="activity_q" value="{{ $activityFilters['q'] ?? '' }}" placeholder="description" class="border-gray-300 rounded-md shadow-sm text-xs">
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="submit" class="inline-flex items-center px-3 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">Apply</button>
+                                <a href="{{ route('dashboard') }}" class="inline-flex items-center px-3 py-2 bg-gray-100 border border-transparent rounded-md font-semibold text-xs text-gray-800 uppercase tracking-widest hover:bg-gray-200">Reset</a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="mt-4 divide-y rounded border">
+                        @forelse(($recentAuditLogs ?? collect()) as $log)
+                            <div class="px-4 py-3 flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 text-sm text-gray-600">
+                                        <span class="font-medium text-gray-900">{{ optional($log->created_at)->format('M d, H:i') }}</span>
+                                        <span>·</span>
+                                        <span>{{ $log->user?->name ?? 'System' }}</span>
+                                        <span>·</span>
+                                        <span class="text-xs rounded bg-gray-100 px-2 py-0.5">{{ $log->action }}</span>
+                                    </div>
+                                    <div class="mt-1 text-sm text-gray-700 truncate">{{ $log->description }}</div>
+                                    <div class="mt-1 text-xs text-gray-500 truncate">{{ class_basename($log->auditable_type) }} #{{ $log->auditable_id }} · IP {{ $log->ip_address }}</div>
+                                </div>
+                                @if(!empty($log->metadata))
+                                    <div class="text-xs text-gray-500 max-w-xs truncate">{{ json_encode($log->metadata) }}</div>
+                                @endif
+                            </div>
+                        @empty
+                            <div class="px-4 py-3 text-sm text-gray-600">No recent activity.</div>
+                        @endforelse
+                    </div>
                 </div>
             </div>
         </div>

@@ -32,12 +32,16 @@
                             </select>
                         </div>
                         <div>
+                            <x-input-label for="q" :value="__('Search')" />
+                            <x-text-input id="q" name="q" type="text" placeholder="Notes / Category" class="mt-1 block w-full" :value="($filters['q'] ?? '')" />
+                        </div>
+                        <div>
                             <x-input-label for="from" :value="__('From')" />
-                            <x-text-input id="from" name="from" type="date" class="mt-1 block w-full" :value="($filters['from'] ?? '')" />
+                            <x-text-input id="from" name="from" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="($filters['from'] ?? '')" />
                         </div>
                         <div>
                             <x-input-label for="to" :value="__('To')" />
-                            <x-text-input id="to" name="to" type="date" class="mt-1 block w-full" :value="($filters['to'] ?? '')" />
+                            <x-text-input id="to" name="to" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="($filters['to'] ?? '')" />
                         </div>
                         <div class="flex items-end gap-3">
                             <x-primary-button>Filter</x-primary-button>
@@ -58,7 +62,7 @@
                             <tbody class="divide-y">
                                 @forelse ($items as $item)
                                     <tr>
-                                        <td class="px-4 py-2 text-sm text-gray-800">{{ optional($item->expense_date)->format('Y-m-d') }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-800">{{ optional($item->expense_date)->format('d-m-Y') }}</td>
                                         <td class="px-4 py-2 text-sm text-gray-800">{{ $item->category?->name }}</td>
                                         <td class="px-4 py-2 text-right text-sm font-semibold text-gray-900">{{ number_format($item->amount, 2) }}</td>
                                         <td class="px-4 py-2 text-right text-sm">

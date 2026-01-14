@@ -2,7 +2,7 @@
     $S = isset($student) ? $student : null;
     $req = [
         'first_name', 'name_with_initial', 'gender', 'date_of_birth',
-        'parent_address', 'religion', 'desired_class',
+        'parent_address', 'religion',
         'long_term_medication', 'learning_disabilities', 'has_siblings_in_college'
     ];
     $star = function($field) use ($req) { return in_array($field, $req, true) ? '<span class="text-red-600">*</span>' : ''; };
@@ -66,32 +66,45 @@
                 <x-input-label for="date_of_birth">
                     {{ __('Date of Birth') }} {!! $star('date_of_birth') !!}
                 </x-input-label>
-                <x-text-input id="date_of_birth" name="date_of_birth" type="date" class="mt-1 block w-full"
-                    :value="old('date_of_birth', optional($S->date_of_birth ?? null)->format('Y-m-d'))" required />
+                <x-text-input id="date_of_birth" name="date_of_birth" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full"
+                    :value="old('date_of_birth', optional($S->date_of_birth ?? null)->format('d-m-Y'))" required />
                 <x-input-error class="mt-2" :messages="$errors->get('date_of_birth')" />
             </div>
             <div>
                 <x-input-label for="religion">
                     {{ __('Religion') }} {!! $star('religion') !!}
                 </x-input-label>
-                <x-text-input id="religion" name="religion" type="text" class="mt-1 block w-full"
-                    :value="old('religion', $S->religion ?? '')" required />
+                @php $rel = old('religion', $S->religion ?? ''); @endphp
+                <select id="religion" name="religion" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                    <option value="" {{ $rel==='' ? 'selected' : '' }}>Select Religion</option>
+                    <option value="Buddhism" {{ $rel==='Buddhism' ? 'selected' : '' }}>Buddhism</option>
+                    <option value="Hinduism" {{ $rel==='Hinduism' ? 'selected' : '' }}>Hinduism</option>
+                    <option value="Islam" {{ $rel==='Islam' ? 'selected' : '' }}>Islam</option>
+                    <option value="Christianity" {{ $rel==='Christianity' ? 'selected' : '' }}>Christianity</option>
+                    <option value="Other" {{ $rel==='Other' ? 'selected' : '' }}>Other</option>
+                </select>
                 <x-input-error class="mt-2" :messages="$errors->get('religion')" />
+            </div>
+            <div>
+                <x-input-label for="nationality" :value="__('Nationality')" />
+                <x-text-input id="nationality" name="nationality" type="text" class="mt-1 block w-full"
+                    :value="old('nationality', $S->nationality ?? 'Sri Lankan')" />
+                <x-input-error class="mt-2" :messages="$errors->get('nationality')" />
             </div>
 
             <!-- Academic Info -->
             <div>
                 <x-input-label for="desired_class">
-                    {{ __('Desired Class (at admission)') }} {!! $star('desired_class') !!}
+                    {{ __('Desired Class (at admission)') }}
                 </x-input-label>
                 <x-text-input id="desired_class" name="desired_class" type="text" class="mt-1 block w-full"
-                    :value="old('desired_class', $S->desired_class ?? '')" required />
+                    :value="old('desired_class', $S->desired_class ?? '')" />
                 <x-input-error class="mt-2" :messages="$errors->get('desired_class')" />
             </div>
             <div>
                 <x-input-label for="joining_date" :value="__('Joining Date')" />
-                <x-text-input id="joining_date" name="joining_date" type="date" class="mt-1 block w-full"
-                    :value="old('joining_date', optional($S->joining_date ?? null)->format('Y-m-d'))" />
+                <x-text-input id="joining_date" name="joining_date" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full"
+                    :value="old('joining_date', optional($S->joining_date ?? null)->format('d-m-Y'))" />
                 <p class="text-xs text-gray-500 mt-1">Academic Year will be calculated automatically</p>
                 <x-input-error class="mt-2" :messages="$errors->get('joining_date')" />
             </div>
@@ -188,7 +201,15 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <x-input-label for="father_religion" :value="__('Religion')" />
-                            <x-text-input id="father_religion" name="father_religion" type="text" class="mt-1 block w-full" :value="old('father_religion', $S->father_religion ?? '')" />
+                            @php $fr = old('father_religion', $S->father_religion ?? ''); @endphp
+                            <select id="father_religion" name="father_religion" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="" {{ $fr==='' ? 'selected' : '' }}>Select Religion</option>
+                                <option value="Buddhism" {{ $fr==='Buddhism' ? 'selected' : '' }}>Buddhism</option>
+                                <option value="Hinduism" {{ $fr==='Hinduism' ? 'selected' : '' }}>Hinduism</option>
+                                <option value="Islam" {{ $fr==='Islam' ? 'selected' : '' }}>Islam</option>
+                                <option value="Christianity" {{ $fr==='Christianity' ? 'selected' : '' }}>Christianity</option>
+                                <option value="Other" {{ $fr==='Other' ? 'selected' : '' }}>Other</option>
+                            </select>
                         </div>
                         <div>
                             <x-input-label for="father_nationality" :value="__('Nationality')" />
@@ -239,7 +260,15 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <x-input-label for="mother_religion" :value="__('Religion')" />
-                            <x-text-input id="mother_religion" name="mother_religion" type="text" class="mt-1 block w-full" :value="old('mother_religion', $S->mother_religion ?? '')" />
+                            @php $mr = old('mother_religion', $S->mother_religion ?? ''); @endphp
+                            <select id="mother_religion" name="mother_religion" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                <option value="" {{ $mr==='' ? 'selected' : '' }}>Select Religion</option>
+                                <option value="Buddhism" {{ $mr==='Buddhism' ? 'selected' : '' }}>Buddhism</option>
+                                <option value="Hinduism" {{ $mr==='Hinduism' ? 'selected' : '' }}>Hinduism</option>
+                                <option value="Islam" {{ $mr==='Islam' ? 'selected' : '' }}>Islam</option>
+                                <option value="Christianity" {{ $mr==='Christianity' ? 'selected' : '' }}>Christianity</option>
+                                <option value="Other" {{ $mr==='Other' ? 'selected' : '' }}>Other</option>
+                            </select>
                         </div>
                         <div>
                             <x-input-label for="mother_nationality" :value="__('Nationality')" />
@@ -331,17 +360,40 @@
                 <x-input-error class="mt-2" :messages="$errors->get('parent_address')" />
             </div>
             
-            <div>
-                <x-input-label for="phone" :value="__('Student Phone')" />
-                <x-text-input id="phone" name="phone" type="tel" class="mt-1 block w-full"
-                    :value="old('phone', $S->phone ?? '')" />
-                <x-input-error class="mt-2" :messages="$errors->get('phone')" />
-            </div>
+            <!-- Student Phone field removed -->
             <div>
                 <x-input-label for="whatsapp_number" :value="__('Student WhatsApp Number')" />
                 <x-text-input id="whatsapp_number" name="whatsapp_number" type="tel" class="mt-1 block w-full"
                     :value="old('whatsapp_number', $S->whatsapp_number ?? '')" placeholder="e.g. +94..." />
                 <x-input-error class="mt-2" :messages="$errors->get('whatsapp_number')" />
+            </div>
+        </div>
+    </div>
+
+    <!-- Admission Extras -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div class="flex items-center mb-6 pb-2 border-b border-gray-100">
+            <div class="bg-amber-100 p-2 rounded-lg mr-3">
+                <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800">Admission Extras</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <x-input-label for="hear_about_us" :value="__('How did you hear about us?')" />
+                @php $src = old('hear_about_us', $S->hear_about_us ?? ''); @endphp
+                <select id="hear_about_us" name="hear_about_us" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-amber-500 focus:ring-amber-500">
+                    <option value="" {{ $src==='' ? 'selected' : '' }}>Select an option</option>
+                    <option value="Facebook" {{ $src==='Facebook' ? 'selected' : '' }}>Facebook</option>
+                    <option value="Friends" {{ $src==='Friends' ? 'selected' : '' }}>Friends</option>
+                    <option value="TV" {{ $src==='TV' ? 'selected' : '' }}>TV</option>
+                    <option value="Ads" {{ $src==='Ads' ? 'selected' : '' }}>Ads</option>
+                    <option value="Other" {{ $src==='Other' ? 'selected' : '' }}>Other</option>
+                </select>
+                <x-input-error class="mt-2" :messages="$errors->get('hear_about_us')" />
             </div>
         </div>
     </div>

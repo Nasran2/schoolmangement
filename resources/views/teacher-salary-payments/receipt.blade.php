@@ -149,6 +149,10 @@
                 <div class="info-value">#{{ $payment->id }}</div>
             </div>
             <div class="info-item">
+                <div class="info-label">Payment Method</div>
+                <div class="info-value">{{ ucfirst($payment->payment_method ?? 'cash') }}</div>
+            </div>
+            <div class="info-item">
                 <div class="info-label">Status</div>
                 <div class="info-value">
                     <span style="display: inline-block; padding: 4px 8px; background: #d1fae5; color: #065f46; border-radius: 4px; font-size: 12px; font-weight: bold;">
@@ -167,6 +171,17 @@
                     <div class="info-label">Phone</div>
                     <div class="info-value">{{ $payment->teacher->phone ?? 'N/A' }}</div>
                 </div>
+                @php $m = strtolower((string)($payment->payment_method ?? '')); @endphp
+                @if(in_array($m, ['bank','cheque']))
+                <div class="info-item">
+                    <div class="info-label">Bank</div>
+                    <div class="info-value">{{ $payment->bank_name ?? 'N/A' }}{{ $payment->bank_branch ? ' - '.$payment->bank_branch : '' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Account No.</div>
+                    <div class="info-value">{{ $payment->bank_account_no ?? 'N/A' }}</div>
+                </div>
+                @endif
             </div>
         </div>
 

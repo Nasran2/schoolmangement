@@ -20,7 +20,7 @@
             </div>
             <div class="grid grid-cols-3 gap-4">
                 <div class="font-bold">Date:</div>
-                <div class="col-span-2">{{ optional($payment->paid_at)->format('Y-m-d') }}</div>
+                <div class="col-span-2">{{ optional($payment->paid_at)->format('d-m-Y') }}</div>
             </div>
             <div class="grid grid-cols-3 gap-4">
                 <div class="font-bold">Amount:</div>

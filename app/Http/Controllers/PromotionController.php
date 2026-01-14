@@ -24,6 +24,10 @@ class PromotionController extends Controller
     public function promoteStudent(Request $request, Student $student, PromotionService $service): RedirectResponse
     {
         $ok = $service->promoteOne($student, $request->user()?->id);
+        $student->refresh();
+        if ($ok && $student->alumni) {
+            return back()->with('status', 'Student graduated to Alumni.');
+        }
         return back()->with('status', $ok ? 'Student promoted.' : 'No next class available.');
     }
 

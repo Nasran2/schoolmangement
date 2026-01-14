@@ -167,6 +167,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/fees/refunds', [ReportController::class, 'feeRefunds'])
             ->middleware('permission:reports.fee_refunds.view')
             ->name('fee_refunds');
+
+        // Collections for seminars and extra classes
+        Route::get('/seminars/collection', [ReportController::class, 'seminarsCollection'])
+            ->middleware('permission:reports.view|reports.seminars_collection.view')
+            ->name('seminars_collection');
+        Route::get('/extra-classes/collection', [ReportController::class, 'extraClassesCollection'])
+            ->middleware('permission:reports.view|reports.extra_classes_collection.view')
+            ->name('extra_classes_collection');
     });
 
     // SMS sending endpoints
@@ -257,6 +265,12 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('students', [StudentController::class, 'index'])->middleware('permission:students.manage')->name('students.index');
+    Route::get('students/alumni', [StudentController::class, 'alumni'])
+        ->middleware('permission:students.manage')
+        ->name('students.alumni');
+    Route::post('students/alumni/leaving-docs', [StudentController::class, 'alumniBulkLeavingDocs'])
+        ->middleware('permission:students.manage')
+        ->name('students.alumni.leaving_docs');
         // Lightweight student search for selectors (admission number, name, phone) + optional class filter
         Route::get('students/search', [StudentController::class, 'search'])
             ->middleware('permission:revenue.add')
@@ -274,9 +288,23 @@ Route::middleware('auth')->group(function () {
         Route::post('students/{student}/demote', [\App\Http\Controllers\PromotionController::class, 'demoteStudent'])
             ->middleware('permission:students.demote')
             ->name('students.demote.one');
+
+        // Current-month fee selection after promote/demote
+        Route::post('students/{student}/monthly-fee/current', [StudentController::class, 'setCurrentMonthFee'])
+            ->middleware('permission:revenue.add')
+            ->name('students.monthly_fee.current');
     Route::get('students/create', [StudentController::class, 'create'])->middleware('permission:students.add')->name('students.create');
     Route::post('students', [StudentController::class, 'store'])->middleware('permission:students.add')->name('students.store');
     Route::get('students/{student}', [StudentController::class, 'show'])->middleware('permission:students.manage')->name('students.show');
+    Route::post('students/{student}/leaving-docs', [StudentController::class, 'updateLeavingDocs'])
+        ->middleware('permission:students.manage')
+        ->name('students.leaving_docs');
+    Route::post('students/{student}/mark-alumni', [StudentController::class, 'markAsAlumni'])
+        ->middleware('permission:students.manage')
+        ->name('students.mark_alumni');
+    Route::post('students/{student}/readmit', [StudentController::class, 'reAdmit'])
+        ->middleware('permission:students.manage')
+        ->name('students.readmit');
     Route::get('students/{student}/statement', [StudentController::class, 'statement'])->middleware('permission:students.manage')->name('students.statement');
     Route::get('students/{student}/admission', [StudentController::class, 'admission'])->middleware('permission:students.manage')->name('students.admission');
     Route::get('students/{student}/edit', [StudentController::class, 'edit'])->middleware('permission:students.manage')->name('students.edit');
@@ -299,6 +327,9 @@ Route::middleware('auth')->group(function () {
     Route::get('teachers/{teacher}', [TeacherController::class, 'show'])->middleware('permission:teachers.manage')->name('teachers.show');
     Route::get('teachers/{teacher}/edit', [TeacherController::class, 'edit'])->middleware('permission:teachers.manage')->name('teachers.edit');
     Route::put('teachers/{teacher}', [TeacherController::class, 'update'])->middleware('permission:teachers.manage')->name('teachers.update');
+    Route::post('teachers/{teacher}/salary', [TeacherController::class, 'updateSalary'])
+        ->middleware('permission:teachers.manage|teachers.salary.components')
+        ->name('teachers.salary.update');
     Route::delete('teachers/{teacher}', [TeacherController::class, 'destroy'])->middleware('permission:teachers.delete')->name('teachers.destroy');
 
     Route::get('teachers/bulk/upload', [\App\Http\Controllers\TeachersBulkUploadController::class, 'create'])
@@ -308,8 +339,13 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:teachers.bulk_upload')
         ->name('teachers.bulk.store');
 
+    Route::get('teacher-salary-payments/summary', [TeacherSalaryPaymentController::class, 'summary'])
+        ->middleware('permission:teachers.salary.pay|teachers.salary.summary.view')
+        ->name('teacher-salary-payments.summary');
+
     Route::resource('teacher-salary-payments', TeacherSalaryPaymentController::class)
-        ->middleware('permission:teachers.salary.pay');
+        ->middleware('permission:teachers.salary.pay')
+        ->whereNumber('teacher_salary_payment');
     
     Route::get('teacher-salary-payments/{teacherSalaryPayment}/receipt', [TeacherSalaryPaymentController::class, 'receipt'])
         ->middleware('permission:teachers.salary.pay')
@@ -346,6 +382,54 @@ Route::middleware('auth')->group(function () {
             ->middleware('permission:classrooms.delete')
             ->name('destroy');
     });
+
+    // Seminars module
+    Route::prefix('seminars')->name('seminars.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\SeminarController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\SeminarController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\SeminarController::class, 'store'])->name('store');
+        Route::get('/{seminar}', [\App\Http\Controllers\SeminarController::class, 'show'])->name('show');
+        Route::get('/{seminar}/edit', [\App\Http\Controllers\SeminarController::class, 'edit'])->name('edit');
+        Route::put('/{seminar}', [\App\Http\Controllers\SeminarController::class, 'update'])->name('update');
+        Route::delete('/{seminar}', [\App\Http\Controllers\SeminarController::class, 'destroy'])->name('destroy');
+
+        // Payments & attendance
+        Route::get('/{seminar}/payments', [\App\Http\Controllers\SeminarPaymentController::class, 'index'])->name('payments');
+        Route::post('/{seminar}/payments', [\App\Http\Controllers\SeminarPaymentController::class, 'updateAttendancePayment'])->name('payments.update');
+
+        // Reports
+        Route::get('/reports/due', [\App\Http\Controllers\SeminarReportController::class, 'due'])->name('reports.due');
+    });
+
+    // Extra classes module
+    Route::prefix('extra-classes')->name('extra-classes.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ExtraClassController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\ExtraClassController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\ExtraClassController::class, 'store'])->name('store');
+        Route::get('/{extraClass}', [\App\Http\Controllers\ExtraClassController::class, 'show'])->name('show');
+        Route::get('/{extraClass}/edit', [\App\Http\Controllers\ExtraClassController::class, 'edit'])->name('edit');
+        Route::put('/{extraClass}', [\App\Http\Controllers\ExtraClassController::class, 'update'])->name('update');
+        Route::delete('/{extraClass}', [\App\Http\Controllers\ExtraClassController::class, 'destroy'])->name('destroy');
+        // Payments
+        Route::get('/{extraClass}/payments', [\App\Http\Controllers\ExtraClassController::class, 'payments'])->name('payments');
+        Route::post('/{extraClass}/payments', [\App\Http\Controllers\ExtraClassController::class, 'updatePayments'])->name('payments.update');
+        Route::post('/{extraClass}/pay-daily', [\App\Http\Controllers\ExtraClassController::class, 'payDaily'])->name('pay-daily');
+    });
+
+    // Visiting teachers
+    Route::prefix('visiting-teachers')->name('visiting-teachers.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\VisitingTeacherController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\VisitingTeacherController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\VisitingTeacherController::class, 'store'])->name('store');
+        Route::get('/{visitingTeacher}/edit', [\App\Http\Controllers\VisitingTeacherController::class, 'edit'])->name('edit');
+        Route::put('/{visitingTeacher}', [\App\Http\Controllers\VisitingTeacherController::class, 'update'])->name('update');
+        Route::delete('/{visitingTeacher}', [\App\Http\Controllers\VisitingTeacherController::class, 'destroy'])->name('destroy');
+    });
+
+    // Activity / Audit Logs
+    Route::get('/audit-logs', [\App\Http\Controllers\AuditLogController::class, 'index'])
+        ->middleware('permission:audit_logs.view')
+        ->name('audit_logs.index');
 });
 
 require __DIR__.'/auth.php';

@@ -63,6 +63,10 @@ class Student extends Model
         'mother_emergency_number',
         'passport_photo_path',
         'admission_agree',
+        'nationality',
+        'hear_about_us',
+        'leaving_docs_issued',
+        'alumni',
         'monthly_fee',
         'due_amount',
         'active',
@@ -82,6 +86,8 @@ class Student extends Model
         'has_siblings_in_college' => 'boolean',
         'admission_agree' => 'boolean',
         'use_guardian' => 'boolean',
+        'alumni' => 'boolean',
+        'leaving_docs_issued' => 'boolean',
     ];
 
     public function classRoom(): BelongsTo
@@ -94,22 +100,31 @@ class Student extends Model
         return $this->hasMany(Revenue::class);
     }
 
+    public function promotionHistories(): HasMany
+    {
+        return $this->hasMany(StudentPromotionHistory::class);
+    }
+
+    public function monthlyFeeOverrides(): HasMany
+    {
+        return $this->hasMany(StudentMonthlyFeeOverride::class);
+    }
+
     /**
      * Compute current net due for monthly fees based on fee_start_date cycles and payments.
      */
     public function computeMonthlyDue(): float
     {
-        $monthlyFee = (float) $this->monthly_fee;
-        if ($monthlyFee <= 0) return 0.0;
+        if (! $this->fee_start_date) return 0.0;
 
-        $monthsDue = 1;
-        if ($this->fee_start_date) {
-            $start = Carbon::parse($this->fee_start_date)->startOfDay();
-            $now = now();
-            $monthsDue = $now->lt($start) ? 0 : (int) ($start->diffInMonths($now) + 1);
+        $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
+        $ledger = $allocator->buildLedger($this, 0);
+        if (empty($ledger)) return 0.0;
+
+        $expectedBase = 0.0;
+        foreach ($ledger as $m) {
+            $expectedBase += (float) ($m['due'] ?? 0);
         }
-
-        $expectedBase = $monthlyFee * max(0, (int) $monthsDue);
 
         $monthlyCatId = $this->classRoom?->monthly_fee_revenue_category_id;
         $paidGross = 0.0;

@@ -76,7 +76,7 @@ class ClassRoomController extends Controller
         return view('classrooms.create', [
             'monthlyCategories' => RevenueCategory::query()
                 ->where('active', true)
-                ->where('payment_type', 'monthly')
+                ->whereNotNull('interval_months')
                 ->orderBy('name')
                 ->get(),
             'suggestedLevel' => $this->nextAvailableLevel(),
@@ -112,7 +112,7 @@ class ClassRoomController extends Controller
             'item' => $classroom,
             'monthlyCategories' => RevenueCategory::query()
                 ->where('active', true)
-                ->where('payment_type', 'monthly')
+                ->whereNotNull('interval_months')
                 ->orderBy('name')
                 ->get(),
         ]);

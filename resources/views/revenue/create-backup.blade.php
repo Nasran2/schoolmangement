@@ -178,7 +178,7 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-800 mb-3">Payment Date</label>
-                                        <input type="date" name="paid_at" class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all" value="{{ old('paid_at', date('Y-m-d')) }}" x-model="formData.date" required>
+                                        <input type="text" name="paid_at" placeholder="DD-MM-YYYY" class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all" value="{{ old('paid_at', date('d-m-Y')) }}" x-model="formData.date" required>
                                         @error('paid_at')
                                             <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
@@ -283,7 +283,7 @@
                 formData: {
                     category_id: '{{ old('revenue_category_id', $preselectedCategoryId) }}',
                     amount: '{{ old('amount') }}',
-                    date: '{{ old('paid_at', date('Y-m-d')) }}',
+                    date: '{{ old('paid_at', date('d-m-Y')) }}',
                     bill_no: '{{ old('bill_no') }}'
                 },
                 categoryName: '',

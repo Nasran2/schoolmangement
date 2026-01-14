@@ -40,7 +40,7 @@ $amount = (float) ($revenue->amount ?? 0);
 $amountWords = ucwords(numberToWords($amount)) . ' Rupees Only';
 // Fee type helpers based on category.payment_type
 $paymentType = strtolower($category->payment_type ?? '');
-$isMonthly = $paymentType === 'monthly';
+$isMonthly = !empty($category?->interval_months);
 $isAdmission = $paymentType === 'admission';
 $isFacilities = $paymentType === 'facilities';
 $isTerm = in_array($paymentType, ['term','semester','term_fee']);
@@ -102,7 +102,7 @@ foreach ($coveredMonths as $cm) { $boxed[$cm['month']] = true; }
 // Monthly fee sum in this receipt (from allocations if present)
 $monthlySum = 0.0;
 foreach ($coveredMonths as $cm) { $monthlySum += (float) $cm['amount']; }
-if ($monthlySum <= 0 && strtolower((string)$category->payment_type) === 'monthly') { $monthlySum = $amount; }
+if ($monthlySum <= 0 && !empty($category?->interval_months)) { $monthlySum = $amount; }
 
 // Determine parent/guardian name
 $parentName = $student?->guardian_name;
@@ -237,7 +237,7 @@ if (empty($studentAddress) && $student) {
                 @endif
             </div>
             <div class="space-y-2">
-                <div class="flex items-center gap-4"><span>Grade</span><span class="inline-block border-b border-gray-800 min-w-[120px]">{{ $student?->classRoom?->name ?? $student?->class }}</span></div>
+                <div class="flex items-center gap-4"><span>Grade</span><span class="inline-block border-b border-gray-800 min-w-[120px]">{{ ($student?->alumni ?? false) ? 'Alumni' : ($student?->classRoom?->name ?? $student?->class) }}</span></div>
                 <div class="flex items-center gap-4"><span>Std.reg.No.</span><span class="inline-block border-b border-gray-800 min-w-[120px]">{{ $student?->admission_number }}</span></div>
                 <div class="flex items-center gap-6 mt-2">
                     <div class="flex items-center gap-2"><span>Junior</span><div class="w-6 h-6 border border-gray-800"></div></div>

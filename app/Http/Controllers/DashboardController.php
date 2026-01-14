@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\AuditLog;
+use App\Models\User;
 use App\Models\Revenue;
 use App\Models\RevenueCategory;
 use App\Models\Student;
@@ -110,6 +112,25 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
 
+        $dueTeachersTotal = (float) Teacher::query()
+            ->where('active', true)
+            ->when($paidTeacherIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $paidTeacherIds))
+            ->sum('salary_amount');
+
+        $salaryDeadline = null;
+        $salaryDeadlineDay = null;
+        try {
+            $salaryDeadlineDay = (int) (app('settings')->get('salary.payment_deadline_day', '25') ?: 25);
+            $salaryDeadlineDay = max(1, min(28, $salaryDeadlineDay));
+            $salaryDeadline = $today->copy()->startOfMonth()->addDays($salaryDeadlineDay - 1);
+            if ($salaryDeadline->gt($today->copy()->endOfMonth())) {
+                $salaryDeadline = $today->copy()->endOfMonth();
+            }
+        } catch (\Throwable $e) {
+            $salaryDeadline = null;
+            $salaryDeadlineDay = null;
+        }
+
         $recentRevenues = Revenue::query()
             ->with(['category', 'student'])
             ->whereBetween('paid_at', [$rangeStart, $rangeEnd])
@@ -165,16 +186,68 @@ class DashboardController extends Controller
             $printerConfigured ? null : 'Printer slip settings are not configured.',
         ])->filter()->values();
 
+        // Salary alert: unpaid teachers past deadline
+        try {
+            $deadlineDay = (int) (app('settings')->get('salary.payment_deadline_day', '25') ?: 25);
+            $deadlineDay = max(1, min(28, $deadlineDay));
+            $deadline = $today->copy()->startOfMonth()->addDays($deadlineDay - 1);
+            if ($deadline->gt($today->copy()->endOfMonth())) {
+                $deadline = $today->copy()->endOfMonth();
+            }
+            if ($today->greaterThanOrEqualTo($deadline) && $dueTeachers->count() > 0) {
+                $alerts->push($dueTeachers->count().' teacher'.($dueTeachers->count()>1?'s':'').' have no salary recorded for this month.');
+            }
+        } catch (\Throwable $e) {
+            // ignore alert if something goes wrong
+        }
+
+        // Recent Activity (Audit Logs) filters
+        $activityRangeKey = (string) $request->query('activity_range', 'last_30_days');
+        [$activityStart, $activityEnd] = $this->resolveActivityRange($activityRangeKey, $today);
+        $activityAction = (string) $request->query('activity_action', '');
+        $activityUserId = $request->query('activity_user');
+        $activityQ = (string) $request->query('activity_q', '');
+
+        $recentAuditLogs = AuditLog::query()
+            ->with(['user', 'auditable'])
+            ->whereBetween('created_at', [$activityStart, $activityEnd])
+            ->when($activityAction !== '', fn ($q) => $q->where('action', $activityAction))
+            ->when($activityUserId, fn ($q) => $q->where('user_id', $activityUserId))
+            ->when($activityQ !== '', function ($q) use ($activityQ) {
+                $q->where(function ($qb) use ($activityQ) {
+                    $qb->where('description', 'like', '%'.$activityQ.'%')
+                        ->orWhere('metadata', 'like', '%'.$activityQ.'%');
+                });
+            })
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        $activityActions = AuditLog::query()->select('action')->distinct()->orderBy('action')->pluck('action');
+        $activityUsers = User::query()->orderBy('name')->limit(50)->get(['id', 'name']);
+
         return view('dashboard', [
             'totalRevenue' => $totalRevenue,
             'totalExpenses' => $totalExpenses,
             'netProfit' => $netProfit,
             'dueStudents' => $dueStudents,
             'dueTeachers' => $dueTeachers,
+            'dueTeachersTotal' => $dueTeachersTotal,
+            'salaryDeadline' => $salaryDeadline,
+            'salaryDeadlineDay' => $salaryDeadlineDay,
             'recentRevenues' => $recentRevenues,
             'recentExpenses' => $recentExpenses,
             'recentSalaryPayments' => $recentSalaryPayments,
             'recentActivity' => $recentActivity,
+            'recentAuditLogs' => $recentAuditLogs,
+            'activityFilters' => [
+                'range' => $activityRangeKey,
+                'action' => $activityAction,
+                'user' => $activityUserId,
+                'q' => $activityQ,
+                'actions' => $activityActions,
+                'users' => $activityUsers,
+            ],
             'alerts' => $alerts,
             'dashboardRange' => [
                 'key' => $rangeKey,
@@ -345,5 +418,34 @@ class DashboardController extends Controller
         }
 
         return [$labels, $data];
+    }
+
+    private function resolveActivityRange(string $key, Carbon $today): array
+    {
+        $start = $today->copy()->subDays(29)->startOfDay();
+        $end = $today->copy()->endOfDay();
+
+        if ($key === 'today') {
+            $start = $today->copy()->startOfDay();
+            $end = $today->copy()->endOfDay();
+        } elseif ($key === 'last_7_days') {
+            $start = $today->copy()->subDays(6)->startOfDay();
+            $end = $today->copy()->endOfDay();
+        } elseif ($key === 'last_30_days') {
+            $start = $today->copy()->subDays(29)->startOfDay();
+            $end = $today->copy()->endOfDay();
+        } elseif ($key === 'this_month') {
+            $start = $today->copy()->startOfMonth()->startOfDay();
+            $end = $today->copy()->endOfDay();
+        } elseif ($key === 'this_year') {
+            $start = $today->copy()->startOfYear()->startOfDay();
+            $end = $today->copy()->endOfDay();
+        }
+
+        if ($end->lt($start)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+
+        return [$start, $end];
     }
 }

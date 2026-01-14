@@ -7,6 +7,7 @@ use App\Models\Teacher;
 use App\Models\TeacherSalaryPayment;
 use App\Services\SettingsService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,83 @@ use Illuminate\View\View;
 
 class TeacherSalaryPaymentController extends Controller
 {
+    /**
+     * Salary due/upcoming summary by month.
+     */
+    public function summary(Request $request): View
+    {
+        $month = (string) $request->query('month', now()->format('Y-m'));
+        try {
+            $monthStart = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        } catch (\Throwable $e) {
+            $monthStart = now()->startOfMonth();
+            $month = $monthStart->format('Y-m');
+        }
+        $monthEnd = $monthStart->copy()->endOfMonth();
+
+        $payments = TeacherSalaryPayment::query()
+            ->with(['teacher'])
+            ->whereBetween('paid_at', [$monthStart, $monthEnd])
+            ->orderByDesc('paid_at')
+            ->get();
+
+        $paidByTeacherId = $payments
+            ->groupBy('teacher_id')
+            ->map(function ($rows) {
+                /** @var \Illuminate\Support\Collection $rows */
+                $first = $rows->first();
+                return [
+                    'payment' => $first,
+                    'total_paid' => (float) $rows->sum('amount'),
+                ];
+            });
+
+        $teachers = Teacher::query()
+            ->where('active', true)
+            ->orderBy('name')
+            ->get();
+
+        $dueTeachers = $teachers->filter(function (Teacher $t) use ($paidByTeacherId) {
+            if ((float) ($t->salary_amount ?? 0) <= 0) return false;
+            return ! $paidByTeacherId->has($t->id);
+        })->values();
+
+        $paidTeachers = $teachers->filter(function (Teacher $t) use ($paidByTeacherId) {
+            return $paidByTeacherId->has($t->id);
+        })->values();
+
+        $dueTotal = (float) $dueTeachers->sum(fn (Teacher $t) => (float) ($t->salary_amount ?? 0));
+        $paidTotal = (float) $payments->sum('amount');
+
+        $settings = app(SettingsService::class);
+        $deadlineDay = (int) ($settings->get('salary.payment_deadline_day', '25') ?: 25);
+        $deadlineDay = max(1, min(28, $deadlineDay));
+        $deadlineDate = $monthStart->copy()->addDays($deadlineDay - 1);
+
+        $nextMonthStart = $monthStart->copy()->addMonthNoOverflow()->startOfMonth();
+        $nextMonthLabel = $nextMonthStart->format('F Y');
+        $nextMonthTotalExpected = (float) $teachers
+            ->filter(fn (Teacher $t) => (float) ($t->salary_amount ?? 0) > 0)
+            ->sum(fn (Teacher $t) => (float) ($t->salary_amount ?? 0));
+
+        return view('teacher-salary-payments.summary', [
+            'month' => $month,
+            'monthLabel' => $monthStart->format('F Y'),
+            'monthStart' => $monthStart,
+            'monthEnd' => $monthEnd,
+            'deadlineDate' => $deadlineDate,
+            'teachers' => $teachers,
+            'payments' => $payments,
+            'paidByTeacherId' => $paidByTeacherId,
+            'dueTeachers' => $dueTeachers,
+            'paidTeachers' => $paidTeachers,
+            'dueTotal' => $dueTotal,
+            'paidTotal' => $paidTotal,
+            'nextMonthLabel' => $nextMonthLabel,
+            'nextMonthTotalExpected' => $nextMonthTotalExpected,
+        ]);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -97,6 +175,7 @@ class TeacherSalaryPaymentController extends Controller
         $epfPercent = (float) ($settings->get('salary_epf_percent', '0') ?: 0);
         $etfPercent = (float) ($settings->get('salary_etf_percent', '0') ?: 0);
         $base = (float) $validated['base_salary'];
+        $statutoryBase = max(27000, $base);
         $teacher = Teacher::query()->find((int) $validated['teacher_id']);
         $epfEnabled = true;
         $etfEnabled = true;
@@ -112,13 +191,13 @@ class TeacherSalaryPaymentController extends Controller
         if ($epfEnabled && $epfPercent > 0 && !$hasEpf) {
             $deductions[] = [
                 'reason' => 'EPF',
-                'amount' => round($base * ($epfPercent / 100), 2),
+                'amount' => round($statutoryBase * ($epfPercent / 100), 2),
             ];
         }
         if ($etfEnabled && $etfPercent > 0 && !$hasEtf) {
             $deductions[] = [
                 'reason' => 'ETF',
-                'amount' => round($base * ($etfPercent / 100), 2),
+                'amount' => round($statutoryBase * ($etfPercent / 100), 2),
             ];
         }
         // If teacher has EPF/ETF disabled, strip them even if present
@@ -141,6 +220,9 @@ class TeacherSalaryPaymentController extends Controller
             'paid_at' => $validated['paid_at'],
             'payment_month' => $validated['payment_month'],
             'payment_method' => $validated['payment_method'] ?? null,
+            'bank_name' => $request->string('bank_name')->toString() ?: null,
+            'bank_branch' => $request->string('bank_branch')->toString() ?: null,
+            'bank_account_no' => $request->string('bank_account_no')->toString() ?: null,
             'notes' => $validated['notes'] ?? null,
             'created_by' => $request->user()?->id,
         ]);
@@ -304,6 +386,20 @@ class TeacherSalaryPaymentController extends Controller
      */
     public function update(Request $request, TeacherSalaryPayment $teacherSalaryPayment): RedirectResponse
     {
+        $before = [
+            'teacher_id' => $teacherSalaryPayment->teacher_id,
+            'base_salary' => (float) $teacherSalaryPayment->base_salary,
+            'deductions' => $teacherSalaryPayment->deductions,
+            'total_deductions' => (float) $teacherSalaryPayment->total_deductions,
+            'amount' => (float) $teacherSalaryPayment->amount,
+            'paid_at' => optional($teacherSalaryPayment->paid_at)->toDateString(),
+            'payment_month' => $teacherSalaryPayment->payment_month,
+            'payment_method' => $teacherSalaryPayment->payment_method,
+            'bank_name' => $teacherSalaryPayment->bank_name ?? null,
+            'bank_branch' => $teacherSalaryPayment->bank_branch ?? null,
+            'bank_account_no' => $teacherSalaryPayment->bank_account_no ?? null,
+            'notes' => $teacherSalaryPayment->notes,
+        ];
         $validated = $request->validate([
             'teacher_id' => ['required', 'exists:teachers,id'],
             'base_salary' => ['required', 'numeric', 'min:0.01'],
@@ -338,6 +434,7 @@ class TeacherSalaryPaymentController extends Controller
         $epfPercent = (float) ($settings->get('salary_epf_percent', '0') ?: 0);
         $etfPercent = (float) ($settings->get('salary_etf_percent', '0') ?: 0);
         $base = (float) $validated['base_salary'];
+        $statutoryBase = max(27000, $base);
         $teacher = Teacher::query()->find((int) $validated['teacher_id']);
         $epfEnabled = true;
         $etfEnabled = true;
@@ -353,13 +450,13 @@ class TeacherSalaryPaymentController extends Controller
         if ($epfEnabled && $epfPercent > 0 && !$hasEpf) {
             $deductions[] = [
                 'reason' => 'EPF',
-                'amount' => round($base * ($epfPercent / 100), 2),
+                'amount' => round($statutoryBase * ($epfPercent / 100), 2),
             ];
         }
         if ($etfEnabled && $etfPercent > 0 && !$hasEtf) {
             $deductions[] = [
                 'reason' => 'ETF',
-                'amount' => round($base * ($etfPercent / 100), 2),
+                'amount' => round($statutoryBase * ($etfPercent / 100), 2),
             ];
         }
         // If teacher has EPF/ETF disabled, strip them even if present
@@ -382,8 +479,40 @@ class TeacherSalaryPaymentController extends Controller
             'paid_at' => $validated['paid_at'],
             'payment_month' => $validated['payment_month'],
             'payment_method' => $validated['payment_method'] ?? null,
+            'bank_name' => $request->string('bank_name')->toString() ?: null,
+            'bank_branch' => $request->string('bank_branch')->toString() ?: null,
+            'bank_account_no' => $request->string('bank_account_no')->toString() ?: null,
             'notes' => $validated['notes'] ?? null,
         ]);
+
+        // audit trail of changes
+        try {
+            $after = [
+                'teacher_id' => $teacherSalaryPayment->teacher_id,
+                'base_salary' => (float) $teacherSalaryPayment->base_salary,
+                'deductions' => $teacherSalaryPayment->deductions,
+                'total_deductions' => (float) $teacherSalaryPayment->total_deductions,
+                'amount' => (float) $teacherSalaryPayment->amount,
+                'paid_at' => optional($teacherSalaryPayment->paid_at)->toDateString(),
+                'payment_month' => $teacherSalaryPayment->payment_month,
+                'payment_method' => $teacherSalaryPayment->payment_method,
+                'bank_name' => $teacherSalaryPayment->bank_name ?? null,
+                'bank_branch' => $teacherSalaryPayment->bank_branch ?? null,
+                'bank_account_no' => $teacherSalaryPayment->bank_account_no ?? null,
+                'notes' => $teacherSalaryPayment->notes,
+            ];
+            app(\App\Services\AuditLogger::class)->log(
+                'salary_payment.updated',
+                $teacherSalaryPayment,
+                'Salary payment updated',
+                [
+                    'before' => $before,
+                    'after' => $after,
+                ]
+            );
+        } catch (\Throwable $e) {
+            // ignore logging errors
+        }
 
         return redirect()->route('teacher-salary-payments.show', $teacherSalaryPayment)->with('status', 'Salary payment updated successfully.');
     }

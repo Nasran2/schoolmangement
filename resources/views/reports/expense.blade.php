@@ -26,7 +26,7 @@
                             <x-text-input 
                                 id="from" 
                                 name="from" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-red-500 focus:ring-red-500 rounded-lg shadow-sm" 
                                 :value="$filters['from'] ?? ''" 
                             />
@@ -38,7 +38,7 @@
                             <x-text-input 
                                 id="to" 
                                 name="to" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-red-500 focus:ring-red-500 rounded-lg shadow-sm" 
                                 :value="$filters['to'] ?? ''" 
                             />
@@ -169,7 +169,7 @@
                                 <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
                                     <td class="px-6 py-3 text-gray-600">
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                            {{ optional($item->expense_date)->format('Y-m-d') }}
+                                            {{ optional($item->expense_date)->format('d-m-Y') }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-3 text-gray-600">

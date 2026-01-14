@@ -35,6 +35,20 @@ class PromotionService
                     $target = $level + 1;
                     $room = $levelToRoom->get($target);
                     if (! $room) {
+                        // No next class: mark as alumni (graduate)
+                        $student->alumni = true;
+                        $student->active = false;
+                        $student->save();
+                        StudentPromotionHistory::create([
+                            'student_id' => $student->id,
+                            'from_class_room_id' => $student->class_room_id,
+                            'to_class_room_id' => null,
+                            'action' => 'graduate',
+                            'academic_year' => session('academic_year') ?? $student->year,
+                            'performed_by' => $performedBy,
+                            'notes' => 'Auto-graduated: final class completed',
+                        ]);
+                        $count++;
                         continue;
                     }
                     $fromId = $student->class_room_id;
@@ -49,7 +63,7 @@ class PromotionService
                         'student_id' => $student->id,
                         'from_class_room_id' => $fromId,
                         'to_class_room_id' => (int) $room->id,
-                        'action' => 'promote',
+                        'action' => 'demote',
                         'academic_year' => session('academic_year') ?? $student->year,
                         'performed_by' => $performedBy,
                         'notes' => null,
@@ -88,6 +102,20 @@ class PromotionService
                     $target = $level - 1;
                     $room = $levelToRoom->get($target);
                     if (! $room) {
+                        // No next class → mark as Alumni (retired)
+                        $student->alumni = true;
+                        $student->active = false;
+                        $student->save();
+                        StudentPromotionHistory::create([
+                            'student_id' => $student->id,
+                            'from_class_room_id' => $student->class_room_id,
+                            'to_class_room_id' => null,
+                            'action' => 'graduate',
+                            'academic_year' => session('academic_year') ?? $student->year,
+                            'performed_by' => $performedBy,
+                            'notes' => 'Auto-graduated to Alumni',
+                        ]);
+                        $count++;
                         continue;
                     }
                     $fromId = $student->class_room_id;
@@ -102,7 +130,7 @@ class PromotionService
                         'student_id' => $student->id,
                         'from_class_room_id' => $fromId,
                         'to_class_room_id' => (int) $room->id,
-                        'action' => 'demote',
+                        'action' => 'promote',
                         'academic_year' => session('academic_year') ?? $student->year,
                         'performed_by' => $performedBy,
                         'notes' => null,
@@ -121,7 +149,22 @@ class PromotionService
         if ($level === null) return false;
         $target = $level + 1;
         $room = ClassRoom::query()->where('level', $target)->first();
-        if (! $room) return false;
+        if (! $room) {
+            // Graduate to alumni
+            $student->alumni = true;
+            $student->active = false;
+            $student->save();
+            StudentPromotionHistory::create([
+                'student_id' => $student->id,
+                'from_class_room_id' => $student->class_room_id,
+                'to_class_room_id' => null,
+                'action' => 'graduate',
+                'academic_year' => session('academic_year') ?? $student->year,
+                'performed_by' => $performedBy,
+                'notes' => 'Auto-graduated: final class completed',
+            ]);
+            return true;
+        }
         $fromId = $student->class_room_id;
         $student->class_room_id = (int) $room->id;
         $student->class = $room->name;
@@ -149,7 +192,21 @@ class PromotionService
         if ($level === null) return false;
         $target = $level - 1;
         $room = ClassRoom::query()->where('level', $target)->first();
-        if (! $room) return false;
+        if (! $room) {
+            $student->alumni = true;
+            $student->active = false;
+            $student->save();
+            StudentPromotionHistory::create([
+                'student_id' => $student->id,
+                'from_class_room_id' => $student->class_room_id,
+                'to_class_room_id' => null,
+                'action' => 'graduate',
+                'academic_year' => session('academic_year') ?? $student->year,
+                'performed_by' => $performedBy,
+                'notes' => 'Auto-graduated to Alumni',
+            ]);
+            return true;
+        }
         $fromId = $student->class_room_id;
         $student->class_room_id = (int) $room->id;
         $student->class = $room->name;

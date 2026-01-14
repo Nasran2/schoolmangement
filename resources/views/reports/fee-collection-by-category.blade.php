@@ -19,11 +19,11 @@
                     <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
                         <div>
                             <x-input-label for="from" :value="__('From Date')" class="font-semibold mb-2" />
-                            <x-text-input id="from" name="from" type="date" class="mt-1 block w-full" :value="$filters['from'] ?? ''" />
+                            <x-text-input id="from" name="from" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="$filters['from'] ?? ''" />
                         </div>
                         <div>
                             <x-input-label for="to" :value="__('To Date')" class="font-semibold mb-2" />
-                            <x-text-input id="to" name="to" type="date" class="mt-1 block w-full" :value="$filters['to'] ?? ''" />
+                            <x-text-input id="to" name="to" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="$filters['to'] ?? ''" />
                         </div>
                         <div>
                             <x-input-label for="class_room_id" :value="__('Class Room')" class="font-semibold mb-2" />

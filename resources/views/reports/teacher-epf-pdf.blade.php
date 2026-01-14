@@ -15,7 +15,7 @@
 </head>
 <body>
     <h1>EPF Report</h1>
-    <div class="muted">Generated: {{ now()->format('Y-m-d H:i') }}</div>
+    <div class="muted">Generated: {{ now()->format('d-m-Y H:i') }}</div>
 
     @if(($groupByMonth ?? false) && !empty($monthTotals ?? []))
         <table>
@@ -60,7 +60,7 @@
                 @endphp
                 <tr>
                     <td>{{ $row->receipt_number }}</td>
-                    <td>{{ optional($row->paid_at)->format('Y-m-d') }}</td>
+                    <td>{{ optional($row->paid_at)->format('d-m-Y') }}</td>
                     <td>{{ $row->payment_month ? \Carbon\Carbon::parse($row->payment_month . '-01')->format('M Y') : 'N/A' }}</td>
                     <td>{{ $row->teacher?->name }}</td>
                     <td class="right">{{ number_format((float)$row->base_salary, 2) }}</td>

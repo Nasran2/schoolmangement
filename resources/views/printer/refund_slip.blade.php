@@ -5,20 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Refund Slip</title>
     <style>
-        @page { size: A5 landscape; margin: 0; }
+        /* Print: enforce A4 with sensible margins */
+        @page { size: A4; margin: 12mm; }
         @media print {
             body { -webkit-print-color-adjust: exact; }
+            .print\:border-0 { border: 0 !important; }
+            .print\:p-0 { padding: 0 !important; }
+            .print\:max-w-none { max-width: none !important; }
         }
+        /* Header: prevent logo overlapping text */
+        .slip-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .slip-header img { max-height: 60px; width: auto; object-fit: contain; display: block; }
+        .slip-header * { margin: 0; }
     </style>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script>window.onload = function() { window.print(); };</script>
-    {!! $slipHeader !!}
+    <script>
+        window.onload = function() { window.print(); };
+        window.onafterprint = function() { try { window.close(); } catch (e) {} };
+    </script>
 </head>
 <body class="bg-white font-sans text-gray-900 antialiased p-8">
     <div class="max-w-3xl mx-auto border-2 border-gray-800 p-6 relative print:border-0 print:p-0 print:max-w-none">
         
         <!-- Header -->
         <div class="text-center mb-6 border-b-2 border-dashed border-gray-800 pb-4">
+            <div class="slip-header justify-center">
+                {!! $slipHeader !!}
+            </div>
             <div class="text-2xl font-bold uppercase mb-1">{{ $schoolName ?? config('app.name') }}</div>
             <div class="text-sm text-gray-600">{{ app('settings')->get('school.address', 'School Address') }}</div>
             <div class="text-sm text-gray-600">{{ app('settings')->get('school.phone', '') }}</div>
@@ -45,7 +58,7 @@
         <!-- Meta Info -->
         <div class="flex justify-between mb-6 text-sm">
             <div>
-                <div class="mb-1"><span class="font-bold w-32 inline-block">Refund Date:</span> <span>{{ optional($adjustment->created_at)->format('Y-m-d H:i') }}</span></div>
+                <div class="mb-1"><span class="font-bold w-32 inline-block">Refund Date:</span> <span>{{ optional($adjustment->created_at)->format('d-m-Y H:i') }}</span></div>
                 <div><span class="font-bold w-32 inline-block">Processed By:</span> <span>{{ $adjustment->creator?->name ?? '-' }}</span></div>
             </div>
             <div class="text-right">
@@ -127,7 +140,7 @@
         </div>
 
         <div class="text-[10px] text-center mt-8 text-gray-500">
-            This is a computer-generated document. | Printed on {{ now()->format('Y-m-d H:i:s') }}
+            This is a computer-generated document. | Printed on {{ now()->format('d-m-Y H:i:s') }}
         </div>
 
         <div class="mt-4">
@@ -136,3 +149,4 @@
     </div>
 </body>
 </html>
+ 

@@ -70,9 +70,9 @@
                                 <x-text-input 
                                     id="paid_at" 
                                     name="paid_at" 
-                                    type="date" 
+                                    type="text" placeholder="DD-MM-YYYY" 
                                     class="block w-full" 
-                                    :value="old('paid_at', optional($payment->paid_at)->format('Y-m-d'))" 
+                                    :value="old('paid_at', optional($payment->paid_at)->format('d-m-Y'))" 
                                     required 
                                 />
                                 <x-input-error :messages="$errors->get('paid_at')" class="mt-2" />
@@ -96,6 +96,24 @@
                                     </label>
                                 </div>
                                 <x-input-error :messages="$errors->get('payment_method')" class="mt-2" />
+                            </div>
+
+                            <!-- Bank Details (shown for Bank/Cheque) -->
+                            <div id="bank_details" class="md:col-span-2 hidden">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                    <div>
+                                        <x-input-label for="bank_name" :value="__('Bank Name')" class="mb-2 font-semibold" />
+                                        <x-text-input id="bank_name" name="bank_name" type="text" class="block w-full" :value="old('bank_name', $payment->bank_name)" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="bank_branch" :value="__('Branch')" class="mb-2 font-semibold" />
+                                        <x-text-input id="bank_branch" name="bank_branch" type="text" class="block w-full" :value="old('bank_branch', $payment->bank_branch)" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="bank_account_no" :value="__('Account No.')" class="mb-2 font-semibold" />
+                                        <x-text-input id="bank_account_no" name="bank_account_no" type="text" class="block w-full" :value="old('bank_account_no', $payment->bank_account_no)" />
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Base Salary -->
@@ -291,9 +309,28 @@
             document.getElementById('display-net-amount').textContent = `Rs ${netAmount.toFixed(2)}`;
         }
 
+        function syncBankDetailsVisibility() {
+            const method = (document.querySelector('input[name="payment_method"]:checked')?.value || '').toLowerCase();
+            const bankBox = document.getElementById('bank_details');
+            if (!bankBox) return;
+            if (method === 'bank' || method === 'cheque') {
+                bankBox.classList.remove('hidden');
+            } else {
+                bankBox.classList.add('hidden');
+            }
+        }
+
+        function initPaymentMethodWatcher() {
+            document.querySelectorAll('input[name="payment_method"]').forEach(r => {
+                r.addEventListener('change', syncBankDetailsVisibility);
+            });
+            syncBankDetailsVisibility();
+        }
+
         // Initialize calculation on page load
         document.addEventListener('DOMContentLoaded', function() {
             calculateTotal();
+            initPaymentMethodWatcher();
         });
     </script>
 </x-app-layout>

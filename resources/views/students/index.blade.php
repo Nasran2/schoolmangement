@@ -93,6 +93,15 @@
                                 </div>
                                 <input id="q" name="q" type="text" class="pl-10 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ $filters['q'] ?? '' }}" placeholder="Search by name, admission no, phone, or class..." />
                             </div>
+                            <div class="sm:w-64">
+                                @php $status = $filters['status'] ?? 'all'; @endphp
+                                <select name="status" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="all" {{ $status==='all' ? 'selected' : '' }}>All</option>
+                                    <option value="active" {{ $status==='active' ? 'selected' : '' }}>Active</option>
+                                    <option value="inactive" {{ $status==='inactive' ? 'selected' : '' }}>Inactive</option>
+                                    <option value="alumni" {{ $status==='alumni' ? 'selected' : '' }}>Alumni</option>
+                                </select>
+                            </div>
                             <div class="flex gap-2">
                                 <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-sm text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                                     Search
@@ -162,14 +171,18 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm text-gray-900">{{ $s->phone ?? 'N/A' }}</div>
-                                            <div class="text-xs text-gray-500">{{ $s->classRoom?->name ?? ($s->class ?? '—') }}</div>
+                                            <div class="text-xs text-gray-500">{{ $s->alumni ? 'Alumni' : ($s->classRoom?->name ?? ($s->class ?? '—')) }}</div>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-600">
                                             <div class="max-w-xs truncate">{{ $s->address ?? 'No address' }}</div>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ ($s->active ?? true) ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800' }}">
-                                                {{ ($s->active ?? true) ? 'Active' : 'Inactive' }}
+                                            @php
+                                                $label = $s->alumni ? 'Alumni' : (($s->active ?? true) ? 'Active' : 'Inactive');
+                                                $cls = $s->alumni ? 'bg-amber-100 text-amber-800' : (($s->active ?? true) ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800');
+                                            @endphp
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $cls }}">
+                                                {{ $label }}
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-right">

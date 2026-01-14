@@ -11,7 +11,7 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
-                    <form method="POST" action="{{ route('revenue.categories.update', $category) }}" class="space-y-6">
+                    <form method="POST" action="{{ route('revenue.categories.update', $category) }}" class="space-y-6" x-data="{ type: '{{ old('payment_type', $category->payment_type) }}' }">
                         @csrf
                         @method('PUT')
 
@@ -23,7 +23,7 @@
 
                         <div>
                             <x-input-label for="payment_type" :value="__('Payment Type')" />
-                            <select id="payment_type" name="payment_type" class="mt-1 block w-full rounded-md border-gray-300">
+                            <select id="payment_type" name="payment_type" class="mt-1 block w-full rounded-md border-gray-300" x-model="type">
                                 @php
                                     $types = [
                                         'monthly' => 'Monthly',
@@ -31,6 +31,7 @@
                                         '3_months' => 'Every 3 Months',
                                         '6_months' => 'Every 6 Months',
                                         'yearly' => 'Yearly',
+                                        'custom_months' => 'Custom (Every N Months)',
                                         'one_time' => 'One-time',
                                     ];
                                 @endphp
@@ -39,6 +40,12 @@
                                 @endforeach
                             </select>
                             <x-input-error class="mt-2" :messages="$errors->get('payment_type')" />
+
+                            <div x-cloak x-show="type === 'custom_months'" class="mt-3">
+                                <x-input-label for="interval_months" :value="__('Interval (months)')" />
+                                <x-text-input id="interval_months" name="interval_months" type="number" min="1" max="24" class="mt-1 block w-full" :value="old('interval_months', $category->interval_months)" />
+                                <x-input-error class="mt-2" :messages="$errors->get('interval_months')" />
+                            </div>
                         </div>
 
                         <div>

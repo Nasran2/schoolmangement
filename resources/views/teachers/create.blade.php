@@ -73,7 +73,7 @@
                             <x-text-input 
                                 id="joining_date" 
                                 name="joining_date" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
                                 :value="old('joining_date')" 
                             />
@@ -99,7 +99,7 @@
                             <x-text-input 
                                 id="payment_start_date" 
                                 name="payment_start_date" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
                                 :value="old('payment_start_date')" 
                             />
@@ -387,8 +387,11 @@
                 // Get the day before the last day (e.g., if month ends on 31st, get 30th)
                 const paymentDate = new Date(year, month - 1, lastDay.getDate() - 1);
                 
-                // Format as YYYY-MM-DD for date input
-                const formattedDate = paymentDate.toISOString().split('T')[0];
+                // Format as DD-MM-YYYY for date input
+                const day = String(paymentDate.getDate()).padStart(2, '0');
+                const m = String(paymentDate.getMonth() + 1).padStart(2, '0');
+                const y = paymentDate.getFullYear();
+                const formattedDate = `${day}-${m}-${y}`;
                 
                 // Update the payment start date field
                 paymentStartDateInput.value = formattedDate;

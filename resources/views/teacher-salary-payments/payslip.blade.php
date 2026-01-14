@@ -63,8 +63,9 @@
 			$epfPercent = (float) ($svc->get('salary_epf_percent', '0') ?: 0);
 			$etfPercent = (float) ($svc->get('salary_etf_percent', '0') ?: 0);
 			$base = (float) ($payment->base_salary ?? 0);
-			$epfAmount = round($base * ($epfPercent / 100), 2);
-			$etfAmount = round($base * ($etfPercent / 100), 2);
+			$baseForStat = max(27000, $base);
+			$epfAmount = round($baseForStat * ($epfPercent / 100), 2);
+			$etfAmount = round($baseForStat * ($etfPercent / 100), 2);
 			$deductions = collect($payment->deductions ?? []);
 			$epfEntry = $deductions->first(fn($d) => strtolower($d['reason'] ?? '') === 'epf');
 			$etfEntry = $deductions->first(fn($d) => strtolower($d['reason'] ?? '') === 'etf');
@@ -142,7 +143,16 @@
 					&nbsp;&nbsp; <span class="checkbox {{ $method === 'cash' ? 'checked' : '' }}"></span> Cash
 					&nbsp;&nbsp; <span class="checkbox {{ $method === 'cheque' ? 'checked' : '' }}"></span> Cheque
 				</div>
+				@if(in_array($method, ['bank','cheque']))
+				<div style="margin-top:6px;">Bank / A/C No : 
+					<span>
+						{{ trim(($payment->bank_name ?? '').(($payment->bank_branch ?? '') ? ' - '.$payment->bank_branch : '')) }}
+						{{ $payment->bank_account_no ? ' / '.$payment->bank_account_no : '' }}
+					</span>
+				</div>
+				@else
 				<div style="margin-top:6px;">Bank / A/C No : <span class="line"></span></div>
+				@endif
 			</div>
 			<div class="sig">
 				<div class="line"></div>

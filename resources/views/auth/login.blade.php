@@ -1,8 +1,8 @@
 <x-guest-layout>
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <div class="mb-6">
-        <h2 class="text-xl font-semibold text-gray-900">Welcome Back!</h2>
+    <div class="mb-6 text-center">
+        <h2 class="text-xl font-semibold text-gray-900">Welcome to the {{ $schoolName ?? config('app.name') }} Portal</h2>
         <p class="mt-1 text-sm text-gray-600">Sign in to manage your school fees and finances</p>
     </div>
 

@@ -95,12 +95,16 @@
                                                     x-on:keydown="handleKeyDown($event)">
                                                 <button type="button"
                                                     class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                                                    x-on:click="openDefault()">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
+                                                    x-on:click="openDefault()"
+                                                    :disabled="isLoading">
+                                                    <svg x-show="!isLoading" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5"
                                                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                         stroke-width="2">
                                                         <circle cx="11" cy="11" r="8" />
                                                         <path d="M21 21l-4.3-4.3" />
+                                                    </svg>
+                                                    <svg x-show="isLoading" x-cloak class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M21 12a9 9 0 11-6.219-8.56" />
                                                     </svg>
                                                 </button>
                                                 <div x-show="open" x-cloak
@@ -173,7 +177,7 @@
                                 </div>
 
                                 {{-- Due Information --}}
-                                <div x-show="categoryType === 'monthly' && studentName" x-cloak
+                                <div x-show="categoryType === 'monthly' && studentName && selectedCategoryIsMonthlyFee" x-cloak
                                     class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
                                     <div class="flex items-start gap-3">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-amber-600 mt-0.5">
@@ -217,7 +221,7 @@
                                 </div>
 
                                 {{-- Advance payment toggle --}}
-                                <div x-show="categoryType === 'monthly'" x-transition.opacity x-cloak class="mt-6">
+                                <div x-show="categoryType === 'monthly' && selectedCategoryIsMonthlyFee" x-transition.opacity x-cloak class="mt-6">
                                     <div class="flex items-center justify-between p-4 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors">
                                         <div class="flex items-center gap-3">
                                             <div class="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
@@ -244,7 +248,7 @@
                                 </div>
 
                                 {{-- Advance Months selector --}}
-                                <div x-show="categoryType === 'monthly' && studentName && advanceMode" 
+                                <div x-show="categoryType === 'monthly' && studentName && selectedCategoryIsMonthlyFee && advanceMode" 
                                     x-transition:enter="transition ease-out duration-200"
                                     x-transition:enter-start="opacity-0 -translate-y-2"
                                     x-transition:enter-end="opacity-100 translate-y-0"
@@ -282,7 +286,7 @@
                                             </div>
                                             <span class="text-xs font-medium text-gray-600">Advance Amount Required</span>
                                         </div>
-                                        <span class="text-sm font-bold text-indigo-700">Rs <span x-text="(selectedAdvanceLabels.length * (parseFloat(studentMonthlyFee) || 0)).toFixed(2)"></span></span>
+                                        <span class="text-sm font-bold text-indigo-700">Rs <span x-text="advanceRequiredAmount().toFixed(2)"></span></span>
                                     </div>
 
                                     <input type="hidden" name="advance_months" :value="JSON.stringify(selectedAdvanceMonths.map(k => { const [y,mo]=k.split('-'); return {year:+y,month:+mo}; }))">
@@ -300,6 +304,7 @@
                                                 placeholder="0.00" value="{{ old('amount') }}"
                                                 x-on:input="updateSummary(); updateAllocationPreview()" required>
                                         </div>
+                                        <p class="mt-2 text-xs text-gray-500" x-show="categoryType === 'monthly' && selectedCategoryIsMonthlyFee">If you pay extra, it will automatically go to next months.</p>
                                         @error('amount')
                                             <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
@@ -307,9 +312,9 @@
                                     <div>
                                         <label class="block text-sm font-semibold text-gray-800 mb-3">Payment
                                             Date</label>
-                                        <input type="date" id="paid_at_input" name="paid_at"
+                                        <input type="text" id="paid_at_input" name="paid_at" placeholder="DD-MM-YYYY"
                                             class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                            value="{{ old('paid_at', date('Y-m-d')) }}" required>
+                                            value="{{ old('paid_at', date('d-m-Y')) }}" required>
                                         @error('paid_at')
                                             <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
@@ -320,6 +325,12 @@
                                 <div x-show="categoryType === 'monthly' && selectedStudentId && formData.amount" x-cloak class="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
                                     <div class="mt-1">
                                         <h5 class="text-xs font-semibold text-indigo-800 mb-2">Allocation summary</h5>
+                                        <div x-show="isAllocationLoading" class="flex items-center gap-2 text-xs text-indigo-700 mb-2" x-cloak>
+                                            <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 12a9 9 0 11-6.219-8.56" />
+                                            </svg>
+                                            <span>Loading preview…</span>
+                                        </div>
                                         <template x-if="allocation.allocations.length === 0">
                                             <p class="text-xs text-indigo-700">Enter amount and select advance months (optional) to preview.</p>
                                         </template>
@@ -445,14 +456,8 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
                                     </svg>
                                     <div class="text-sm text-blue-900">
-                                        <p class="font-semibold mb-1">This payment will settle:</p>
-                                        <p class="text-xs text-blue-800"><span class="font-semibold">Dues:</span>
-                                            <template x-if="(allocation.summary.paid_due_months||[]).length === 0"><span>—</span></template>
-                                            <template x-for="d in allocation.summary.paid_due_months" :key="d.year+'-'+d.month"><span class="inline-block mr-1" x-text="monthName(d.month)+' '+d.year+(d.partial?' (Partial)':'')"></span></template>
-                                        </p>
-                                        <p class="text-xs text-blue-800" x-show="(allocation.summary.advance_months||[]).length > 0"><span class="font-semibold">Advance:</span>
-                                            <template x-for="ad in allocation.summary.advance_months" :key="ad.year+'-'+ad.month"><span class="inline-block mr-1" x-text="monthName(ad.month)+' '+ad.year+(ad.partial?' (Partial)':'')"></span></template>
-                                        </p>
+                                        <p class="font-semibold mb-1">This payment will cover:</p>
+                                        <p class="text-xs text-blue-800" x-text="coverageSummaryText()"></p>
                                     </div>
                                 </div>
                             </div>
@@ -534,12 +539,13 @@
                     formData: {
                         category_id: '{{ old('revenue_category_id', $preselectedCategoryId) }}',
                         amount: '{{ old('amount') }}',
-                        date: '{{ old('paid_at', date('Y-m-d')) }}',
+                        date: '{{ old('paid_at', date('d-m-Y')) }}',
                         bill_no: '{{ old('bill_no') }}'
                     },
                     categories: @json($categories),
                     categoryName: '',
                     categoryType: '',
+                    selectedCategoryIsMonthlyFee: false,
                     studentName: '',
                     studentDueAmount: 0,
                     studentMonthlyFee: 0,
@@ -547,6 +553,7 @@
                     selectedDueCount: 0,
                     showCategoryModal: false,
                     selectedStudentId: '{{ $selectedStudentId ?? '' }}',
+                    monthlyCatId: '{{ $monthlyCatId ?? '' }}',
                     advanceEnabled: false,
                     advanceMode: false,
                     advanceOptions: [],
@@ -555,6 +562,7 @@
                     selectedAdvanceMonths: [],
                     selectedAdvanceLabels: [],
                     allocation: { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } },
+                    isAllocationLoading: false,
 
                     init() {
                         try {
@@ -570,10 +578,17 @@
                                             this.studentDueMonths = e.detail.due_months || [];
                                             this.studentMonthlyFee = e.detail.monthly_fee || 0;
                                             this.selectedStudentId = e.detail.id || '';
+                                            this.monthlyCatId = e.detail.monthly_category_id || '';
                                             this.selectedDueCount = 0;
                                             const adv = Array.isArray(e.detail.advance_months) ? e.detail.advance_months : [];
                                             if (adv.length > 0) {
-                                                this.advanceOptions = adv.map(m => ({ key: m.key, year: m.year, month: m.month, label: m.label }));
+                                                this.advanceOptions = adv.map(m => ({
+                                                    key: m.key,
+                                                    year: m.year,
+                                                    month: m.month,
+                                                    label: m.label,
+                                                    required_amount: Number(m.required_amount ?? 0),
+                                                }));
                                             } else {
                                                 this.initFutureMonths();
                                                 this.advanceOptions = this.futureMonths;
@@ -585,6 +600,7 @@
                                             this.studentDueMonths = [];
                                             this.selectedDueCount = 0;
                                             this.selectedStudentId = '';
+                                            this.monthlyCatId = '';
                                             this.advanceMode = false;
                                             this.selectedAdvanceKeys.clear();
                                             this.syncAdvanceSelections();
@@ -648,10 +664,14 @@
                             const cat = Array.isArray(this.categories) ? this.categories.find(c => c.id == id) : null;
                             if (cat) {
                                 this.categoryName = cat.name;
-                                this.categoryType = cat.payment_type;
+                                const rawType = (cat.payment_type || '').toString();
+                                const monthlyLike = ['monthly','2_months','3_months','6_months','yearly','custom_months'].includes(rawType);
+                                this.categoryType = monthlyLike ? 'monthly' : rawType;
+                                this.selectedCategoryIsMonthlyFee = !!(this.monthlyCatId && String(this.monthlyCatId) === String(cat.id));
                             } else {
                                 this.categoryName = '';
                                 this.categoryType = '';
+                                this.selectedCategoryIsMonthlyFee = false;
                             }
                         } catch (err) {
                             console.error('Error updating summary:', err);
@@ -695,23 +715,77 @@
                         const map = new Map((this.advanceOptions||[]).map(o => [o.key, o.label]));
                         this.selectedAdvanceLabels = keys.map(k => map.get(k)).filter(Boolean);
                     },
+                    advanceRequiredAmount() {
+                        const keys = [...this.selectedAdvanceKeys];
+                        if (!keys.length) return 0;
+
+                        const map = new Map((this.advanceOptions||[]).map(o => [o.key, o.required_amount]));
+                        let sum = 0;
+                        let allHave = true;
+                        for (const k of keys) {
+                            const v = map.get(k);
+                            if (typeof v !== 'number' || Number.isNaN(v)) {
+                                allHave = false;
+                                break;
+                            }
+                            sum += Number(v);
+                        }
+                        if (allHave) return sum;
+
+                        const fromPreview = Number(this.allocation?.summary?.selected_advance_months_required_amount);
+                        if (!Number.isNaN(fromPreview)) return fromPreview;
+
+                        return keys.length * (Number(this.studentMonthlyFee) || 0);
+                    },
                     monthName(m) {
                         const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
                         return names[(m-1)%12];
                     },
+                    shortMonthName(m) {
+                        return this.monthName(m).slice(0, 3);
+                    },
+                    formatMoney(v) {
+                        const n = Number(v || 0);
+                        return n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    },
+                    coverageSummaryText() {
+                        const allocs = Array.isArray(this.allocation?.allocations) ? this.allocation.allocations : [];
+                        if (!allocs.length) return '—';
+
+                        const seen = new Set();
+                        const parts = [];
+                        for (const a of allocs) {
+                            if (!a || !a.year || !a.month) continue;
+                            const key = `${a.year}-${String(a.month).padStart(2,'0')}`;
+                            if (seen.has(key)) continue;
+                            seen.add(key);
+
+                            const label = `${this.shortMonthName(a.month)} ${a.year}`;
+                            if (a.is_partial) {
+                                const bal = this.formatMoney(a.remaining_for_month || 0);
+                                parts.push(`${label} (partial Rs ${bal} balance)`);
+                            } else {
+                                parts.push(`${label} (full)`);
+                            }
+                        }
+
+                        return parts.length ? parts.join(', ') : '—';
+                    },
                     async updateAllocationPreview() {
                         try {
-                            if (this.categoryType !== 'monthly') return;
+                            if (this.categoryType !== 'monthly' || !this.selectedCategoryIsMonthlyFee) return;
                             const amt = parseFloat(this.formData.amount||'0');
                             if (!this.selectedStudentId || !amt || amt <= 0) {
                                 this.allocation = { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } };
                                 return;
                             }
+
+                            this.isAllocationLoading = true;
                             const adv = [...this.selectedAdvanceKeys].map(k => { const [y, mo] = k.split('-'); return {year: +y, month: +mo}; });
                             const res = await fetch("{{ route('revenue.items.preview_allocation') }}", {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
-                                body: JSON.stringify({ student_id: this.selectedStudentId, amount: amt, advance_months: adv })
+                                body: JSON.stringify({ student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv })
                             });
                             if (res.ok) {
                                 const data = await res.json();
@@ -732,7 +806,7 @@
                                         const res2 = await fetch("{{ route('revenue.items.preview_allocation') }}", {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
-                                            body: JSON.stringify({ student_id: this.selectedStudentId, amount: amt, advance_months: adv2 })
+                                            body: JSON.stringify({ student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv2 })
                                         });
                                         if (res2.ok) {
                                             const data2 = await res2.json();
@@ -743,6 +817,8 @@
                             }
                         } catch (e) {
                             console.warn('Allocation preview failed:', e?.message);
+                        } finally {
+                            this.isAllocationLoading = false;
                         }
                     }
                 }));
@@ -755,6 +831,7 @@
                     selected: null,
                     highlightedIndex: -1,
                     initialStudentId: '',
+                    isLoading: false,
 
                     init() {
                         try {
@@ -771,6 +848,7 @@
                     async loadInitialStudent() {
                         if (!this.initialStudentId) return;
                         try {
+                            this.isLoading = true;
                             const res = await fetch(`/students/search?id=${encodeURIComponent(this.initialStudentId)}`);
                             if (res && res.ok) {
                                 const data = await res.json();
@@ -791,6 +869,8 @@
                             }
                         } catch (e) {
                             console.warn('Failed to load initial student (non-critical):', e?.message);
+                        } finally {
+                            this.isLoading = false;
                         }
                     },
 
@@ -808,6 +888,7 @@
                             }
                             const params = new URLSearchParams({ q: this.q, limit: 10 });
                             if (this.classRoomId) params.set('class_room_id', this.classRoomId);
+                            this.isLoading = true;
                             const res = await fetch(`/students/search?${params}`);
                             if (res && res.ok) {
                                 const data = await res.json();
@@ -824,6 +905,8 @@
                             console.warn('Student search error (non-critical):', e?.message);
                             this.results = [];
                             this.open = false;
+                        } finally {
+                            this.isLoading = false;
                         }
                     },
 
@@ -831,6 +914,7 @@
                         try {
                             const params = new URLSearchParams({ limit: 5 });
                             if (this.classRoomId) params.set('class_room_id', this.classRoomId);
+                            this.isLoading = true;
                             const res = await fetch(`/students/search?${params}`);
                             if (res && res.ok) {
                                 const data = await res.json();
@@ -847,6 +931,8 @@
                             console.warn('Default student load error (non-critical):', e?.message);
                             this.results = [];
                             this.open = false;
+                        } finally {
+                            this.isLoading = false;
                         }
                     },
 
@@ -856,6 +942,7 @@
                             
                             // Fetch full details to get due info
                             try {
+                                this.isLoading = true;
                                 const res = await fetch(`/students/search?id=${item.id}`);
                                 if (res && res.ok) {
                                     const data = await res.json();
@@ -865,6 +952,8 @@
                                 }
                             } catch (fetchErr) {
                                 console.warn('Failed to fetch full student details:', fetchErr);
+                            } finally {
+                                this.isLoading = false;
                             }
 
                             this.selected = item;

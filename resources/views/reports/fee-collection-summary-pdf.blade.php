@@ -15,7 +15,7 @@
 </head>
 <body>
     <h1>Fee Collection Summary</h1>
-    <div class="muted">Generated: {{ now()->format('Y-m-d H:i') }}</div>
+    <div class="muted">Generated: {{ now()->format('d-m-Y H:i') }}</div>
 
     <table>
         <thead>

@@ -26,7 +26,7 @@
                             <x-text-input 
                                 id="from" 
                                 name="from" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg shadow-sm" 
                                 :value="isset($filters['from']) ? $filters['from'] : ''" 
                             />
@@ -38,10 +38,19 @@
                             <x-text-input 
                                 id="to" 
                                 name="to" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg shadow-sm" 
                                 :value="isset($filters['to']) ? $filters['to'] : ''" 
                             />
+                        </div>
+
+                        <!-- Toggle: Daily vs Aggregated -->
+                        <div class="sm:col-span-2 flex items-end">
+                            <label class="inline-flex items-center gap-2 select-none">
+                                <input type="checkbox" name="daily" value="1" class="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                                    @checked(isset($filters['daily']) && $filters['daily'])>
+                                <span class="text-sm text-gray-700">Show per-day entries</span>
+                            </label>
                         </div>
 
                         <!-- Action Buttons -->
@@ -55,7 +64,16 @@
                                 </svg>
                                 Apply Filter
                             </button>
-                            
+                            <a
+                                href="{{ route('reports.financial') }}"
+                                class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition shadow-sm border border-gray-300"
+                                title="Reset Filter"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Reset
+                            </a>
                             @can('reports.download')
                                 <a
                                     class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition shadow-sm"
@@ -70,145 +88,114 @@
                                 </a>
                             @endcan
                         </div>
+                        <!-- Quick Ranges -->
+                        <div class="lg:col-span-5 mt-4">
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{{ route('reports.financial', array_merge(request()->query(), ['from' => now()->toDateString(), 'to' => now()->toDateString()])) }}" class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50">Today</a>
+                                <a href="{{ route('reports.financial', array_merge(request()->query(), ['from' => now()->copy()->subMonth()->startOfMonth()->toDateString(), 'to' => now()->toDateString()])) }}" class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50">Last 1 Month</a>
+                                <a href="{{ route('reports.financial', array_merge(request()->query(), ['from' => now()->copy()->subMonths(2)->startOfMonth()->toDateString(), 'to' => now()->toDateString()])) }}" class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50">Last 2 Months</a>
+                                <a href="{{ route('reports.financial', array_merge(request()->query(), ['from' => now()->copy()->subMonths(3)->startOfMonth()->toDateString(), 'to' => now()->toDateString()])) }}" class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50">Last 3 Months</a>
+                                <a href="{{ route('reports.financial', array_merge(request()->query(), ['from' => now()->copy()->subMonths(6)->startOfMonth()->toDateString(), 'to' => now()->toDateString()])) }}" class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50">Last 6 Months</a>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>
-
-            <!-- Main Financial Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <!-- Revenue Card -->
-                <div class="bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
-                    <div class="h-1 bg-gradient-to-r from-blue-500 to-blue-600"></div>
-                    <div class="p-8">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600">Total Revenue</p>
-                                <p class="text-4xl font-bold text-blue-600 mt-3">Rs {{ number_format($totalRevenue, 2) }}</p>
-                                <p class="text-xs text-gray-500 mt-2">Income from all sources</p>
-                            </div>
-                            <div class="h-16 w-16 rounded-lg bg-blue-100 flex items-center justify-center">
-                                <svg class="w-8 h-8 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Expense Card -->
-                <div class="bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
-                    <div class="h-1 bg-gradient-to-r from-red-500 to-red-600"></div>
-                    <div class="p-8">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600">Total Expenses</p>
-                                <p class="text-4xl font-bold text-red-600 mt-3">Rs {{ number_format($totalExpense, 2) }}</p>
-                                <p class="text-xs text-gray-500 mt-2">Outflows and payables</p>
-                            </div>
-                            <div class="h-16 w-16 rounded-lg bg-red-100 flex items-center justify-center">
-                                <svg class="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Net Profit Card -->
-                <div class="bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
-                    <div class="h-1 bg-gradient-to-r from-green-500 to-green-600"></div>
-                    <div class="p-8">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-sm font-medium text-gray-600">Net Profit/Loss</p>
-                                <p class="text-4xl font-bold {{ $netProfit >= 0 ? 'text-green-600' : 'text-red-600' }} mt-3">
-                                    Rs {{ number_format($netProfit, 2) }}
-                                </p>
-                                <p class="text-xs text-gray-500 mt-2">{{ $netProfit >= 0 ? 'Positive balance' : 'Negative balance' }}</p>
-                            </div>
-                            <div class="h-16 w-16 rounded-lg {{ $netProfit >= 0 ? 'bg-green-100' : 'bg-red-100' }} flex items-center justify-center">
-                                <svg class="w-8 h-8 {{ $netProfit >= 0 ? 'text-green-600' : 'text-red-600' }}" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"></path>
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Summary Metrics -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div class="bg-white rounded-lg shadow-lg border border-gray-100 p-8">
-                    <div class="flex items-center mb-6">
-                        <svg class="w-6 h-6 text-purple-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h.01a1 1 0 110 2H12zm-2 2a1 1 0 100-2 1 1 0 000 2zm4 2a1 1 0 110-2h.01a1 1 0 110 2H14zm3.5-6a2.5 2.5 0 00-5 0v.006L9 6a.5.5 0 00.5.5h.5v3H8a2 2 0 100 4h8a2 2 0 100-4h-1.5V6.5h.5A.5.5 0 0016 6l.5-.994v-.006z" clip-rule="evenodd"></path>
-                        </svg>
-                        <h3 class="text-lg font-semibold text-gray-800">Financial Ratio</h3>
-                    </div>
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">Revenue to Expense Ratio</span>
-                            <span class="font-bold text-xl text-purple-600">
-                                @if($totalExpense > 0)
-                                    {{ number_format($totalRevenue / $totalExpense, 2) }}:1
-                                @else
-                                    ∞ (No expenses)
-                                @endif
-                            </span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-3">
-                            <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full" style="width: {{ min(($totalRevenue / max($totalRevenue, $totalExpense)) * 100, 100) }}%"></div>
-                        </div>
-                        <p class="text-sm text-gray-500">Shows relationship between income and spending</p>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-lg shadow-lg border border-gray-100 p-8">
-                    <div class="flex items-center mb-6">
-                        <svg class="w-6 h-6 text-indigo-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"></path>
-                        </svg>
-                        <h3 class="text-lg font-semibold text-gray-800">Budget Allocation</h3>
-                    </div>
-                    <div class="space-y-4">
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-gray-600">Expense Percentage</span>
-                                <span class="font-bold text-xl text-indigo-600">
-                                    @if($totalRevenue > 0)
-                                        {{ number_format(($totalExpense / $totalRevenue) * 100, 1) }}%
-                                    @else
-                                        0%
-                                    @endif
-                                </span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-3">
-                                <div class="bg-gradient-to-r from-red-500 to-orange-600 h-3 rounded-full" style="width: {{ min(($totalExpense / max($totalRevenue, 1)) * 100, 100) }}%"></div>
-                            </div>
-                        </div>
-                        <p class="text-sm text-gray-500">Percentage of revenue spent on expenses</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Info Card -->
-            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-                <div class="flex items-start">
-                    <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd"></path>
-                    </svg>
-                    <div>
-                        <p class="text-sm font-semibold text-blue-900">Financial Overview</p>
-                        <p class="text-sm text-blue-700 mt-1">
-                            @if ((isset($filters['from']) && $filters['from']) || (isset($filters['to']) && $filters['to']))
-                                This summary displays financial data for the selected period. Use date filters to analyze specific timeframes.
-                            @else
-                                This summary shows your overall financial performance. Use date filters to analyze specific periods.
+            @foreach($days as $d)
+                <div class="bg-white rounded-lg shadow-lg border border-gray-100 mb-8 overflow-hidden">
+                    <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            @if(!empty($school['logo']))
+                                <img src="{{ asset('storage/'.$school['logo']) }}" alt="Logo" class="h-12 w-12 rounded-full object-cover">
                             @endif
-                        </p>
+                            <div>
+                                <div class="text-2xl font-extrabold tracking-wide" style="font-family: Georgia, 'Times New Roman', serif;">
+                                    {{ strtoupper($school['name']) }}
+                                </div>
+                                <div class="text-sm text-gray-600">Tel: {{ $school['phone'] }}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            @if(!empty($filters['daily']))
+                                <div class="text-xs text-gray-500">Date</div>
+                                <div class="text-lg font-semibold">{{ $d['date']->format('M d, Y') }}</div>
+                            @else
+                                <div class="text-xs text-gray-500">Period</div>
+                                <div class="text-lg font-semibold">
+                                    {{ \Carbon\Carbon::parse($filters['from'] ?? $d['date'])->format('M d, Y') }} — {{ \Carbon\Carbon::parse($filters['to'] ?? $d['date'])->format('M d, Y') }}
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Debit (Income) Side -->
+                            <div>
+                                <h4 class="text-lg font-bold mb-3">Debit (Income)</h4>
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="text-gray-500">
+                                            <th class="text-left py-2">Description</th>
+                                            <th class="text-left py-2">Folio</th>
+                                            <th class="text-right py-2">Amount (Rs)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        @foreach($d['debits'] as $row)
+                                            <tr>
+                                                <td class="py-2">{{ $row['description'] }}</td>
+                                                <td class="py-2">{{ $row['ref'] ?? '—' }}</td>
+                                                <td class="py-2 text-right">{{ number_format($row['amount'], 2) }}</td>
+                                            </tr>
+                                        @endforeach
+                                        <tr class="bg-gray-50 font-semibold">
+                                            <td class="py-2">Total Debit</td>
+                                            <td></td>
+                                            <td class="py-2 text-right">{{ number_format($d['opening'] + $d['income_total'], 2) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Credit (Expense) Side -->
+                            <div>
+                                <h4 class="text-lg font-bold mb-3">Credit (Expense)</h4>
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="text-gray-500">
+                                            <th class="text-left py-2">Description</th>
+                                            <th class="text-right py-2">Amount (Rs)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        @forelse($d['credits'] as $row)
+                                            <tr>
+                                                <td class="py-2">{{ $row['description'] }}</td>
+                                                <td class="py-2 text-right">{{ number_format($row['amount'], 2) }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td class="py-2 text-gray-500">No expenses</td>
+                                                <td class="py-2 text-right">0.00</td>
+                                            </tr>
+                                        @endforelse
+                                        <tr class="bg-gray-50 font-semibold">
+                                            <td class="py-2">Total Credit</td>
+                                            <td class="py-2 text-right">{{ number_format($d['expense_total'], 2) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 border-t pt-4 flex items-center justify-between">
+                            <div class="text-sm text-gray-600">B.B.F (Opening): <span class="font-semibold text-gray-900">Rs {{ number_format($d['opening'], 2) }}</span></div>
+                            <div class="text-lg font-extrabold">Closing Balance: Rs {{ number_format($d['closing'], 2) }}</div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endforeach
         </div>
     </div>
 </x-app-layout>

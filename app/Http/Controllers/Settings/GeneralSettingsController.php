@@ -17,6 +17,7 @@ class GeneralSettingsController extends Controller
         return view('settings.general', [
             'school_name' => $settings->get('school.name', config('app.name')),
             'school_logo' => $settings->get('school.logo'),
+            'login_background' => $settings->get('ui.login.background'),
             'academic_year' => $settings->get('school.academic_year', ''),
             'school_address' => $settings->get('school.address', ''),
             'school_phone' => $settings->get('school.phone', ''),
@@ -38,6 +39,8 @@ class GeneralSettingsController extends Controller
             'school_name' => ['required', 'string', 'max:120'],
             'school_logo' => ['nullable', 'image', 'max:2048'], // 2MB Max
             'remove_logo' => ['nullable', 'in:0,1'],
+            'login_background' => ['nullable', 'image', 'max:6144'], // 6MB Max
+            'remove_login_background' => ['nullable', 'in:0,1'],
             'academic_year' => ['nullable', 'string', 'max:20'],
             'school_address' => ['nullable', 'string', 'max:255'],
             'school_phone' => ['nullable', 'string', 'max:20'],
@@ -65,6 +68,21 @@ class GeneralSettingsController extends Controller
         if ($request->hasFile('school_logo')) {
             $path = $request->file('school_logo')->store('logos', 'public');
             app('settings')->set('school.logo', $path, 'general');
+        }
+
+        // Handle login background remove
+        if (($validated['remove_login_background'] ?? '0') === '1') {
+            $existingBg = app('settings')->get('ui.login.background');
+            if ($existingBg) {
+                Storage::disk('public')->delete($existingBg);
+            }
+            app('settings')->set('ui.login.background', '', 'general');
+        }
+
+        // Handle login background upload
+        if ($request->hasFile('login_background')) {
+            $bgPath = $request->file('login_background')->store('branding', 'public');
+            app('settings')->set('ui.login.background', $bgPath, 'general');
         }
 
         app('settings')->setMany([

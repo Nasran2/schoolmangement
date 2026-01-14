@@ -18,11 +18,11 @@
             <form method="GET" class="bg-white rounded-lg shadow border border-gray-100 p-6 grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase">From</label>
-                    <input type="date" name="from" value="{{ $filters['from'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                    <input type="text" name="from" placeholder="DD-MM-YYYY" value="{{ $filters['from'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase">To</label>
-                    <input type="date" name="to" value="{{ $filters['to'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                    <input type="text" name="to" placeholder="DD-MM-YYYY" value="{{ $filters['to'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase">Category</label>
@@ -72,7 +72,7 @@
                         <tbody class="divide-y divide-gray-200 bg-white">
                             @forelse($items as $a)
                                 <tr>
-                                    <td class="px-4 py-3 text-sm text-gray-700">{{ optional($a->created_at)->format('Y-m-d') }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">{{ optional($a->created_at)->format('d-m-Y') }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ $a->revenue?->bill_no }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ $a->student?->name }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ $a->student?->classRoom?->name }}</td>

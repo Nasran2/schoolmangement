@@ -17,7 +17,7 @@
 <body>
     <div class="header">
         <div class="title">Student Statement</div>
-        <div style="font-size:12px;">Generated: {{ now()->format('Y-m-d H:i') }}</div>
+        <div style="font-size:12px;">Generated: {{ now()->format('d-m-Y H:i') }}</div>
     </div>
 
     <div class="card">
@@ -52,7 +52,7 @@
                 @forelse($payments as $p)
                     <tr>
                         <td>{{ $p->bill_no ?? '-' }}</td>
-                        <td>{{ optional($p->paid_at)->format('Y-m-d') }}</td>
+                        <td>{{ optional($p->paid_at)->format('d-m-Y') }}</td>
                         <td>{{ $p->category?->name }}</td>
                         <td class="right">{{ number_format($p->amount, 2) }}</td>
                     </tr>

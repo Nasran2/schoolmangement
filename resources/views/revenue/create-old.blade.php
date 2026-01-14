@@ -113,7 +113,7 @@
                             </div>
                             <div>
                                 <x-input-label for="paid_at" :value="__('Date')" />
-                                <x-text-input id="paid_at" name="paid_at" type="date" class="mt-1 block w-full" :value="old('paid_at', now()->format('Y-m-d'))" required />
+                                <x-text-input id="paid_at" name="paid_at" type="text" placeholder="DD-MM-YYYY" class="mt-1 block w-full" :value="old('paid_at', now()->format('d-m-Y'))" required />
                                 <x-input-error class="mt-2" :messages="$errors->get('paid_at')" />
                             </div>
                         </div>

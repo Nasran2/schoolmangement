@@ -131,8 +131,9 @@
                                 {{ strtoupper(mb_substr($student->name ?? 'S', 0, 1)) }}
                             </div>
                             <h3 class="text-xl font-bold text-white">{{ $student->name }}</h3>
+                            @php $badge = $student->alumni ? 'Alumni' : ($student->active ? 'Active' : 'Inactive'); @endphp
                             <span class="inline-block mt-2 px-3 py-1 text-xs font-semibold text-white bg-white/20 backdrop-blur-sm rounded-full">
-                                {{ $student->active ? 'Active' : 'Inactive' }}
+                                {{ $badge }}
                             </span>
                         </div>
 
@@ -157,7 +158,19 @@
                                 </div>
                                 <div class="flex-1">
                                     <div class="text-xs font-semibold text-gray-500 uppercase">Class</div>
-                                    <div class="text-sm text-gray-900 mt-1">{{ $student->classRoom?->name ?? ($student->class ?? '-') }}</div>
+                                    <div class="text-sm text-gray-900 mt-1">{{ $student->alumni ? 'Alumni' : ($student->classRoom?->name ?? ($student->class ?? '-')) }}</div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <div class="bg-rose-100 rounded-lg p-2">
+                                    <svg class="h-5 w-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="text-xs font-semibold text-gray-500 uppercase">Due Amount</div>
+                                    <div class="text-sm font-semibold mt-1 {{ ($dueBreakdown['netDue'] ?? 0) > 0 ? 'text-rose-700' : 'text-gray-900' }}">Rs {{ number_format((float)($dueBreakdown['netDue'] ?? 0), 2) }}</div>
                                 </div>
                             </div>
 
@@ -184,6 +197,174 @@
                                     <div class="text-sm text-gray-900 mt-1">{{ optional($student->joining_date)->format('M d, Y') ?? 'Not specified' }}</div>
                                 </div>
                             </div>
+
+                            @can('students.manage')
+                                <div class="pt-4 border-t border-gray-200" x-data="{ openLeave:false, openDocs:false, openReadmit:false, docsValue: '{{ $student->leaving_docs_issued ? '0' : '1' }}', reason:'', allowDue:false, readmitClassRoomId:'', readmitDate:'{{ now()->toDateString() }}' }">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <div class="text-sm font-semibold text-gray-900">Leaving</div>
+                                            <div class="mt-1">
+                                                @if($student->alumni)
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Alumni</span>
+                                                @else
+                                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Active Student</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        @if(! $student->alumni)
+                                            <button type="button" class="inline-flex items-center rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700" x-on:click="openLeave=true; reason='';">
+                                                Mark as Alumni
+                                            </button>
+                                        @endif
+                                    </div>
+
+                                    @if($student->alumni)
+                                        <div class="mt-4 flex items-center justify-between">
+                                            <div>
+                                                <div class="text-sm font-semibold text-gray-900">Leaving Certificate</div>
+                                                <div class="mt-1">
+                                                    @if($student->leaving_docs_issued)
+                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Issued</span>
+                                                    @else
+                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Not Issued</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <button type="button" class="inline-flex items-center rounded-md bg-white px-3 py-2 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50" x-on:click="openReadmit=true; reason=''; readmitClassRoomId=''; readmitDate='{{ now()->toDateString() }}';">
+                                                    Re-Admit
+                                                </button>
+                                                <button type="button" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700" x-on:click="openDocs=true; docsValue='{{ $student->leaving_docs_issued ? '0' : '1' }}'; reason=''; allowDue=false;">
+                                                    {{ $student->leaving_docs_issued ? 'Mark Not Issued' : 'Issue Now' }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    <!-- Mark as Alumni Modal -->
+                                    <template x-teleport="body">
+                                        <div x-cloak x-show="openLeave">
+                                            <div class="fixed inset-0 bg-black/40 z-[100]" x-on:click="openLeave=false"></div>
+                                            <div class="fixed inset-0 z-[101] flex items-center justify-center p-4">
+                                                <div class="w-[90%] max-w-md rounded-lg bg-white p-5 shadow-xl">
+                                                    <div class="text-base font-semibold text-gray-800">Mark Student as Alumni</div>
+                                                    <div class="mt-2 text-sm text-gray-600">This student will be marked as left school.</div>
+                                                    <div class="mt-4">
+                                                        <label class="block text-sm font-medium text-gray-700">Reason</label>
+                                                        <textarea x-model="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500" rows="3" placeholder="Enter reason for leaving..." required></textarea>
+                                                    </div>
+                                                    <form x-ref="leaveForm" class="hidden" method="POST" action="{{ route('students.mark_alumni', $student) }}">
+                                                        @csrf
+                                                        <input type="hidden" name="reason" :value="reason">
+                                                    </form>
+                                                    <div class="mt-5 flex justify-end gap-2">
+                                                        <button type="button" class="rounded-md border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click="openLeave=false; reason=''">Cancel</button>
+                                                        <button type="button" class="rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700" x-on:click="if((reason||'').trim().length===0){return;} $refs.leaveForm.submit();">Save</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Leaving Docs Modal -->
+                                    <template x-teleport="body">
+                                        <div x-cloak x-show="openDocs">
+                                            <div class="fixed inset-0 bg-black/40 z-[100]" x-on:click="openDocs=false"></div>
+                                            <div class="fixed inset-0 z-[101] flex items-center justify-center p-4">
+                                                <div class="w-[90%] max-w-md rounded-lg bg-white p-5 shadow-xl">
+                                                    <div class="text-base font-semibold text-gray-800">Leaving Certificate</div>
+                                                    <div class="mt-2 text-sm text-gray-600" x-text="docsValue==='1' ? 'Mark leaving certificate as issued?' : 'Mark leaving certificate as not issued?' "></div>
+
+                                                    @php $netDue = (float)($dueBreakdown['netDue'] ?? 0); @endphp
+                                                    @if($netDue > 0)
+                                                        <div class="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                                                            Pending due: <span class="font-semibold">Rs {{ number_format($netDue, 2) }}</span>
+                                                        </div>
+                                                    @endif
+
+                                                    <div class="mt-4">
+                                                        <label class="block text-sm font-medium text-gray-700">Reason <span class="text-rose-600" x-show="docsValue==='1'">*</span></label>
+                                                        <textarea x-model="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" rows="3" placeholder="Enter reason..." :required="docsValue==='1'"></textarea>
+                                                    </div>
+
+                                                    @if($netDue > 0)
+                                                        <label class="mt-3 inline-flex items-center gap-2 text-sm text-gray-700" x-show="docsValue==='1'">
+                                                            <input type="checkbox" x-model="allowDue" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                                            Proceed even with due amount
+                                                        </label>
+                                                    @endif
+
+                                                    <form x-ref="docsForm" class="hidden" method="POST" action="{{ route('students.leaving_docs', $student) }}">
+                                                        @csrf
+                                                        <input type="hidden" name="value" :value="docsValue">
+                                                        <input type="hidden" name="reason" :value="reason">
+                                                        <input type="hidden" name="allow_due" :value="allowDue ? '1' : '0'">
+                                                    </form>
+
+                                                    <div class="mt-5 flex justify-end gap-2">
+                                                        <button type="button" class="rounded-md border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click="openDocs=false; reason=''; allowDue=false;">Cancel</button>
+                                                        <button type="button" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700" x-on:click="
+                                                            if(docsValue==='1' && (reason||'').trim().length===0){return;}
+                                                            @if($netDue > 0)
+                                                                if(docsValue==='1' && !allowDue){return;}
+                                                            @endif
+                                                            $refs.docsForm.submit();
+                                                        ">Save</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- Re-Admit Modal -->
+                                    <template x-teleport="body">
+                                        <div x-cloak x-show="openReadmit">
+                                            <div class="fixed inset-0 bg-black/40 z-[100]" x-on:click="openReadmit=false"></div>
+                                            <div class="fixed inset-0 z-[101] flex items-center justify-center p-4">
+                                                <div class="w-[90%] max-w-md rounded-lg bg-white p-5 shadow-xl">
+                                                    <div class="text-base font-semibold text-gray-800">Re-Admit Student</div>
+                                                    <div class="mt-2 text-sm text-gray-600">Assign a new grade and activate the student again.</div>
+
+                                                    <div class="mt-4">
+                                                        <label class="block text-sm font-medium text-gray-700">New Grade</label>
+                                                        <select x-model="readmitClassRoomId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                                                            <option value="">Select grade...</option>
+                                                            @foreach($classRooms as $cr)
+                                                                <option value="{{ $cr->id }}">{{ $cr->name }}</option>
+                                                            @endforeach
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="mt-3">
+                                                        <label class="block text-sm font-medium text-gray-700">Re-Admit Date</label>
+                                                        <input type="text" placeholder="DD-MM-YYYY" x-model="readmitDate" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                    </div>
+
+                                                    <div class="mt-3">
+                                                        <label class="block text-sm font-medium text-gray-700">Reason</label>
+                                                        <textarea x-model="reason" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" rows="3" placeholder="Enter reason..."></textarea>
+                                                    </div>
+
+                                                    <form x-ref="readmitForm" class="hidden" method="POST" action="{{ route('students.readmit', $student) }}">
+                                                        @csrf
+                                                        <input type="hidden" name="class_room_id" :value="readmitClassRoomId">
+                                                        <input type="hidden" name="re_admit_date" :value="readmitDate">
+                                                        <input type="hidden" name="reason" :value="reason">
+                                                    </form>
+
+                                                    <div class="mt-5 flex justify-end gap-2">
+                                                        <button type="button" class="rounded-md border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click="openReadmit=false; reason=''; readmitClassRoomId='';">Cancel</button>
+                                                        <button type="button" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700" x-on:click="
+                                                            if((readmitClassRoomId||'').trim().length===0){return;}
+                                                            $refs.readmitForm.submit();
+                                                        ">Save</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            @endcan
 
                             <div class="mt-6 pt-6 border-t border-gray-200 space-y-4">
                                 <div class="text-sm font-semibold text-gray-900">Guardian / Parents</div>
@@ -236,7 +417,7 @@
                             <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
                                 <div class="text-xs font-semibold text-gray-500 uppercase">Monthly Fee</div>
                                 <div class="mt-1 text-2xl font-bold text-gray-900">Rs {{ number_format((float)($dueBreakdown['monthlyFee'] ?? 0), 2) }}</div>
-                                <div class="mt-1 text-xs text-gray-500">Start: {{ $dueBreakdown['startDate'] ? \Carbon\Carbon::parse($dueBreakdown['startDate'])->format('Y-m-d') : '-' }}</div>
+                                <div class="mt-1 text-xs text-gray-500">Start: {{ $dueBreakdown['startDate'] ? \Carbon\Carbon::parse($dueBreakdown['startDate'])->format('d-m-Y') : '-' }}</div>
                             </div>
                             <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
                                 <div class="text-xs font-semibold text-blue-700 uppercase">Expected</div>
@@ -262,10 +443,17 @@
                     </div>
 
                     <!-- Monthly Payment Tracker -->
-                    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6" x-data="{ feeModalOpen: false }">
                         <div class="flex items-center justify-between mb-6">
                             <div>
-                                <h3 class="text-lg font-bold text-gray-900">Paid Month Tracker</h3>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-lg font-bold text-gray-900">Paid Month Tracker</h3>
+                                    @if(!empty($feeChoice['enabled']) && ($feeChoice['oldFee'] ?? 0) > 0 && ($feeChoice['newFee'] ?? 0) > 0 && ($feeChoice['oldFee'] ?? 0) != ($feeChoice['newFee'] ?? 0))
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border border-amber-200 bg-amber-50 text-amber-800" title="Old: Rs {{ number_format((float)($feeChoice['oldFee'] ?? 0), 2) }} | New: Rs {{ number_format((float)($feeChoice['newFee'] ?? 0), 2) }}">
+                                            Fee changed this month (old/new)
+                                        </span>
+                                    @endif
+                                </div>
                                 <p class="text-sm text-gray-600 mt-1">Shows paid/unpaid months based on monthly fee</p>
                             </div>
                         </div>
@@ -342,7 +530,7 @@
                                     @endphp
                                     <div class="relative group">
                                         @if($status === 'advance')
-                                            <div class="border-2 border-indigo-500 bg-indigo-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                            <div class="border-2 border-indigo-500 bg-indigo-50 rounded-lg p-3 text-center hover:shadow-md transition-all" title="Advance: this month is paid in advance.">
                                                 <div class="text-xs font-semibold text-indigo-700 mb-1">{{ $label }}</div>
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
@@ -350,13 +538,13 @@
                                                 <div class="text-xs font-bold text-indigo-700 mt-1">Advance</div>
                                             </div>
                                         @elseif($status === 'partial')
-                                            <div class="border-2 border-orange-400 bg-orange-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                            <div class="border-2 border-orange-400 bg-orange-50 rounded-lg p-3 text-center hover:shadow-md transition-all" title="Partial: this month is not fully paid yet. Balance shown below.">
                                                 <div class="text-xs font-semibold text-orange-700 mb-1">{{ $label }}</div>
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 019 9v.375M10.125 2.25A3.375 3.375 0 0113.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 013.375 3.375M9 15l2.25 2.25L15 12" />
                                                 </svg>
                                                 <div class="text-xs font-bold text-orange-700 mt-1">Partial</div>
-                                                <div class="text-[10px] font-medium text-orange-800 mt-0.5">Bal: {{ number_format($cy['remaining']) }}</div>
+                                                <div class="text-[10px] font-medium text-orange-800 mt-0.5">Bal: Rs {{ number_format((float)($cy['remaining'] ?? 0), 2) }}</div>
                                             </div>
                                         @elseif($status === 'paid')
                                             <div class="border-2 border-green-500 bg-green-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
@@ -367,13 +555,34 @@
                                                 <div class="text-xs font-bold text-green-700 mt-1">Paid</div>
                                             </div>
                                         @elseif($status === 'current')
-                                            <div class="border-2 border-amber-400 bg-amber-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
-                                                <div class="text-xs font-semibold text-amber-700 mb-1">{{ $label }}</div>
-                                                <svg class="h-6 w-6 text-amber-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
-                                                </svg>
-                                                <div class="text-xs font-semibold text-amber-700 mt-1">Current</div>
-                                            </div>
+                                            @if(!empty($feeChoice['enabled']) && ($feeChoice['oldFee'] ?? 0) > 0 && ($feeChoice['newFee'] ?? 0) > 0 && ($feeChoice['oldFee'] ?? 0) != ($feeChoice['newFee'] ?? 0))
+                                                @can('revenue.add')
+                                                    <button type="button" @click="feeModalOpen = true" class="w-full border-2 border-amber-400 bg-amber-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                        <div class="text-xs font-semibold text-amber-700 mb-1">{{ $label }}</div>
+                                                        <svg class="h-6 w-6 text-amber-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
+                                                        </svg>
+                                                        <div class="text-xs font-semibold text-amber-700 mt-1">Current</div>
+                                                        <div class="text-[10px] font-medium text-amber-700/80 mt-0.5">Click to choose fee</div>
+                                                    </button>
+                                                @else
+                                                    <div class="border-2 border-amber-400 bg-amber-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                        <div class="text-xs font-semibold text-amber-700 mb-1">{{ $label }}</div>
+                                                        <svg class="h-6 w-6 text-amber-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
+                                                        </svg>
+                                                        <div class="text-xs font-semibold text-amber-700 mt-1">Current</div>
+                                                    </div>
+                                                @endcan
+                                            @else
+                                                <div class="border-2 border-amber-400 bg-amber-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
+                                                    <div class="text-xs font-semibold text-amber-700 mb-1">{{ $label }}</div>
+                                                    <svg class="h-6 w-6 text-amber-600 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" />
+                                                    </svg>
+                                                    <div class="text-xs font-semibold text-amber-700 mt-1">Current</div>
+                                                </div>
+                                            @endif
                                         @else
                                             <div class="border-2 border-gray-200 bg-gray-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
                                                 <div class="text-xs font-semibold text-gray-500 mb-1">{{ $label }}</div>
@@ -385,6 +594,47 @@
                                         @endif
                                     </div>
                                 @endforeach
+                            </div>
+
+                            <!-- Current month fee selection modal -->
+                            <div x-show="feeModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" aria-labelledby="fee-modal-title" role="dialog" aria-modal="true">
+                                <div class="absolute inset-0 bg-black/40" @click="feeModalOpen = false"></div>
+
+                                <div class="relative w-full max-w-md rounded-xl bg-white shadow-xl border border-gray-200 p-6">
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div>
+                                            <h3 id="fee-modal-title" class="text-lg font-bold text-gray-900">Choose fee for current month</h3>
+                                            <p class="text-sm text-gray-600 mt-1">Promotion/Demotion happened this month. Select which monthly fee to apply for this month only.</p>
+                                        </div>
+                                        <button type="button" class="text-gray-500 hover:text-gray-700" @click="feeModalOpen = false">✕</button>
+                                    </div>
+
+                                    <div class="mt-4 space-y-3">
+                                        <form method="POST" action="{{ route('students.monthly_fee.current', $student) }}">
+                                            @csrf
+                                            <input type="hidden" name="year" value="{{ (int)($feeChoice['year'] ?? now()->year) }}" />
+                                            <input type="hidden" name="month" value="{{ (int)($feeChoice['month'] ?? now()->month) }}" />
+
+                                            <button type="submit" name="choice" value="old" class="w-full text-left rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 p-4">
+                                                <div class="text-sm font-semibold text-gray-900">Use OLD fee</div>
+                                                <div class="text-xs text-gray-600 mt-1">Rs {{ number_format((float)($feeChoice['oldFee'] ?? 0), 2) }}</div>
+                                            </button>
+
+                                            <button type="submit" name="choice" value="new" class="w-full text-left rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 p-4 mt-3">
+                                                <div class="text-sm font-semibold text-gray-900">Use NEW fee</div>
+                                                <div class="text-xs text-gray-600 mt-1">Rs {{ number_format((float)($feeChoice['newFee'] ?? 0), 2) }}</div>
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    @if(($feeChoice['overrideFee'] ?? 0) > 0)
+                                        <div class="mt-4 text-xs text-gray-600">Current selection: Rs {{ number_format((float)$feeChoice['overrideFee'], 2) }}</div>
+                                    @endif
+
+                                    <div class="mt-4 flex justify-end">
+                                        <button type="button" class="px-4 py-2 text-sm font-semibold rounded-lg border border-gray-200 bg-white hover:bg-gray-50" @click="feeModalOpen = false">Cancel</button>
+                                    </div>
+                                </div>
                             </div>
                         @endif
                     </div>
@@ -409,11 +659,11 @@
                         <form method="GET" action="{{ route('students.show', $student) }}" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-5">
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 uppercase">From</label>
-                                <input type="date" name="from" value="{{ $filters['from'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                                <input type="text" name="from" placeholder="DD-MM-YYYY" value="{{ $filters['from'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 uppercase">To</label>
-                                <input type="date" name="to" value="{{ $filters['to'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                                <input type="text" name="to" placeholder="DD-MM-YYYY" value="{{ $filters['to'] ?? '' }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
                             </div>
                             <div>
                                 <label class="block text-xs font-semibold text-gray-600 uppercase">Type</label>
@@ -453,7 +703,7 @@
                                         @endphp
                                         <tr class="hover:bg-gray-50 transition-colors">
                                             <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $p->bill_no ?? '-' }}</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($p->paid_at)->format('Y-m-d') }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($p->paid_at)->format('d-m-Y') }}</td>
                                             <td class="px-4 py-3 text-sm text-gray-700">{{ $p->category?->name ?? '-' }}</td>
                                             <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ number_format((float) $p->amount, 2) }}</td>
                                             <td class="px-4 py-3 text-sm text-right font-semibold {{ $refunded > 0 ? 'text-rose-700' : 'text-gray-500' }}">{{ number_format($refunded, 2) }}</td>
@@ -495,6 +745,77 @@
                         <div class="mt-4">{{ $payments->links() }}</div>
                     </div>
 
+                    <!-- Seminar Attendance & Payments -->
+                    @isset($seminarEnrollments)
+                    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+                        <div class="flex items-center justify-between gap-4 mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Seminar Attendance & Payments</h3>
+                                <p class="text-sm text-gray-600 mt-1">History of seminar participation and payments</p>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto rounded-lg border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Seminar</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Scheduled</th>
+                                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Present</th>
+                                        <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Paid</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Paid At</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white">
+                                    @forelse($seminarEnrollments as $en)
+                                        @php
+                                            $seminar = $en->seminar;
+                                            $scheduled = $seminar?->date ?? $seminar?->starts_at ?? null;
+                                            $amount = (float) ($en->amount ?? 0);
+                                        @endphp
+                                        <tr class="hover:bg-gray-50 transition-colors">
+                                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $seminar?->title ?? $seminar?->name ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ $scheduled ? \Carbon\Carbon::parse($scheduled)->format('d-m-Y') : '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-center">
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $en->present ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700' }}">
+                                                    {{ $en->present ? 'Yes' : 'No' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-center">
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $en->paid ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700' }}">
+                                                    {{ $en->paid ? 'Paid' : 'Unpaid' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ number_format($amount, 2) }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($en->paid_at)->format('d-m-Y') ?: '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-right">
+                                                @if($seminar)
+                                                    <a href="{{ route('seminars.show', $seminar) }}" class="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M5 7h14M5 5a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5z" />
+                                                        </svg>
+                                                        View
+                                                    </a>
+                                                @else
+                                                    <span class="text-gray-400">-</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="7">No seminar records found.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">{{ $seminarEnrollments->links() }}</div>
+                    </div>
+                    @endisset
+
                     <!-- Refund / Waiver History -->
                     <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
                         <div class="flex items-center justify-between gap-4 mb-4">
@@ -525,7 +846,7 @@
                                 <tbody class="divide-y divide-gray-200 bg-white">
                                     @forelse($adjustments as $a)
                                         <tr class="hover:bg-gray-50 transition-colors">
-                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($a->created_at)->format('Y-m-d') }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($a->created_at)->format('d-m-Y') }}</td>
                                             <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $a->revenue?->bill_no ?? '-' }}</td>
                                             <td class="px-4 py-3 text-sm">
                                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $a->type === 'refund' ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700' }}">
@@ -584,10 +905,21 @@
                                 <tbody class="divide-y divide-gray-200 bg-white">
                                     @forelse($history as $h)
                                         <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($h->created_at)->format('Y-m-d') }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ optional($h->created_at)->format('d-m-Y') }}</td>
                                             <td class="px-4 py-3 text-sm">
-                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $h->action === 'promote' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' }}">
-                                                    {{ $h->action === 'promote' ? 'Promoted' : 'Demoted' }}
+                                                @php
+                                                    $action = (string) $h->action;
+                                                    $label = $action === 'promote' ? 'Promoted' : ($action === 'demote' ? 'Demoted' : ($action === 'leave' ? 'Left School' : ($action === 'readmit' ? 'Re-Admitted' : ucfirst($action))));
+                                                    $badgeCls = $action === 'promote'
+                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                        : ($action === 'demote'
+                                                            ? 'bg-rose-100 text-rose-700'
+                                                            : ($action === 'readmit'
+                                                                ? 'bg-indigo-100 text-indigo-700'
+                                                                : 'bg-amber-100 text-amber-800'));
+                                                @endphp
+                                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold {{ $badgeCls }}">
+                                                    {{ $label }}
                                                 </span>
                                             </td>
                                             <td class="px-4 py-3 text-sm text-gray-700">{{ $h->fromClassRoom?->name ?? '-' }}</td>

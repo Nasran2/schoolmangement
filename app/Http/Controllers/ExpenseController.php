@@ -18,6 +18,17 @@ class ExpenseController extends Controller
     {
         $query = Expense::query()->with(['category']);
 
+        if ($request->filled('q')) {
+            $raw = (string) $request->string('q');
+            $q = '%' . str_replace('%', '\\%', $raw) . '%';
+            $query->where(function ($sub) use ($q) {
+                $sub->where('notes', 'like', $q)
+                    ->orWhereHas('category', function ($c) use ($q) {
+                        $c->where('name', 'like', $q);
+                    });
+            });
+        }
+
         if ($request->filled('category_id')) {
             $query->where('expense_category_id', $request->string('category_id'));
         }
@@ -33,7 +44,7 @@ class ExpenseController extends Controller
         return view('expense.index', [
             'items' => $query->orderByDesc('expense_date')->paginate(15)->withQueryString(),
             'categories' => ExpenseCategory::query()->orderBy('name')->get(),
-            'filters' => $request->only(['category_id', 'from', 'to']),
+            'filters' => $request->only(['category_id', 'from', 'to', 'q']),
         ]);
     }
 

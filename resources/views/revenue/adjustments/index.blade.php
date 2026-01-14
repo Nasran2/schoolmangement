@@ -63,7 +63,7 @@
                                     @php $r = $row['revenue']; @endphp
                                     <tr>
                                         <td class="px-6 py-4 text-sm text-gray-900 font-semibold">{{ $r->bill_no }}</td>
-                                        <td class="px-6 py-4 text-sm text-gray-700">{{ optional($r->paid_at)->format('Y-m-d') }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-700">{{ optional($r->paid_at)->format('d-m-Y') }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-700">{{ $r->student?->name ?? '-' }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-700">{{ $r->category?->name ?? '-' }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-700 text-right">{{ number_format((float)$r->amount, 2) }}</td>
@@ -99,7 +99,7 @@
                                                                             <span class="ml-2">Rs {{ number_format((float) $a->amount, 2) }}</span>
                                                                         </div>
                                                                         <div class="text-xs text-gray-600">
-                                                                            {{ optional($a->created_at)->format('Y-m-d H:i') }}
+                                                                            {{ optional($a->created_at)->format('d-m-Y H:i') }}
                                                                             @if(!empty($a->reason)) • {{ $a->reason }} @endif
                                                                             @if($a->creator?->name) • {{ $a->creator->name }} @endif
                                                                         </div>

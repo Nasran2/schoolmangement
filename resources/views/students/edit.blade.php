@@ -27,7 +27,7 @@
                 </div>
 
                 <!-- Form Body -->
-                <form method="POST" action="{{ route('students.update', $student) }}" class="p-8">
+                <form method="POST" action="{{ route('students.update', $student) }}" class="p-8" id="student-edit-form">
                     @csrf
                     @method('PUT')
 
@@ -41,7 +41,6 @@
                             class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
                             :value="old('admission_number', $student->admission_number)" 
                             placeholder="e.g., STU-2025-001"
-                            required 
                         />
                         <x-input-error class="mt-2" :messages="$errors->get('admission_number')" />
                         <p class="text-gray-500 text-xs mt-1">Unique identifier for this student</p>
@@ -87,9 +86,10 @@
                             <x-text-input 
                                 id="fee_start_date" 
                                 name="fee_start_date" 
-                                type="date" 
+                                type="text" 
+                                placeholder="DD-MM-YYYY"
                                 class="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-lg shadow-sm" 
-                                :value="old('fee_start_date', optional($student->fee_start_date)->format('Y-m-d'))" 
+                                :value="old('fee_start_date', optional($student->fee_start_date)->format('d-m-Y'))" 
                             />
                             <x-input-error class="mt-2" :messages="$errors->get('fee_start_date')" />
                             <p class="mt-1 text-xs text-gray-500">First month when monthly fee is due. This is used to compute outstanding dues.</p>
@@ -137,8 +137,7 @@
                         </div>
                     </div>
 
-                    <!-- Admission Details Section -->
-                    @include('students._admission_fields', ['student' => $student])
+                    <!-- Admission Details Section (removed duplicate include) -->
 
                     <!-- Status Section -->
                     <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
@@ -162,6 +161,15 @@
                             </label>
                         </div>
                         <p class="text-gray-500 text-xs mt-2 ml-12">Toggle to enroll or disable this student</p>
+
+                        <div class="mt-6">
+                            <label class="inline-flex items-center gap-2">
+                                <input type="hidden" name="leaving_docs_issued" value="0">
+                                <input type="checkbox" name="leaving_docs_issued" value="1" class="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    {{ old('leaving_docs_issued', $student->leaving_docs_issued ? '1' : '0') === '1' ? 'checked' : '' }}>
+                                <span class="text-sm font-medium text-gray-800">Leaving Documents/Certificates issued</span>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Form Actions -->
@@ -177,6 +185,45 @@
                         </a>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <!-- Background overlay -->
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+
+            <!-- Modal panel -->
+            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-orange-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                            <h3 class="text-lg leading-6 font-bold text-gray-900" id="modal-title">
+                                Missing Information
+                            </h3>
+                            <div class="mt-3">
+                                <p class="text-sm text-gray-600" id="modal-message">
+                                    <!-- Message will be inserted here -->
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+                    <button type="button" id="modal-confirm" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2.5 bg-blue-600 text-base font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors">
+                        Continue Anyway
+                    </button>
+                    <button type="button" id="modal-cancel" class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2.5 bg-white text-base font-semibold text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 sm:mt-0 sm:w-auto sm:text-sm transition-colors">
+                        Go Back & Fill
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -198,6 +245,64 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('student-edit-form');
+            const admission = document.getElementById('admission_number');
+            const desiredClass = document.getElementById('desired_class');
+            const modal = document.getElementById('confirm-modal');
+            const modalMessage = document.getElementById('modal-message');
+            const modalConfirm = document.getElementById('modal-confirm');
+            const modalCancel = document.getElementById('modal-cancel');
+            
+            let pendingSubmit = false;
+
+            if (form) {
+                form.addEventListener('submit', (e) => {
+                    if (pendingSubmit) {
+                        return true; // Allow submission
+                    }
+
+                    const missing = [];
+                    const admVal = (admission?.value || '').trim();
+                    const desVal = (desiredClass?.value || '').trim();
+                    if (admVal === '') missing.push('Admission Number');
+                    if (desVal === '') missing.push('Desired Class');
+                    
+                    if (missing.length > 0) {
+                        e.preventDefault();
+                        
+                        // Show modal
+                        const fieldList = '<strong>' + missing.join('</strong>, <strong>') + '</strong>';
+                        modalMessage.innerHTML = 'The following fields are empty: ' + fieldList + '. Do you want to continue without them?';
+                        modal.classList.remove('hidden');
+                        
+                        return false;
+                    }
+                });
+            }
+
+            // Modal confirm button
+            if (modalConfirm) {
+                modalConfirm.addEventListener('click', () => {
+                    modal.classList.add('hidden');
+                    pendingSubmit = true;
+                    form.submit();
+                });
+            }
+
+            // Modal cancel button
+            if (modalCancel) {
+                modalCancel.addEventListener('click', () => {
+                    modal.classList.add('hidden');
+                });
+            }
+
+            // Close modal on background click
+            modal?.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                }
+            });
+
             const firstNameInput = document.getElementById('first_name');
             const otherNamesInput = document.getElementById('other_names');
             const fullNameHidden = document.getElementById('full_name_hidden');
@@ -255,7 +360,10 @@
 
             classSelect.addEventListener('change', () => applyMonthlyFeeFromSelectedClass(true));
             monthlyFeeInput.addEventListener('input', updateDueAmount);
-            if (feeStartInput) feeStartInput.addEventListener('change', updateDueAmount);
+            if (feeStartInput) {
+                feeStartInput.addEventListener('change', updateDueAmount);
+                feeStartInput.addEventListener('input', updateDueAmount);
+            }
             applyMonthlyFeeFromSelectedClass(false);
             updateDueAmount();
             updateToggleLabel();

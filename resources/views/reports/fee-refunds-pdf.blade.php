@@ -31,7 +31,7 @@
         <tbody>
             @foreach($items as $a)
                 <tr>
-                    <td>{{ optional($a->created_at)->format('Y-m-d') }}</td>
+                    <td>{{ optional($a->created_at)->format('d-m-Y') }}</td>
                     <td>{{ $a->revenue?->bill_no }}</td>
                     <td>{{ $a->student?->name }}</td>
                     <td>{{ $a->student?->admission_number }}</td>

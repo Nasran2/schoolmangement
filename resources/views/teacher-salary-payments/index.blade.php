@@ -48,7 +48,7 @@
                             <x-text-input 
                                 id="from" 
                                 name="from" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-lg shadow-sm" 
                                 :value="isset($filters['from']) ? $filters['from'] : ''" 
                             />
@@ -60,7 +60,7 @@
                             <x-text-input 
                                 id="to" 
                                 name="to" 
-                                type="date" 
+                                type="text" placeholder="DD-MM-YYYY" 
                                 class="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-lg shadow-sm" 
                                 :value="isset($filters['to']) ? $filters['to'] : ''" 
                             />

@@ -38,7 +38,7 @@
                                 <x-input-label for="school_logo" :value="__('School Logo')" />
                                 <div class="mt-2 flex items-center gap-x-3">
                                     @if($school_logo)
-                                        <img src="{{ Storage::url($school_logo) }}" alt="School Logo" class="h-12 w-12 rounded-md object-cover ring-1 ring-gray-200">
+                                        <img src="{{ url('/storage/'.$school_logo) }}" alt="School Logo" class="h-12 w-12 rounded-md object-cover ring-1 ring-gray-200">
                                         <label class="inline-flex items-center gap-2 text-xs text-gray-700">
                                             <input type="checkbox" name="remove_logo" value="1" class="rounded border-gray-300">
                                             <span>Remove</span>
@@ -50,6 +50,24 @@
                                 </div>
                                 <p class="mt-1 text-xs text-gray-500">SVG, PNG, JPG or GIF (MAX. 2MB).</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('school_logo')" />
+                            </div>
+
+                            <div>
+                                <x-input-label for="login_background" :value="__('Login Background Image')" />
+                                <div class="mt-2 flex items-center gap-x-3">
+                                    @if(!empty($login_background))
+                                        <img src="{{ url('/storage/'.$login_background) }}" alt="Login Background" class="h-12 w-20 rounded-md object-cover ring-1 ring-gray-200">
+                                        <label class="inline-flex items-center gap-2 text-xs text-gray-700">
+                                            <input type="checkbox" name="remove_login_background" value="1" class="rounded border-gray-300">
+                                            <span>Remove</span>
+                                        </label>
+                                    @else
+                                        <span class="text-xs text-gray-500">No background selected</span>
+                                    @endif
+                                    <input type="file" id="login_background" name="login_background" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" accept="image/*">
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500">Large landscape image recommended (JPG/PNG, MAX. 6MB). Displayed on the login page for all users.</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('login_background')" />
                             </div>
                         </div>
 
