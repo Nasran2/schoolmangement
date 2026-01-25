@@ -23,6 +23,9 @@ class GeneralSettingsController extends Controller
             'school_phone' => $settings->get('school.phone', ''),
             'school_email' => $settings->get('school.email', ''),
             'auto_print_receipt' => $settings->get('receipt.auto_print', '0'),
+            'receipt_paper_size' => $settings->get('receipt.paper_size', '5.5in 11in'),
+            'receipt_paper_width' => $settings->get('receipt.paper_width', '5.5in'),
+            'receipt_paper_height' => $settings->get('receipt.paper_height', '11in'),
 
             'auto_email_teacher_payslip' => $settings->get('salary.auto_email_payslip', '0'),
 
@@ -46,6 +49,8 @@ class GeneralSettingsController extends Controller
             'school_phone' => ['nullable', 'string', 'max:20'],
             'school_email' => ['nullable', 'email', 'max:120'],
             'auto_print_receipt' => ['nullable', 'in:0,1'],
+            'receipt_paper_width' => ['required', 'string', 'max:20'],
+            'receipt_paper_height' => ['required', 'string', 'max:20'],
 
             'auto_email_teacher_payslip' => ['nullable', 'in:0,1'],
 
@@ -92,6 +97,9 @@ class GeneralSettingsController extends Controller
             'school.phone' => $validated['school_phone'] ?? '',
             'school.email' => $validated['school_email'] ?? '',
             'receipt.auto_print' => $validated['auto_print_receipt'] ?? '0',
+            'receipt.paper_size' => trim($validated['receipt_paper_width'] . ' ' . $validated['receipt_paper_height']),
+            'receipt.paper_width' => $validated['receipt_paper_width'],
+            'receipt.paper_height' => $validated['receipt_paper_height'],
 
             'salary.auto_email_payslip' => $validated['auto_email_teacher_payslip'] ?? '0',
 

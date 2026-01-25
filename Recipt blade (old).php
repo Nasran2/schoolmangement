@@ -154,44 +154,34 @@ if (empty($studentAddress) && $student) {
 @endphp
 
 <div id="receipt-print" class="bg-white p-6 mx-auto receipt-page" style="font-family: 'Courier New', monospace;">
-    <div class="flex justify-between items-center border-b-2 border-black pb-2 mb-2">
-    
-    {{-- 1. LEFT: Logo --}}
-    <div class="w-1/4 flex flex-col items-center justify-center space-y-1">
-        @if(!empty($schoolLogoDataUri))
-            <img src="{{ $schoolLogoDataUri }}" alt="Logo" class="h-20 w-auto object-contain grayscale max-w-full" />
-            <div class="text-[6px] font-bold uppercase tracking-tight text-center">REG. No 03/2541</div>
-        @endif
-    </div>
-
-    {{-- 2. CENTER: School Name & Address --}}
-    <div class="w-1/2 text-center leading-tight"> @if($schoolAddress)
-            {{-- <div class="text-lg font-extrabold uppercase">POLGAHAWELA</div> --}}
-        @endif
-        
-        {{-- Main Title --}}
-        <div class="text-xl font-extrabold uppercase tracking-wide">POLGAHAWELA BRITISH COLLEGE</div>
-        <div class="text-sm font-extrabold uppercase tracking-wider mb-1">INTERNATIONAL SCHOOL</div>
-        
-        {{-- Address Lines --}}
-        <div class="text-xs font-bold uppercase">DILWUILKUMBURA JUNCTION, KURUNEGALA ROAD</div>
-        <div class="text-xs font-bold uppercase">BANDAWA, POLGAHAWELA</div>
-    </div>
-
-    {{-- 3. RIGHT: Receipt Info --}}
-    <div class="w-1/4 text-right"> <div class="border-2 border-black px-2 py-1 inline-block mb-1">
-            <span class="font-bold mr-1 text-xl">NO:</span>
-            <span class="font-extrabold text-lg">{{ $revenue->bill_no ?? 'N/A' }}</span>
+    <div class="flex justify-between items-start">
+        <div>
+            <div class="flex items-center gap-3">
+                @if(!empty($schoolLogoDataUri))
+                    <img src="{{ $schoolLogoDataUri }}" alt="Logo" class="h-12 w-12 object-contain" />
+                @endif
+                <div class="leading-tight">
+                    @if($schoolAddress)
+                        <div class="text-xl font-extrabold uppercase">{{ $schoolAddress }}</div>
+                    @endif
+                    <div class="text-xl font-extrabold uppercase">{{ $schoolName }}</div>
+                </div>
+            </div>
+            @if($schoolPhone)
+                <p class="text-sm">Tel: {{ $schoolPhone }}</p>
+            @endif
         </div>
-        <div class="mt-1">
-            <span class="font-bold text-xs">DATE: {{ $paidAt->format('d/m/Y') }}</span>
-            <div class="text-center font-bold">
-                Tel: 0372243435
+        <div class="text-right">
+            <div class="border border-gray-800 px-1 py-1 inline-block">
+                <span class="font-bold mr-2">Receipt No</span>
+                <span>{{ $revenue->bill_no ?? 'N/A' }}</span>
+            </div>
+            <div class="mt-2">
+                <span class="font-bold">Date:</span>
+                <span class="inline-block border-b border-gray-800 min-w-[140px] text-center">{{ $paidAt->format('d/m/Y') }}</span>
             </div>
         </div>
     </div>
-
-</div>
 
     <div class="mt-4 space-y-2 text-sm">
         <div>
@@ -221,7 +211,7 @@ if (empty($studentAddress) && $student) {
             </div>
         @endif
         <div>
-            <span class="mr-2">As payment for</span>
+            <span class="mr-2">Being payment for</span>
             <span class="inline-block border-b border-gray-800 min-w-[360px]">{{ $category->name ?? 'Fees' }}</span>
         </div>
     </div>

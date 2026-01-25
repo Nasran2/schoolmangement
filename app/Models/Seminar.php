@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\SeminarTeacherPayment;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Seminar extends Model
 {
@@ -49,5 +50,10 @@ class Seminar extends Model
     public function visitingTeacher(): BelongsTo
     {
         return $this->belongsTo(VisitingTeacher::class, 'visiting_teacher_id');
+    }
+
+    public function teacherPayments(): HasMany
+    {
+        return $this->hasMany(SeminarTeacherPayment::class);
     }
 }

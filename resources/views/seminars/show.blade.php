@@ -83,6 +83,94 @@
             </div>
         </div>
 
+        <section class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-800">Teacher payouts</h2>
+                    <p class="text-sm text-gray-500">Log payouts as expenses so the visiting teacher balance stays transparent.</p>
+                </div>
+                <div class="text-xs text-gray-500">
+                    Target: {{ number_format($teacherTarget, 2) }} • Paid: {{ number_format($teacherPaidTotal, 2) }} • Due: {{ number_format($teacherDueTotal, 2) }}
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-b border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <div class="text-xs text-gray-500 uppercase">Target payout</div>
+                    <div class="text-2xl font-bold text-gray-900">{{ number_format($teacherTarget, 2) }}</div>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <div class="text-xs text-gray-500 uppercase">Paid so far</div>
+                    <div class="text-2xl font-bold text-gray-900">{{ number_format($teacherPaidTotal, 2) }}</div>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <div class="text-xs text-gray-500 uppercase">Remaining due</div>
+                    <div class="text-2xl font-bold text-gray-900">{{ number_format($teacherDueTotal, 2) }}</div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-b border-gray-100">
+                <form action="{{ route('seminars.teacher-payments.store', $seminar) }}" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Amount ({{ number_format($teacherDueTotal, 2) }} remaining)</label>
+                        <input type="number" step="0.01" min="0.01" max="{{ $teacherDueTotal }}" name="amount" value="{{ old('amount') }}" class="mt-1 block w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" {{ $teacherDueTotal <= 0 ? 'disabled' : '' }}>
+                        @error('amount')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Paid at</label>
+                        <input type="date" name="paid_at" value="{{ old('paid_at', now()->format('Y-m-d')) }}" class="mt-1 block w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        @error('paid_at')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Notes</label>
+                        <input type="text" name="notes" value="{{ old('notes') }}" class="mt-1 block w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Payment reference">
+                        @error('notes')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full inline-flex justify-center rounded-lg bg-indigo-600 text-white text-sm font-semibold px-4 py-2 transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" {{ $teacherDueTotal <= 0 ? 'disabled' : '' }}>
+                            Record payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Notes</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        @forelse($teacherPayments as $payment)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 text-sm text-gray-600">{{ $payment->paid_at?->format('d M, Y') ?? $payment->created_at->format('d M, Y') }}</td>
+                                <td class="px-6 py-4 text-sm font-semibold text-gray-900">{{ number_format($payment->amount, 2) }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-600">{{ $payment->notes ?: '—' }}</td>
+                                <td class="px-6 py-4 text-sm text-right">
+                                    <form action="{{ route('seminars.teacher-payments.destroy', [$seminar, $payment]) }}" method="POST" onsubmit="return confirm('Delete this payment?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:text-red-900 text-xs font-semibold">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-6 py-10 text-center text-sm text-gray-500">
+                                    No payments recorded yet.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 class="text-base font-semibold text-gray-800">Enrolled Students</h2>

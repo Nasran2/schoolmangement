@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Leave requests that already target /public alone to avoid rewrite loops.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Route everything else through public so the app works without exposing the directory in the URL.
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

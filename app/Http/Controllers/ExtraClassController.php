@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\ExtraClass;
 use App\Models\ExtraClassStudent;
+use App\Models\ExtraClassTeacherPayment;
 use App\Models\ClassRoom;
+use App\Models\Expense;
 use App\Models\Student;
 use App\Models\VisitingTeacher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class ExtraClassController extends Controller
 {
@@ -151,7 +154,8 @@ class ExtraClassController extends Controller
     public function show(ExtraClass $extraClass)
     {
         $students = $extraClass->students()->with('student')->paginate(50);
-        return view('extra-classes.show', compact('extraClass','students'));
+        $teacherPayments = $extraClass->teacherPayments()->orderByDesc('paid_at')->get();
+        return view('extra-classes.show', compact('extraClass','students','teacherPayments'));
     }
 
     public function payments(ExtraClass $extraClass)
@@ -177,6 +181,30 @@ class ExtraClassController extends Controller
         }
 
         return back()->with('status', 'Class payments updated');
+    }
+
+    public function togglePayment(ExtraClass $extraClass, ExtraClassStudent $enrollment)
+    {
+        if ($enrollment->extra_class_id !== $extraClass->id) {
+            abort(404);
+        }
+
+        $enrollment->paid = !$enrollment->paid;
+        $enrollment->paid_at = $enrollment->paid ? now() : null;
+        $enrollment->save();
+
+        return back()->with('status', 'Payment status updated');
+    }
+
+    public function removeEnrollment(ExtraClass $extraClass, ExtraClassStudent $enrollment)
+    {
+        if ($enrollment->extra_class_id !== $extraClass->id) {
+            abort(404);
+        }
+
+        $enrollment->delete();
+
+        return back()->with('status', 'Enrollment removed');
     }
 
     public function payDaily(Request $request, ExtraClass $extraClass)
@@ -220,6 +248,74 @@ class ExtraClassController extends Controller
         });
 
         return back()->with('status', 'Payment recorded successfully');
+    }
+
+    public function storeTeacherPayment(Request $request, ExtraClass $extraClass)
+    {
+        $data = $request->validate([
+            'amount' => ['required','numeric','min:0.01'],
+            'paid_at' => ['nullable','date'],
+            'notes' => ['nullable','string','max:500'],
+        ]);
+
+        $target = (float) ($extraClass->teacher_payment ?? 0);
+        if ($target <= 0) {
+            return back()->withErrors(['amount' => 'Please configure the teacher payment amount before recording payouts.']);
+        }
+
+        $paid = (float) $extraClass->teacherPayments()->sum('amount');
+        $due = max(0, $target - $paid);
+        if ($due <= 0) {
+            return back()->withErrors(['amount' => 'The instructor has already been fully paid for this class.']);
+        }
+
+        if ((float) $data['amount'] > $due) {
+            return back()->withErrors(['amount' => 'Amount may not exceed the remaining due ('.number_format($due, 2).').']);
+        }
+
+        $paidAt = $data['paid_at'] ? Carbon::parse($data['paid_at']) : now();
+        $category = $this->teacherExpenseCategory();
+
+        DB::transaction(function () use ($extraClass, $data, $paidAt, $category) {
+            $expenseNotes = "Extra class {$extraClass->name} payout";
+            if (!empty($data['notes'])) {
+                $expenseNotes .= ' • ' . $data['notes'];
+            }
+
+            $expense = Expense::create([
+                'expense_category_id' => $category->id,
+                'amount' => $data['amount'],
+                'expense_date' => $paidAt,
+                'notes' => $expenseNotes,
+                'created_by' => Auth::id(),
+            ]);
+
+            ExtraClassTeacherPayment::create([
+                'extra_class_id' => $extraClass->id,
+                'amount' => $data['amount'],
+                'notes' => $data['notes'] ?? null,
+                'paid_at' => $paidAt,
+                'expense_id' => $expense->id,
+            ]);
+        });
+
+        return back()->with('status', 'Teacher payment recorded');
+    }
+
+    public function destroyTeacherPayment(ExtraClass $extraClass, ExtraClassTeacherPayment $payment)
+    {
+        if ($payment->extra_class_id !== $extraClass->id) {
+            abort(404);
+        }
+
+        DB::transaction(function () use ($payment) {
+            $expense = $payment->expense;
+            $payment->delete();
+            if ($expense) {
+                $expense->delete();
+            }
+        });
+        return back()->with('status', 'Teacher payment deleted');
     }
 
     public function destroy(ExtraClass $extraClass)

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\ExtraClassTeacherPayment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -42,5 +43,15 @@ class ExtraClass extends Model
     public function students(): HasMany
     {
         return $this->hasMany(ExtraClassStudent::class);
+    }
+
+    public function visitingTeacher(): BelongsTo
+    {
+        return $this->belongsTo(VisitingTeacher::class);
+    }
+
+    public function teacherPayments(): HasMany
+    {
+        return $this->hasMany(ExtraClassTeacherPayment::class);
     }
 }

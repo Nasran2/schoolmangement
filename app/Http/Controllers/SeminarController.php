@@ -6,9 +6,13 @@ use App\Models\Seminar;
 use App\Models\ClassRoom;
 use App\Models\Student;
 use App\Models\SeminarStudent;
+use App\Models\SeminarTeacherPayment;
+use App\Models\Expense;
 use App\Models\VisitingTeacher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class SeminarController extends Controller
 {
@@ -164,7 +168,81 @@ class SeminarController extends Controller
     public function show(Seminar $seminar)
     {
         $students = $seminar->students()->with('student')->paginate(50);
-        return view('seminars.show', compact('seminar','students'));
+        $teacherPayments = $seminar->teacherPayments()->orderByDesc('paid_at')->get();
+        $teacherTarget = (float) ($seminar->teacher_payment ?? 0);
+        $teacherPaidTotal = $teacherPayments->sum('amount');
+        $teacherDueTotal = max(0, $teacherTarget - $teacherPaidTotal);
+
+        return view('seminars.show', compact('seminar','students','teacherPayments','teacherTarget','teacherPaidTotal','teacherDueTotal'));
+    }
+
+    public function storeTeacherPayment(Request $request, Seminar $seminar)
+    {
+        $data = $request->validate([
+            'amount' => ['required','numeric','min:0.01'],
+            'paid_at' => ['nullable','date'],
+            'notes' => ['nullable','string','max:500'],
+        ]);
+
+        $target = (float) ($seminar->teacher_payment ?? 0);
+        if ($target <= 0) {
+            return back()->withErrors(['amount' => 'Please configure the teacher payment amount before recording payouts.']);
+        }
+
+        $paid = (float) $seminar->teacherPayments()->sum('amount');
+        $due = max(0, $target - $paid);
+        if ($due <= 0) {
+            return back()->withErrors(['amount' => 'The instructor has already been fully paid for this seminar.']);
+        }
+
+        if ((float) $data['amount'] > $due) {
+            return back()->withErrors(['amount' => 'Amount may not exceed the remaining due ('.number_format($due, 2).').']);
+        }
+
+        $paidAt = $data['paid_at'] ? Carbon::parse($data['paid_at']) : now();
+        $category = $this->teacherExpenseCategory();
+
+        DB::transaction(function () use ($seminar, $data, $paidAt, $category) {
+            $expenseNotes = "Seminar {$seminar->name} payout";
+            if (!empty($data['notes'])) {
+                $expenseNotes .= ' • ' . $data['notes'];
+            }
+
+            $expense = Expense::create([
+                'expense_category_id' => $category->id,
+                'amount' => $data['amount'],
+                'expense_date' => $paidAt,
+                'notes' => $expenseNotes,
+                'created_by' => Auth::id(),
+            ]);
+
+            SeminarTeacherPayment::create([
+                'seminar_id' => $seminar->id,
+                'amount' => $data['amount'],
+                'notes' => $data['notes'] ?? null,
+                'paid_at' => $paidAt,
+                'expense_id' => $expense->id,
+            ]);
+        });
+
+        return back()->with('status', 'Teacher payment recorded');
+    }
+
+    public function destroyTeacherPayment(Seminar $seminar, SeminarTeacherPayment $payment)
+    {
+        if ($payment->seminar_id !== $seminar->id) {
+            abort(404);
+        }
+
+        DB::transaction(function () use ($payment) {
+            $expense = $payment->expense;
+            $payment->delete();
+            if ($expense) {
+                $expense->delete();
+            }
+        });
+
+        return back()->with('status', 'Teacher payment deleted');
     }
 
     public function destroy(Seminar $seminar)

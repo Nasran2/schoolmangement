@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class BillNumberService
 {
@@ -14,7 +15,7 @@ class BillNumberService
             $auto = app('settings')->get('billing.revenue.autogenerate', '1') === '1';
 
             if (! $auto) {
-                return '';
+                return $prefix . now()->format('YmdHis') . '-' . Str::upper(Str::random(4));
             }
 
             $startNumber = (int) app('settings')->get('billing.revenue.start_number', '1000');

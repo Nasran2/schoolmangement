@@ -27,6 +27,27 @@ class VisitingTeacherController extends Controller
         return view('visiting-teachers.index', compact('teachers'));
     }
 
+    public function show(Request $request, VisitingTeacher $visitingTeacher)
+    {
+        $extraClasses = $visitingTeacher->extraClasses()
+            ->with('classRoom')
+            ->withCount('students')
+            ->orderByDesc('date')
+            ->orderByDesc('start_time')
+            ->paginate(8, ['*'], 'classes_page')
+            ->withQueryString();
+
+        $seminars = $visitingTeacher->seminars()
+            ->with('primaryClassRoom')
+            ->withCount('students')
+            ->orderByDesc('date')
+            ->orderByDesc('start_time')
+            ->paginate(6, ['*'], 'seminars_page')
+            ->withQueryString();
+
+        return view('visiting-teachers.show', compact('visitingTeacher', 'extraClasses', 'seminars'));
+    }
+
     public function create()
     {
         return view('visiting-teachers.create');

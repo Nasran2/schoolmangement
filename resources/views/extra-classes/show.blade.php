@@ -45,9 +45,12 @@
                 $totalRevenue = $allEnrollments->where('paid', 1)->sum('amount');
                 $pendingRevenue = $allEnrollments->where('paid', 0)->sum('amount');
             }
-            
+
             $collectionRate = $totalEnrollments > 0 ? round(($paidCount / $totalEnrollments) * 100) : 0;
             $feeAmount = $extraClass->fee;
+            $teacherTarget = (float) ($extraClass->teacher_payment ?? 0);
+            $teacherPaidTotal = $teacherPayments->sum('amount');
+            $teacherDueTotal = max(0, $teacherTarget - $teacherPaidTotal);
         @endphp
 
         <!-- Stats Grid -->
@@ -119,6 +122,94 @@
             </div>
         </div>
 
+        <section class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-800">Teacher payouts</h2>
+                    <p class="text-sm text-gray-500">Track how much of the agreed instructor fee has been paid.</p>
+                </div>
+                <div class="text-xs text-gray-500">
+                    Target: {{ number_format($teacherTarget, 2) }} • Paid: {{ number_format($teacherPaidTotal, 2) }} • Due: {{ number_format($teacherDueTotal, 2) }}
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-b border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <div class="text-xs text-gray-500 uppercase">Target payout</div>
+                    <div class="text-2xl font-bold text-gray-900">{{ number_format($teacherTarget, 2) }}</div>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <div class="text-xs text-gray-500 uppercase">Paid so far</div>
+                    <div class="text-2xl font-bold text-gray-900">{{ number_format($teacherPaidTotal, 2) }}</div>
+                </div>
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                    <div class="text-xs text-gray-500 uppercase">Remaining due</div>
+                    <div class="text-2xl font-bold text-gray-900">{{ number_format($teacherDueTotal, 2) }}</div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-b border-gray-100">
+                <form action="{{ route('extra-classes.teacher-payments.store', $extraClass) }}" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    @csrf
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Amount ({{ number_format($teacherDueTotal, 2) }} remaining)</label>
+                        <input type="number" step="0.01" min="0.01" max="{{ $teacherDueTotal }}" name="amount" value="{{ old('amount') }}" class="mt-1 block w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" {{ $teacherDueTotal <= 0 ? 'disabled' : '' }}>
+                        @error('amount')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Paid at</label>
+                        <input type="date" name="paid_at" value="{{ old('paid_at', now()->format('Y-m-d')) }}" class="mt-1 block w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        @error('paid_at')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-700">Notes</label>
+                        <input type="text" name="notes" value="{{ old('notes') }}" class="mt-1 block w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Payment reference">
+                        @error('notes')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full inline-flex justify-center rounded-lg bg-indigo-600 text-white text-sm font-semibold px-4 py-2 transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" {{ $teacherDueTotal <= 0 ? 'disabled' : '' }}>
+                            Record payment
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Notes</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 bg-white">
+                        @forelse($teacherPayments as $payment)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 text-sm text-gray-600">{{ $payment->paid_at?->format('d M, Y') ?? $payment->created_at->format('d M, Y') }}</td>
+                                <td class="px-6 py-4 text-sm font-semibold text-gray-900">{{ number_format($payment->amount, 2) }}</td>
+                                <td class="px-6 py-4 text-sm text-gray-600">{{ $payment->notes ?: '—' }}</td>
+                                <td class="px-6 py-4 text-sm text-right">
+                                    <form action="{{ route('extra-classes.teacher-payments.destroy', [$extraClass, $payment]) }}" method="POST" onsubmit="return confirm('Delete this payment?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:text-red-900 text-xs font-semibold">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-6 py-10 text-center text-sm text-gray-500">
+                                    No payments recorded yet.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- Student List -->
         <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden" x-data="{ 
             search: '',
@@ -186,31 +277,38 @@
 
             <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 class="text-lg font-bold text-gray-800">Registered Students</h2>
-                <div class="relative">
+                 <div class="relative">
                      <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </span>
-                    <input type="text" x-model="search" placeholder="Filter list..." class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-64 transition-all">
+                    <input type="text" x-model="search" placeholder="Search student name or admission" class="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-64 transition-all">
                 </div>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student Name</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment</th>
-                            @if($extraClass->payment_type === 'daily')
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Due Days</th>
-                            @endif
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-                        </tr>
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student Name</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                  <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment</th>
+                                  @if($extraClass->payment_type === 'daily')
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Due Days</th>
+                                @endif
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
+                                @if($extraClass->payment_type !== 'daily')
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Received</th>
+                                @endif
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white">
                         @foreach($students as $row)
-                            <tr class="hover:bg-gray-50 transition-colors" x-show="!search || '{{ strtolower(addslashes($row->student?->name)) }}'.includes(search.toLowerCase())">
+                            @php
+                                $searchTarget = strtolower(addslashes($row->student?->name ?? '')) . ' ' . strtolower(addslashes($row->student?->admission_number ?? ''));
+                            @endphp
+                            <tr class="hover:bg-gray-50 transition-colors" x-show="!search || '{{ $searchTarget }}'.includes(search.toLowerCase())">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                          <div class="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold">
@@ -274,6 +372,40 @@
                                     @else
                                         {{ number_format($row->amount ?? $extraClass->fee, 2) }}
                                     @endif
+                                </td>
+                                @if($extraClass->payment_type !== 'daily')
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $row->paid ? 'Paid' : 'Unpaid' }}
+                                    </td>
+                                @endif
+                                <td class="px-6 py-4 whitespace-nowrap space-y-2">
+                                    @if($extraClass->payment_type === 'daily')
+                                        <button type="button"
+                                                @click="openPayModal({
+                                                    id: {{ $row->student_id }},
+                                                    enrollment_id: {{ $row->id }},
+                                                    name: '{{ addslashes($row->student?->name) }}',
+                                                    due_days: {{ $row->due_days }},
+                                                    fee_per_day: {{ $row->amount ?: $extraClass->fee }}
+                                                })"
+                                                class="w-full inline-flex justify-center rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 text-xs font-semibold px-3 py-1 hover:bg-indigo-100 focus:outline-none">
+                                            Payment received
+                                        </button>
+                                    @else
+                                        <form action="{{ route('extra-classes.payments.toggle', [$extraClass, $row]) }}" method="POST">
+                                            @csrf
+                                            <button type="submit" class="w-full inline-flex justify-center rounded-full border border-gray-200 {{ $row->paid ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }} text-xs font-semibold px-3 py-1 focus:outline-none">
+                                                {{ $row->paid ? 'Mark unpaid' : 'Payment received' }}
+                                            </button>
+                                        </form>
+                                    @endif
+                                    <form action="{{ route('extra-classes.enrollments.destroy', [$extraClass, $row]) }}" method="POST" onsubmit="return confirm('Remove {{ addslashes($row->student?->name ?? 'student') }} from this extra class?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="w-full inline-flex justify-center rounded-full border border-red-200 bg-red-50 text-red-700 text-xs font-semibold px-3 py-1 hover:bg-red-100 focus:outline-none">
+                                            Delete
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @endforeach

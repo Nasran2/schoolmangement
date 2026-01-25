@@ -21,10 +21,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ->timezone(config('app.timezone', 'UTC'));
     })
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append([\App\Http\Middleware\SystemLockMiddleware::class]);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'onlyadmin' => \App\Http\Middleware\OnlyAdminUnlocked::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -107,6 +107,22 @@
                                 <p class="mt-1 text-xs text-gray-500">When enabled, the receipt will automatically open in print dialog after saving a payment.</p>
                                 <x-input-error class="mt-2" :messages="$errors->get('auto_print_receipt')" />
                             </div>
+
+                            <div class="mt-6">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <x-input-label for="receipt_paper_width" :value="__('Receipt Width')" />
+                                        <x-text-input id="receipt_paper_width" name="receipt_paper_width" type="text" class="mt-1 block w-full" value="{{ old('receipt_paper_width', $receipt_paper_width ?? '5.5in') }}" placeholder="e.g. 5.5in" />
+                                        <x-input-error class="mt-2" :messages="$errors->get('receipt_paper_width')" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="receipt_paper_height" :value="__('Receipt Height')" />
+                                        <x-text-input id="receipt_paper_height" name="receipt_paper_height" type="text" class="mt-1 block w-full" value="{{ old('receipt_paper_height', $receipt_paper_height ?? '11in') }}" placeholder="e.g. 11in" />
+                                        <x-input-error class="mt-2" :messages="$errors->get('receipt_paper_height')" />
+                                    </div>
+                                </div>
+                                <p class="mt-1 text-xs text-gray-500">Specify the exact width and height that should be used for printing receipts (include units such as `in` or `mm`).</p>
+                            </div>
                         </div>
 
                         <div class="border-t pt-6">
