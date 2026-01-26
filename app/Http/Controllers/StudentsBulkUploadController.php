@@ -337,7 +337,52 @@ class StudentsBulkUploadController extends Controller
             $msg .= ' First errors: ' . implode(' | ', array_slice($errors, 0, 3));
         }
 
-        return redirect()->route('students.index')->with('status', $msg);
+        $type = ($created > 0 && $skipped === 0 && empty($errors)) ? 'success' : 'warning';
+
+        return redirect()->route('students.index')
+            ->with('status', $msg)
+            ->with('status_type', $type);
+    }
+
+    private function normalizeText(?string $value): string
+    {
+        $value = (string) ($value ?? '');
+        // Convert non-breaking spaces to regular spaces, then trim + collapse whitespace
+        $value = str_replace("\xC2\xA0", ' ', $value);
+        $value = trim($value);
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+        return $value;
+    }
+
+    private function resolveClassRoom(?string $classRoomName, $classRoomLevel = null): ?ClassRoom
+    {
+        static $byName = null;
+        static $byNameLower = null;
+
+        if ($byName === null || $byNameLower === null) {
+            $all = ClassRoom::query()->get(['id', 'name', 'level', 'monthly_fee']);
+            $byName = [];
+            $byNameLower = [];
+            foreach ($all as $cr) {
+                $n = $this->normalizeText($cr->name);
+                $byName[$n] = $cr;
+                $byNameLower[mb_strtolower($n)] = $cr;
+            }
+        }
+
+        $name = $this->normalizeText($classRoomName);
+        if ($name !== '') {
+            if (isset($byName[$name])) return $byName[$name];
+            $lower = mb_strtolower($name);
+            if (isset($byNameLower[$lower])) return $byNameLower[$lower];
+        }
+
+        if ($classRoomLevel !== null && $classRoomLevel !== '') {
+            $level = (int) $classRoomLevel;
+            return ClassRoom::query()->where('level', $level)->first();
+        }
+
+        return null;
     }
 
     private function importCsv(string $fullPath): array
@@ -488,14 +533,12 @@ class StudentsBulkUploadController extends Controller
             return [false, 'Missing admission_number and name'];
         }
 
-        $classRoom = null;
-        if (!empty($data['class_room_name'])) {
-            $classRoom = ClassRoom::query()->where('name', trim((string) $data['class_room_name']))->first();
-        } elseif (!empty($data['class_room_level'])) {
-            $classRoom = ClassRoom::query()->where('level', (int) $data['class_room_level'])->first();
-        }
+        $classRoomName = $this->normalizeText(isset($data['class_room_name']) ? (string) $data['class_room_name'] : null);
+        $classRoomLevel = $data['class_room_level'] ?? null;
+        $classRoom = $this->resolveClassRoom($classRoomName, $classRoomLevel);
         if (!$classRoom) {
-            return [false, 'Invalid class_room_name'];
+            $shown = $classRoomName !== '' ? $classRoomName : (string) ($classRoomLevel ?? '');
+            return [false, "Invalid class_room_name: {$shown}"];
         }
 
         // Defaults

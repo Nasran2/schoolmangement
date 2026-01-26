@@ -17,7 +17,10 @@
     <div class="py-8 bg-gradient-to-b from-slate-50 to-white">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             @if (session('status'))
-                <div class="mb-4 rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800 shadow-sm">{{ session('status') }}</div>
+                @php $statusType = session('status_type', 'success'); @endphp
+                <div class="mb-4 rounded-lg p-4 text-sm shadow-sm {{ $statusType === 'warning' ? 'bg-amber-50 border border-amber-200 text-amber-900' : 'bg-green-50 border border-green-200 text-green-800' }}">
+                    {{ session('status') }}
+                </div>
             @endif
 
             {{-- Statistics Cards --}}
