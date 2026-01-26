@@ -96,9 +96,21 @@ if (empty($coveredMonths) && $revenue->exists) {
     }
 }
 
-// Compute boxes to mark
+// Compute month boxes: show month if covered, but only mark 'X' if that month was fully paid (not partial)
 $boxed = array_fill(1, 12, false);
-foreach ($coveredMonths as $cm) { $boxed[$cm['month']] = true; }
+$boxedMark = array_fill(1, 12, false);
+foreach ($coveredMonths as $cm) {
+    $m = (int) ($cm['month'] ?? 0);
+    if ($m < 1 || $m > 12) continue;
+    $boxed[$m] = true;
+
+    // Mark month as checked only if this receipt fully pays that month.
+    // If there's any non-partial allocation for the month, treat it as fully covered.
+    $isPartial = (bool) ($cm['partial'] ?? false);
+    if (!$isPartial) {
+        $boxedMark[$m] = true;
+    }
+}
 // Monthly fee sum in this receipt (from allocations if present)
 $monthlySum = 0.0;
 foreach ($coveredMonths as $cm) { $monthlySum += (float) $cm['amount']; }
@@ -230,10 +242,18 @@ if (empty($studentAddress) && $student) {
         <div class="mt-4">
             <div class="flex items-center gap-2 text-xs">
                 @foreach($months as $idx => $m)
-                    @php $monthNum = $idx+1; $active = !empty($boxed[$monthNum]); @endphp
+                    @php
+                        $monthNum = $idx + 1;
+                        $active = !empty($boxed[$monthNum]);
+                        $mark = !empty($boxedMark[$monthNum]);
+                    @endphp
                     @if($active)
                         <div class="flex items-center">
-                            <div class="w-5 h-5 border border-gray-800 text-center leading-5 bg-gray-900 text-white">X</div>
+                            @if($mark)
+                                <div class="w-5 h-5 border border-gray-800 text-center leading-5 bg-gray-900 text-white">X</div>
+                            @else
+                                <div class="w-5 h-5 border border-gray-800 text-center leading-5 bg-white">&nbsp;</div>
+                            @endif
                             <div class="ml-1 mr-3">{{ $m }}</div>
                         </div>
                     @endif
