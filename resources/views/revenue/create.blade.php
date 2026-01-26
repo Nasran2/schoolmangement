@@ -37,7 +37,7 @@
                                         <div class="flex-1">
                                             <select id="revenue_category_id" name="revenue_category_id"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                x-model="formData.category_id" x-on:change="updateSummary()">
+                                                x-model="formData.category_id" x-on:change="updateSummary(); updateAllocationPreview()">
                                                 <option value="">Select Category</option>
                                                 @foreach ($categories as $cat)
                                                     <option value="{{ $cat->id }}" data-name="{{ $cat->name }}"
@@ -188,25 +188,20 @@
                                             <div class="mt-1 text-sm text-amber-800">
                                                 <p>Total Due: <span class="font-bold">Rs <span x-text="Number(studentDueAmount).toLocaleString('en', {minimumFractionDigits: 2})"></span></span></p>
                                                 
-                                                {{-- Interactive Due Months Selector --}}
+                                                {{-- Due Months (auto allocated oldest-first) --}}
                                                 <div x-show="studentDueMonths.length > 0" class="mt-3">
-                                                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Select Due Months to Pay:</p>
+                                                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Due months (auto allocated oldest-first):</p>
                                                     <div class="flex flex-wrap gap-2">
                                                         <template x-for="(month, index) in studentDueMonths" :key="index">
-                                                            <button type="button"
-                                                                @click="toggleDueMonth(index)"
-                                                                :class="isDueSelected(index) 
-                                                                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm ring-2 ring-amber-200 ring-offset-1' 
-                                                                    : 'bg-white text-amber-800 border-amber-200 hover:bg-amber-50 hover:border-amber-300'"
-                                                                class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all duration-200">
+                                                            <div class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-amber-200 bg-white text-amber-800">
                                                                 <span x-text="typeof month === 'object' ? month.label : month"></span>
-                                                                <svg x-show="isDueSelected(index)" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
-                                                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
-                                                                </svg>
-                                                            </button>
+                                                                <template x-if="typeof month === 'object' && month.amount !== undefined">
+                                                                    <span class="ml-1 text-[11px] text-amber-700">(Rs <span x-text="formatMoney(month.amount)"></span>)</span>
+                                                                </template>
+                                                            </div>
                                                         </template>
                                                     </div>
-                                                    <p class="text-[10px] text-amber-600 mt-1.5 italic">* Selecting a month automatically includes all previous due months.</p>
+                                                    <p class="text-[10px] text-amber-600 mt-1.5 italic">* Enter an amount; the system will pay the oldest due months first (full/partial), then advance months if any.</p>
                                                 </div>
 
                                                 <div x-show="studentDueMonths.length === 0 && studentDueAmount <= 0" class="mt-2 text-green-700 font-medium flex items-center gap-1">
@@ -302,9 +297,13 @@
                                             <input type="number" id="amount_input" name="amount" step="0.01" min="0.01"
                                                 class="block w-full pl-12 pr-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="0.00" value="{{ old('amount') }}"
-                                                x-on:input="updateSummary(); updateAllocationPreview()" required>
+                                                x-model="formData.amount"
+                                                x-on:input="updateAllocationPreview()" required>
                                         </div>
                                         <p class="mt-2 text-xs text-gray-500" x-show="categoryType === 'monthly' && selectedCategoryIsMonthlyFee">If you pay extra, it will automatically go to next months.</p>
+                                        <div class="mt-2 text-xs" x-show="categoryType === 'monthly' && selectedCategoryIsMonthlyFee && selectedStudentId && Number(formData.amount||0) > 0" x-cloak>
+                                            <p class="text-amber-700" x-show="allocationFlowText()" x-text="allocationFlowText()"></p>
+                                        </div>
                                         @error('amount')
                                             <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
@@ -314,7 +313,9 @@
                                             Date</label>
                                         <input type="text" id="paid_at_input" name="paid_at" placeholder="DD-MM-YYYY"
                                             class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                            value="{{ old('paid_at', date('d-m-Y')) }}" required>
+                                            value="{{ old('paid_at', date('d-m-Y')) }}"
+                                            x-model="formData.date"
+                                            x-on:input="formData.date = $event.target.value" required>
                                         @error('paid_at')
                                             <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
@@ -550,7 +551,6 @@
                     studentDueAmount: 0,
                     studentMonthlyFee: 0,
                     studentDueMonths: [],
-                    selectedDueCount: 0,
                     showCategoryModal: false,
                     selectedStudentId: '{{ $selectedStudentId ?? '' }}',
                     monthlyCatId: '{{ $monthlyCatId ?? '' }}',
@@ -579,7 +579,11 @@
                                             this.studentMonthlyFee = e.detail.monthly_fee || 0;
                                             this.selectedStudentId = e.detail.id || '';
                                             this.monthlyCatId = e.detail.monthly_category_id || '';
-                                            this.selectedDueCount = 0;
+
+                                            // monthlyCatId becomes known only after student selection,
+                                            // so re-evaluate whether the selected category is the student's monthly fee category.
+                                            this.updateSummary();
+                                            
                                             const adv = Array.isArray(e.detail.advance_months) ? e.detail.advance_months : [];
                                             if (adv.length > 0) {
                                                 this.advanceOptions = adv.map(m => ({
@@ -598,7 +602,6 @@
                                             this.studentName = '';
                                             this.studentDueAmount = 0;
                                             this.studentDueMonths = [];
-                                            this.selectedDueCount = 0;
                                             this.selectedStudentId = '';
                                             this.monthlyCatId = '';
                                             this.advanceMode = false;
@@ -629,33 +632,21 @@
                         }
                     },
 
-                    toggleDueMonth(index) {
-                        // If clicking the same last selected, deselect it (go back one)
-                        if (this.selectedDueCount === index + 1) {
-                            this.selectedDueCount = index;
-                        } else {
-                            // Otherwise select up to this index
-                            this.selectedDueCount = index + 1;
-                        }
-                        
-                        // Update amount
-                        let total = 0;
-                        if (Array.isArray(this.studentDueMonths)) {
-                            for (let i = 0; i < this.selectedDueCount; i++) {
-                                const m = this.studentDueMonths[i];
-                                if (typeof m === 'object' && m.amount !== undefined) {
-                                    total += parseFloat(m.amount);
-                                } else {
-                                    total += parseFloat(this.studentMonthlyFee) || 0;
-                                }
-                            }
-                        }
-                        this.formData.amount = total.toFixed(2);
-                        this.updateAllocationPreview();
-                    },
+                    allocationFlowText() {
+                        const allocs = Array.isArray(this.allocation?.allocations) ? this.allocation.allocations : [];
+                        if (!allocs.length) return '';
 
-                    isDueSelected(index) {
-                        return index < this.selectedDueCount;
+                        const parts = allocs.map(a => {
+                            if (!a || !a.year || !a.month) return null;
+                            const label = `${this.shortMonthName(a.month)} ${a.year}`;
+                            const type = a.type === 'due' ? 'due' : (a.type === 'advance' ? 'advance' : '');
+                            if (a.is_partial) {
+                                return `${label} (${type}, partial Rs ${this.formatMoney(a.applied_amount)}; balance Rs ${this.formatMoney(a.remaining_for_month)})`;
+                            }
+                            return `${label} (${type}, full Rs ${this.formatMoney(a.applied_amount)})`;
+                        }).filter(Boolean);
+
+                        return parts.length ? `Allocation: ${parts.join(', ')}` : '';
                     },
 
                     updateSummary() {
@@ -761,11 +752,12 @@
                             seen.add(key);
 
                             const label = `${this.shortMonthName(a.month)} ${a.year}`;
+                            const typeLabel = a.type === 'due' ? 'due' : (a.type === 'advance' ? 'advance' : '');
                             if (a.is_partial) {
                                 const bal = this.formatMoney(a.remaining_for_month || 0);
-                                parts.push(`${label} (partial Rs ${bal} balance)`);
+                                parts.push(`${label} (${typeLabel}${typeLabel ? ', ' : ''}partial Rs ${bal} balance)`);
                             } else {
-                                parts.push(`${label} (full)`);
+                                parts.push(`${label} (${typeLabel}${typeLabel ? ', ' : ''}full)`);
                             }
                         }
 

@@ -303,10 +303,23 @@
 
             if (!classSelect || !monthlyFeeInput) return;
 
+            const parseDateFlexible = (str) => {
+                if (!str) return null;
+                const s = String(str).trim();
+                // DD-MM-YYYY
+                let m = s.match(/^([0-3]\d)-([0-1]\d)-(\d{4})$/);
+                if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+                // YYYY-MM-DD
+                m = s.match(/^(\d{4})-([0-1]\d)-([0-3]\d)$/);
+                if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+                const d = new Date(s);
+                return Number.isNaN(d.getTime()) ? null : d;
+            };
+
             const monthsBetweenInclusive = (fromStr) => {
                 if (!fromStr) return 1;
-                const from = new Date(fromStr);
-                if (Number.isNaN(from.getTime())) return 1;
+                const from = parseDateFlexible(fromStr);
+                if (!from) return 1;
                 const now = new Date();
                 let months = (now.getFullYear() - from.getFullYear()) * 12 + (now.getMonth() - from.getMonth());
                 if (months < 0) months = 0;

@@ -191,15 +191,21 @@ class MonthlyFeeAllocator
         $remainingAmount = $amount;
 
         // 1) Pay oldest dues first
-        foreach ($ledger as $key => $m) {
+        foreach ($ledger as $key => &$m) {
             if ($remainingAmount <= 0) break;
             // Past months only (<= now)
-            $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1);
+            $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1)->startOfMonth();
             if ($monthDate->gt(now()->startOfMonth())) break; // stop at current month
             if (in_array($m['status'], ['unpaid','partially_paid'], true)) {
                 $toApply = min($remainingAmount, $m['remaining']);
                 $isPartial = ($toApply + 0.001) < $m['remaining'];
                 $remainingAfter = max(0.0, $m['remaining'] - $toApply);
+
+                // Update local ledger state so subsequent checks (advance eligibility) are based on this payment too.
+                $m['paid'] = (float) ($m['paid'] ?? 0.0) + (float) $toApply;
+                $m['remaining'] = $remainingAfter;
+                $m['status'] = $this->statusFromAmounts((float) ($m['due'] ?? 0.0), (float) $m['paid']);
+
                 $allocations[] = [
                     'month' => $m['month'],
                     'year' => $m['year'],
@@ -220,13 +226,14 @@ class MonthlyFeeAllocator
                 }
             }
         }
+        unset($m);
 
         // 2) Handle advance months in chronological order
         if ($remainingAmount > 0 && !empty($selectedAdvanceMonths)) {
             // Enforce rule: cannot select future month if earlier month unpaid/partial remains
             $hasUnpaidEarlier = false;
             foreach ($ledger as $key => $m) {
-                $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1);
+                    $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1)->startOfMonth();
                 if ($monthDate->gt(now()->startOfMonth())) break; // only past months
                 if (in_array($m['status'], ['unpaid','partially_paid'], true)) {
                     $hasUnpaidEarlier = true; break;
@@ -280,7 +287,7 @@ class MonthlyFeeAllocator
             // Re-check dues rule (same as advance selection)
             $hasUnpaidEarlier = false;
             foreach ($ledger as $m) {
-                $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1);
+                $monthDate = Carbon::createFromDate($m['year'], $m['month'], 1)->startOfMonth();
                 if ($monthDate->gt(now()->startOfMonth())) break;
                 if (in_array($m['status'], ['unpaid', 'partially_paid'], true)) {
                     $hasUnpaidEarlier = true;

@@ -418,6 +418,9 @@
                                 <div class="text-xs font-semibold text-gray-500 uppercase">Monthly Fee</div>
                                 <div class="mt-1 text-2xl font-bold text-gray-900">Rs {{ number_format((float)($dueBreakdown['monthlyFee'] ?? 0), 2) }}</div>
                                 <div class="mt-1 text-xs text-gray-500">Start: {{ $dueBreakdown['startDate'] ? \Carbon\Carbon::parse($dueBreakdown['startDate'])->format('d-m-Y') : '-' }}</div>
+                                @if(!empty($dueBreakdown['startDate']) && \Carbon\Carbon::parse($dueBreakdown['startDate'])->startOfDay()->gt(now()->startOfDay()))
+                                    <div class="mt-2 text-xs text-rose-700 font-semibold">Payment Start Date is in the future, so no dues are counted yet. Edit the student and set the correct start month.</div>
+                                @endif
                             </div>
                             <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
                                 <div class="text-xs font-semibold text-blue-700 uppercase">Expected</div>
@@ -524,6 +527,9 @@
                                             $status = 'partial';
                                         } elseif ($cy['inProgress']) {
                                             $status = 'current';
+                                        } elseif (($cy['status'] ?? '') === 'unpaid' && !$cy['isFuture'] && $cy['start']->copy()->startOfMonth()->lt(now()->startOfMonth())) {
+                                            // Past unpaid month => overdue due
+                                            $status = 'due';
                                         }
 
                                         $label = $cy['start']->format('M Y');
@@ -583,6 +589,14 @@
                                                     <div class="text-xs font-semibold text-amber-700 mt-1">Current</div>
                                                 </div>
                                             @endif
+                                        @elseif($status === 'due')
+                                            <div class="border-2 border-amber-400 bg-amber-50 rounded-lg p-3 text-center hover:shadow-md transition-all" title="Due: this month is overdue and unpaid.">
+                                                <div class="text-xs font-semibold text-amber-700 mb-1">{{ $label }}</div>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                <div class="text-xs font-semibold text-amber-700 mt-1">Due</div>
+                                            </div>
                                         @else
                                             <div class="border-2 border-gray-200 bg-gray-50 rounded-lg p-3 text-center hover:shadow-md transition-all">
                                                 <div class="text-xs font-semibold text-gray-500 mb-1">{{ $label }}</div>

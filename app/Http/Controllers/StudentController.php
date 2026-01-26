@@ -19,6 +19,29 @@ use Illuminate\Support\Facades\Auth;
 
 class StudentController extends Controller
 {
+    private function parseFlexibleDate(?string $value): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+        $raw = trim($value);
+        if ($raw === '') {
+            return null;
+        }
+
+        // Prefer explicit formats used by the UI to avoid month/day swaps.
+        if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $raw)) {
+            $d = Carbon::createFromFormat('d-m-Y', $raw);
+            return $d ? $d->startOfDay() : null;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            $d = Carbon::createFromFormat('Y-m-d', $raw);
+            return $d ? $d->startOfDay() : null;
+        }
+
+        return Carbon::parse($raw)->startOfDay();
+    }
+
     private function computeNetDue(Student $student): float
     {
         if (! $student->fee_start_date) {
@@ -383,10 +406,12 @@ class StudentController extends Controller
         // Format as YYYY-YYYY+1 (e.g. 2025-2026)
         $academicYear = $year . '-' . ($year + 1);
 
-        // Calculate due amount based on fee start date
+        // Parse fee start date (UI uses DD-MM-YYYY) and calculate due amount
+        $feeStartDate = $this->parseFlexibleDate($request->input('fee_start_date'));
+
         $dueAmount = $monthlyFee;
-        if (!empty($validated['fee_start_date'])) {
-            $start = \Carbon\Carbon::parse($validated['fee_start_date'])->startOfDay();
+        if ($feeStartDate) {
+            $start = $feeStartDate;
             $now = now();
             if ($now->lt($start)) {
                 $months = 0;
@@ -412,7 +437,7 @@ class StudentController extends Controller
             'guardian_relationship' => $validated['guardian_relationship'] ?? null,
             'guardian_phone' => $validated['guardian_phone'] ?? null,
             'joining_date' => $validated['joining_date'] ?? null,
-            'fee_start_date' => $validated['fee_start_date'] ?? null,
+            'fee_start_date' => $feeStartDate?->toDateString(),
             'year' => $academicYear,
             'class_room_id' => $validated['class_room_id'],
             'class' => $classRoom?->name,
@@ -890,10 +915,13 @@ class StudentController extends Controller
         $classRoom = ClassRoom::query()->find($validated['class_room_id']);
         $monthlyFee = (float) ($validated['monthly_fee'] ?? ($classRoom?->monthly_fee ?? 0));
 
+        $feeStartDate = $this->parseFlexibleDate($request->input('fee_start_date'));
+        $feeStartDateToStore = $request->filled('fee_start_date') ? ($feeStartDate?->toDateString()) : ($student->fee_start_date?->toDateString());
+
         // Recompute due based on fee_start_date
         $dueAmount = $monthlyFee;
-        if (!empty($validated['fee_start_date'])) {
-            $start = \Carbon\Carbon::parse($validated['fee_start_date'])->startOfDay();
+        if ($feeStartDate) {
+            $start = $feeStartDate;
             $now = now();
             if ($now->lt($start)) {
                 $months = 0;
@@ -920,7 +948,7 @@ class StudentController extends Controller
             'guardian_relationship' => $validated['guardian_relationship'] ?? null,
             'guardian_phone' => $validated['guardian_phone'] ?? null,
             'joining_date' => $validated['joining_date'] ?? null,
-            'fee_start_date' => $validated['fee_start_date'] ?? $student->fee_start_date,
+            'fee_start_date' => $feeStartDateToStore,
             'year' => isset($validated['joining_date']) 
                 ? (\Carbon\Carbon::parse($validated['joining_date'])->year . '-' . (\Carbon\Carbon::parse($validated['joining_date'])->year + 1))
                 : $student->year,
