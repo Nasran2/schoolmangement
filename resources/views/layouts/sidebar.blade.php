@@ -55,6 +55,7 @@
                     @endcan
                     @can('revenue.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.index') }}">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.reminders.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.reminders.index') }}">Reminders</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.adjustments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.adjustments.index') }}">Refund / Waiver</a>
                     @endcan
                     @can('revenue.categories.manage')

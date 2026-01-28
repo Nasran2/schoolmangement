@@ -88,7 +88,12 @@
 
                         <div>
                             <x-input-label for="bill_no" :value="__('Bill Number')" />
-                            <x-text-input id="bill_no" name="bill_no" type="text" class="mt-1 block w-full" :value="old('bill_no', $item->bill_no)" />
+                            @if(!empty($autogenerate) && $autogenerate)
+                                <x-text-input id="bill_no" name="bill_no" type="text" class="mt-1 block w-full bg-gray-100 text-gray-600" :value="old('bill_no', $item->bill_no)" readonly disabled />
+                                <p class="mt-1 text-xs text-gray-500">To edit, disable Auto-generate bill number in Settings.</p>
+                            @else
+                                <x-text-input id="bill_no" name="bill_no" type="text" class="mt-1 block w-full" :value="old('bill_no', $item->bill_no)" />
+                            @endif
                             <x-input-error class="mt-2" :messages="$errors->get('bill_no')" />
                         </div>
 

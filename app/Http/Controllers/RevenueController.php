@@ -63,7 +63,7 @@ class RevenueController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request): View
+    public function create(Request $request, BillNumberService $billNumbers): View
     {
         $selectedStudentId = $request->query('student_id') ?: null;
         $selectedStudent = null;
@@ -98,12 +98,18 @@ class RevenueController extends Controller
             }
         }
 
+        // Allow direct preselect from other pages (e.g. category drilldown)
+        if ($request->filled('category_id')) {
+            $preselectedCategoryId = (int) $request->query('category_id');
+        }
+
         return view('revenue.create', [
             'categories' => $categoriesQuery->orderBy('name')->get(),
             'students' => Student::query()->where('active', true)->orderBy('name')->get(),
             'selectedStudentId' => $selectedStudentId,
             'selectedStudent' => $selectedStudent,
             'autogenerate' => app('settings')->get('billing.revenue.autogenerate', '1') === '1',
+            'nextBillNumberPreview' => $billNumbers->peekNextRevenueBillNumber(),
             'monthlyCatId' => $monthlyCatId,
             'preselectedCategoryId' => $preselectedCategoryId,
             'classRooms' => ClassRoom::query()
@@ -119,6 +125,8 @@ class RevenueController extends Controller
      */
     public function store(Request $request, BillNumberService $billNumbers, MonthlyFeeAllocator $allocator): RedirectResponse
     {
+        $autogenerate = app('settings')->get('billing.revenue.autogenerate', '1') === '1';
+
         // Normalize JSON advance_months if sent as string
         $advRaw = $request->input('advance_months');
         if (is_string($advRaw)) {
@@ -130,7 +138,10 @@ class RevenueController extends Controller
             'student_id' => ['nullable', 'exists:students,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'paid_at' => ['required', 'date'],
-            'bill_no' => ['nullable', 'string', 'max:50', 'unique:revenues,bill_no'],
+            // When auto-generate is enabled, user input is ignored; avoid failing validation on duplicates.
+            'bill_no' => $autogenerate
+                ? ['nullable', 'string', 'max:50']
+                : ['nullable', 'string', 'max:50', 'unique:revenues,bill_no'],
             'notes' => ['nullable', 'string'],
             // Allocation inputs (optional): array of future months {month,year}
             'advance_months' => ['nullable', 'array'],
@@ -166,7 +177,18 @@ class RevenueController extends Controller
         }
 
         // Prepare bill number
-        $billNo = $validated['bill_no'] ?? null;
+        $billNo = null;
+        if (! $autogenerate) {
+            $inputBillNo = $validated['bill_no'] ?? null;
+            $preview = $billNumbers->peekNextRevenueBillNumber();
+
+            // If user keeps the suggested next bill number, reserve it (increment next_number).
+            if ($inputBillNo && $preview !== '' && $inputBillNo === $preview) {
+                $billNo = $billNumbers->nextRevenueBillNumber();
+            } else {
+                $billNo = $inputBillNo;
+            }
+        }
         if (! $billNo) {
             $billNo = $billNumbers->nextRevenueBillNumber() ?: null;
         }
@@ -248,6 +270,7 @@ class RevenueController extends Controller
             'item' => $item->load(['category', 'student']),
             'categories' => $categoriesQuery->orderBy('name')->get(),
             'students' => Student::query()->where('active', true)->orderBy('name')->get(),
+            'autogenerate' => app('settings')->get('billing.revenue.autogenerate', '1') === '1',
             'classRooms' => \App\Models\ClassRoom::query()
                 ->orderByRaw('level is null')
                 ->orderBy('level')
@@ -261,12 +284,17 @@ class RevenueController extends Controller
      */
     public function update(Request $request, Revenue $item): RedirectResponse
     {
+        $autogenerate = app('settings')->get('billing.revenue.autogenerate', '1') === '1';
+
         $validated = $request->validate([
             'revenue_category_id' => ['required', 'exists:revenue_categories,id'],
             'student_id' => ['nullable', 'exists:students,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'paid_at' => ['required', 'date'],
-            'bill_no' => ['nullable', 'string', 'max:50', 'unique:revenues,bill_no,'.$item->id],
+            // When auto-generate is enabled, keep existing bill number unless settings are changed.
+            'bill_no' => $autogenerate
+                ? ['nullable', 'string', 'max:50']
+                : ['nullable', 'string', 'max:50', 'unique:revenues,bill_no,'.$item->id],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -284,7 +312,7 @@ class RevenueController extends Controller
         }
 
         $item->update([
-            'bill_no' => $validated['bill_no'] ?? null,
+            'bill_no' => $autogenerate ? $item->bill_no : ($validated['bill_no'] ?? null),
             'revenue_category_id' => (int) $validated['revenue_category_id'],
             'student_id' => $validated['student_id'] ? (int) $validated['student_id'] : null,
             'amount' => $validated['amount'],

@@ -364,11 +364,24 @@
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-800 mb-3">Bill Number <span
                                             class="font-normal text-gray-500">(optional)</span></label>
-                                    <input type="text" name="bill_no"
-                                        class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                        placeholder="Auto-generate if empty" value="{{ old('bill_no') }}"
-                                        x-model="formData.bill_no">
-                                    <p class="mt-2 text-xs text-gray-500">Leave blank to auto-generate</p>
+                                    @if($autogenerate)
+                                        <input type="text"
+                                            class="block w-full px-4 py-2.5 rounded-lg border-gray-300 bg-gray-100 text-gray-600 shadow-sm"
+                                            value="{{ $nextBillNumberPreview ?: 'Auto-generated' }}" disabled readonly>
+                                        <p class="mt-2 text-xs text-gray-500">
+                                            Next bill number preview. Final value is assigned when you save.
+                                            To enter/edit it manually, disable
+                                            <span class="font-semibold">Auto-generate bill number</span> in Settings.
+                                        </p>
+                                    @else
+                                        <input type="text" name="bill_no"
+                                            class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                            placeholder="Enter bill number" value="{{ old('bill_no', $nextBillNumberPreview) }}"
+                                            x-model="formData.bill_no">
+                                        <p class="mt-2 text-xs text-gray-500">
+                                            Suggested next bill: <span class="font-semibold">{{ $nextBillNumberPreview }}</span> (you can change it).
+                                        </p>
+                                    @endif
                                     @error('bill_no')
                                         <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                     @enderror
@@ -486,8 +499,10 @@
                         </div>
 
                         <form method="POST" action="{{ route('revenue.categories.store') }}"
-                            class="space-y-5" id="add-category-form">
+                            class="space-y-5" id="add-category-form" x-data="{ type: 'one_time', appliesToAll: true }">
                             @csrf
+                            <div id="add-category-error" class="hidden rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700"></div>
+
                             <div>
                                 <label
                                     class="block text-sm font-semibold text-gray-800 mb-2">Category
@@ -502,11 +517,71 @@
                                 <label
                                     class="block text-sm font-semibold text-gray-800 mb-2">Payment
                                     Type</label>
-                                <select name="payment_type"
+                                <select name="payment_type" x-model="type"
                                     class="block w-full px-4 py-2.5 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all">
-                                    <option value="other">One-time</option>
                                     <option value="monthly">Monthly</option>
+                                    <option value="2_months">Every 2 Months</option>
+                                    <option value="3_months">Every 3 Months</option>
+                                    <option value="6_months">Every 6 Months</option>
+                                    <option value="yearly">Yearly</option>
+                                    <option value="custom_months">Custom (Every N Months)</option>
+                                    <option value="one_time">One-time</option>
                                 </select>
+                            </div>
+
+                            <div x-cloak x-show="type === 'custom_months'">
+                                <label class="block text-sm font-semibold text-gray-800 mb-2">Interval (months)</label>
+                                <input type="number" name="interval_months" min="1" max="24"
+                                    placeholder="e.g., 4"
+                                    class="block w-full px-4 py-2.5 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all">
+                            </div>
+
+                            <div x-cloak x-show="type !== 'one_time'" class="space-y-3">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-800 mb-2">Amount per student</label>
+                                    <input type="number" name="default_amount" min="0.01" step="0.01"
+                                        placeholder="e.g., 1500"
+                                        class="block w-full px-4 py-2.5 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all">
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-800 mb-2">First due date</label>
+                                        <input type="date" name="first_due_date" value="{{ now()->toDateString() }}"
+                                            class="block w-full px-4 py-2.5 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-800 mb-2">Reminder (days before)</label>
+                                        <input type="number" name="reminder_days_before" min="0" max="60" value="5"
+                                            class="block w-full px-4 py-2.5 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-800 mb-2">Description (optional)</label>
+                                <input type="text" name="description"
+                                    class="block w-full px-4 py-2.5 border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all">
+                            </div>
+
+                            <div class="rounded-lg border border-gray-200 p-3">
+                                <div class="flex items-center gap-2">
+                                    <input type="hidden" name="applies_to_all" value="0" />
+                                    <input id="modal_applies_to_all" type="checkbox" name="applies_to_all" value="1" class="rounded border-gray-300" x-model="appliesToAll" checked>
+                                    <label for="modal_applies_to_all" class="text-sm text-gray-800">Applies to all classes</label>
+                                </div>
+
+                                <div x-cloak x-show="!appliesToAll" class="mt-3">
+                                    <div class="text-xs font-semibold text-gray-600">Select applicable classes:</div>
+                                    <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 max-h-40 overflow-auto pr-1">
+                                        @foreach ($classRooms as $cr)
+                                            <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                                <input type="checkbox" name="class_room_ids[]" value="{{ $cr->id }}" class="rounded border-gray-300">
+                                                <span>{{ $cr->level !== null ? ('Level '.$cr->level.' - ') : '' }}{{ $cr->name }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="flex gap-3 pt-4">
@@ -541,7 +616,7 @@
                         category_id: '{{ old('revenue_category_id', $preselectedCategoryId) }}',
                         amount: '{{ old('amount') }}',
                         date: '{{ old('paid_at', date('d-m-Y')) }}',
-                        bill_no: '{{ old('bill_no') }}'
+                        bill_no: '{{ old('bill_no', $autogenerate ? '' : ($nextBillNumberPreview ?? '')) }}'
                     },
                     categories: @json($categories),
                     categoryName: '',
@@ -566,6 +641,20 @@
 
                     init() {
                         try {
+                            window.addEventListener('revenue-category-created', (e) => {
+                                try {
+                                    const cat = e?.detail;
+                                    if (!cat || !cat.id) return;
+                                    if (!Array.isArray(this.categories)) this.categories = [];
+                                    this.categories.push(cat);
+                                    this.formData.category_id = String(cat.id);
+                                    this.showCategoryModal = false;
+                                    this.updateSummary();
+                                    this.updateAllocationPreview();
+                                } catch (err) {
+                                    console.error('Error handling revenue-category-created:', err);
+                                }
+                            });
                             this.updateSummary();
 
                             // Listen for student selection
@@ -814,6 +903,68 @@
                         }
                     }
                 }));
+
+                // AJAX create category from modal (stay on Add Revenue page)
+                window.addEventListener('DOMContentLoaded', () => {
+                    const form = document.getElementById('add-category-form');
+                    if (!form) return;
+
+                    form.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const errBox = document.getElementById('add-category-error');
+                        if (errBox) {
+                            errBox.classList.add('hidden');
+                            errBox.textContent = '';
+                        }
+
+                        const fd = new FormData(form);
+                        // Ensure controller validation passes for modal (applies_to_all is required)
+                        if (!fd.has('applies_to_all')) fd.set('applies_to_all', '1');
+
+                        try {
+                            const res = await fetch(form.action, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                                },
+                                body: fd,
+                            });
+
+                            if (!res.ok) {
+                                const data = await res.json().catch(() => null);
+                                const msg = data?.message || 'Could not create category.';
+                                const firstErr = data?.errors ? Object.values(data.errors)[0]?.[0] : null;
+                                if (errBox) {
+                                    errBox.textContent = firstErr || msg;
+                                    errBox.classList.remove('hidden');
+                                }
+                                return;
+                            }
+
+                            const cat = await res.json();
+                            // Update the dropdown options immediately
+                            const sel = document.getElementById('revenue_category_id');
+                            if (sel && cat?.id) {
+                                const opt = document.createElement('option');
+                                opt.value = String(cat.id);
+                                opt.textContent = cat.name;
+                                opt.setAttribute('data-name', cat.name);
+                                opt.setAttribute('data-type', cat.payment_type || 'one_time');
+                                sel.appendChild(opt);
+                                sel.value = String(cat.id);
+                                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                            window.dispatchEvent(new CustomEvent('revenue-category-created', { detail: cat }));
+                            form.reset();
+                        } catch (ex) {
+                            if (errBox) {
+                                errBox.textContent = 'Network error while creating category.';
+                                errBox.classList.remove('hidden');
+                            }
+                        }
+                    });
+                });
 
                 Alpine.data('studentPicker', () => ({
                     q: '',

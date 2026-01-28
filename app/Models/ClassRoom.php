@@ -34,7 +34,7 @@ class ClassRoom extends Model
 
     public function revenueCategories(): BelongsToMany
     {
-        return $this->belongsToMany(RevenueCategory::class, 'class_room_revenue_category');
+        return $this->belongsToMany(RevenueCategory::class, 'class_room_revenue_category')->withPivot(['amount']);
     }
 
     public function monthlyFeeCategory(): BelongsTo

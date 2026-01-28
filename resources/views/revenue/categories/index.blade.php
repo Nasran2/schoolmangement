@@ -39,6 +39,25 @@
                             </div>
                         </div>
 
+                        <div class="sm:col-span-2">
+                            <x-input-label for="default_amount" :value="__('Amount per student')" />
+                            <x-text-input id="default_amount" name="default_amount" type="number" min="0.01" step="0.01" class="mt-1 block w-full" :value="old('default_amount')" />
+                            <x-input-error class="mt-2" :messages="$errors->get('default_amount')" />
+                            <div class="mt-1 text-xs text-gray-500">Required for recurring categories.</div>
+                        </div>
+
+                        <div>
+                            <x-input-label for="first_due_date" :value="__('First due date')" />
+                            <x-text-input id="first_due_date" name="first_due_date" type="date" class="mt-1 block w-full" :value="old('first_due_date', now()->toDateString())" />
+                            <x-input-error class="mt-2" :messages="$errors->get('first_due_date')" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="reminder_days_before" :value="__('Reminder days before')" />
+                            <x-text-input id="reminder_days_before" name="reminder_days_before" type="number" min="0" max="60" class="mt-1 block w-full" :value="old('reminder_days_before', 5)" />
+                            <x-input-error class="mt-2" :messages="$errors->get('reminder_days_before')" />
+                        </div>
+
                         <div class="flex items-end">
                             <x-primary-button>Create</x-primary-button>
                         </div>
@@ -61,10 +80,14 @@
                                 <div class="text-xs font-semibold text-gray-600">If not all, select applicable classes:</div>
                                 <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                                     @foreach ($classRooms as $cr)
-                                        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                                            <input type="checkbox" name="class_room_ids[]" value="{{ $cr->id }}" class="rounded border-gray-300" {{ in_array((string) $cr->id, array_map('strval', old('class_room_ids', []))) ? 'checked' : '' }}>
-                                            <span>{{ $cr->level !== null ? ('Level '.$cr->level.' - ') : '' }}{{ $cr->name }}</span>
-                                        </label>
+                                        <div class="flex items-center gap-2">
+                                            <label class="inline-flex items-center gap-2 text-sm text-gray-700 flex-1">
+                                                <input type="checkbox" name="class_room_ids[]" value="{{ $cr->id }}" class="rounded border-gray-300" {{ in_array((string) $cr->id, array_map('strval', old('class_room_ids', []))) ? 'checked' : '' }}>
+                                                <span>{{ $cr->level !== null ? ('Level '.$cr->level.' - ') : '' }}{{ $cr->name }}</span>
+                                            </label>
+                                            <input type="number" min="0.01" step="0.01" name="class_room_amounts[{{ $cr->id }}]" value="{{ old('class_room_amounts.'.$cr->id) }}"
+                                                class="w-28 rounded-md border-gray-300 text-sm" placeholder="Amt">
+                                        </div>
                                     @endforeach
                                 </div>
                                 <x-input-error class="mt-2" :messages="$errors->get('class_room_ids')" />
@@ -81,7 +104,11 @@
                         </div>
                         @forelse ($categories as $cat)
                             <div class="grid grid-cols-12 items-center px-4 py-3">
-                                <div class="col-span-5 text-sm font-medium text-gray-900">{{ $cat->name }}</div>
+                                <div class="col-span-5 text-sm font-medium text-gray-900">
+                                    <a href="{{ route('revenue.categories.show', $cat) }}" class="hover:underline">
+                                        {{ $cat->name }}
+                                    </a>
+                                </div>
                                 <div class="col-span-3 text-sm text-gray-700">
                                     @php
                                         $type = (string) $cat->payment_type;

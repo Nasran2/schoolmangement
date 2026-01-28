@@ -216,6 +216,17 @@ Route::middleware('auth')->group(function () {
         Route::resource('categories', RevenueCategoryController::class)
             ->middleware('permission:revenue.categories.manage');
 
+        Route::get('categories/{category}/classes/{classRoom}', [\App\Http\Controllers\RevenueCategoryCollectionController::class, 'class'])
+            ->name('categories.classes.show')
+            ->middleware('permission:revenue.categories.manage');
+
+        Route::post('categories/{category}/classes/{classRoom}/bulk-pay', [\App\Http\Controllers\RevenueCategoryCollectionController::class, 'bulkStore'])
+            ->name('categories.classes.bulkPay')
+            ->middleware('permission:revenue.manage');
+
+        Route::get('reminders', [\App\Http\Controllers\RevenueReminderController::class, 'index'])
+            ->name('reminders.index')
+            ->middleware('permission:revenue.manage');
         Route::get('adjustments', [RevenueAdjustmentController::class, 'index'])
             ->middleware('permission:revenue.manage')
             ->name('adjustments.index');
