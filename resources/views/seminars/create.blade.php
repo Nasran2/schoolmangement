@@ -54,14 +54,62 @@
                         <p class="text-xs text-gray-500 mt-1">This class will automatically be enrolled.</p>
                     </div>
 
-                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Visiting Teacher <span class="text-gray-400 font-normal">(Optional)</span></label>
-                        <select name="visiting_teacher_id" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
-                            <option value="">-- Select Teacher --</option>
-                            @foreach($visitingTeachers as $vt)
-                                <option value="{{ $vt->id }}" @selected(old('visiting_teacher_id')==$vt->id)>{{ $vt->name }}</option>
-                            @endforeach
-                        </select>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Teacher <span class="text-gray-400 font-normal">(Optional)</span></label>
+
+                        <div
+                            x-data="teacherPicker({
+                                lookupUrl: '{{ route('teacher-lookup') }}',
+                                initialTeacherId: '{{ old('teacher_id') }}',
+                                initialVisitingTeacherId: '{{ old('visiting_teacher_id') }}'
+                            })"
+                            x-init="init()"
+                            class="relative"
+                        >
+                            <input
+                                type="text"
+                                x-model="query"
+                                x-on:input.debounce.250ms="search()"
+                                x-on:focus="open = true; if (query.length >= 1) search();"
+                                x-on:keydown.escape.prevent="open=false"
+                                placeholder="Search teacher by name or phone..."
+                                class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow"
+                                autocomplete="off"
+                            />
+
+                            <input type="hidden" name="teacher_id" :value="teacherId">
+                            <input type="hidden" name="visiting_teacher_id" :value="visitingTeacherId">
+
+                            <button
+                                type="button"
+                                x-show="teacherId || visitingTeacherId"
+                                x-on:click="clear()"
+                                class="absolute inset-y-0 right-2 flex items-center text-gray-400 hover:text-gray-600"
+                                title="Clear"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm2.707-10.707a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+
+                            <div
+                                x-cloak
+                                x-show="open && (results.length > 0 || loading)"
+                                x-on:click.away="open = false"
+                                class="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg overflow-hidden"
+                            >
+                                <div x-show="loading" class="px-4 py-2 text-sm text-gray-500">Searching…</div>
+                                <template x-for="item in results" :key="item.type + ':' + item.id">
+                                    <button type="button" class="w-full text-left px-4 py-2 text-sm hover:bg-indigo-50" x-on:click="select(item)">
+                                        <span x-text="item.label"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <p class="text-xs text-gray-500 mt-1">Search and select either a regular teacher or a visiting teacher.</p>
+                        @error('teacher_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+                        @error('visiting_teacher_id')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
                     </div>
                 </div>
             </div>

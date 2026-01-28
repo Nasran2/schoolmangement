@@ -5,12 +5,14 @@
                 <h2 class="font-semibold text-2xl text-gray-900 leading-tight">Students</h2>
                 <p class="mt-1 text-sm text-gray-600">Manage student information and records</p>
             </div>
-            <a href="{{ route('students.create') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 border border-transparent rounded-lg font-semibold text-sm text-white shadow-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-150">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Add Student
-            </a>
+            @can('students.add')
+                <a href="{{ route('students.create') }}" class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 border border-transparent rounded-lg font-semibold text-sm text-white shadow-lg hover:from-indigo-700 hover:to-indigo-600 transition-all duration-150">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Add Student
+                </a>
+            @endcan
         </div>
     </x-slot>
 
@@ -29,7 +31,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Total Students</p>
-                            <p class="mt-2 text-3xl font-bold text-gray-900">{{ $students->total() }}</p>
+                            <p class="mt-2 text-3xl font-bold text-gray-900">{{ $totalStudents ?? $students->total() }}</p>
                         </div>
                         <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
@@ -43,7 +45,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Active Students</p>
-                            <p class="mt-2 text-3xl font-bold text-emerald-600">{{ $students->where('active', true)->count() }}</p>
+                            <p class="mt-2 text-3xl font-bold text-emerald-600">{{ $activeStudents ?? $students->where('active', true)->count() }}</p>
                         </div>
                         <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
@@ -57,7 +59,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Students with Due</p>
-                            <p class="mt-2 text-3xl font-bold text-rose-600">{{ $students->filter(fn($s) => ($s->computed_due_amount ?? $s->due_amount) > 0)->count() }}</p>
+                            <p class="mt-2 text-3xl font-bold text-rose-600">{{ $studentsWithDueCount ?? $students->filter(fn($s) => ($s->computed_due_amount ?? $s->due_amount) > 0)->count() }}</p>
                         </div>
                         <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
@@ -70,13 +72,13 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm font-medium text-gray-600">Current Page</p>
-                            <p class="mt-2 text-3xl font-bold text-indigo-600">{{ $students->currentPage() }}</p>
-                            <p class="text-xs text-gray-500 mt-1">of {{ $students->lastPage() }} pages</p>
+                            <p class="text-sm font-medium text-gray-600">Total Due (Receivable)</p>
+                            <p class="mt-2 text-3xl font-bold text-rose-600">Rs {{ number_format((float) ($totalReceivableDue ?? 0), 2) }}</p>
+                            <p class="text-xs text-gray-500 mt-1">All students with due</p>
                         </div>
-                        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600">
+                        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
                     </div>
@@ -202,33 +204,37 @@
                                                     </svg>
                                                     <span class="text-xs font-semibold">View</span>
                                                 </a>
-                                                <a title="Edit" href="{{ route('students.edit', $s) }}" class="text-indigo-600 hover:text-indigo-800">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                                    </svg>
-                                                </a>
-                                                <span x-data="{ open:false }" class="inline">
-                                                    <button title="Delete" type="button" class="text-red-600 hover:text-red-800" x-on:click="open=true">
+                                                @can('students.manage')
+                                                    <a title="Edit" href="{{ route('students.edit', $s) }}" class="text-indigo-600 hover:text-indigo-800">
                                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                                                         </svg>
-                                                    </button>
-                                                    <form x-ref="delForm" class="hidden" method="POST" action="{{ route('students.destroy', $s) }}">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                    </form>
-                                                    <div x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center">
-                                                        <div class="absolute inset-0 bg-black/40" x-on:click="open=false"></div>
-                                                        <div class="relative z-10 w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
-                                                            <div class="text-sm font-semibold text-gray-800">Delete Student</div>
-                                                            <div class="mt-2 text-sm text-gray-600">Are you sure you want to delete this student?</div>
-                                                            <div class="mt-4 flex justify-end gap-2">
-                                                                <button type="button" class="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50" x-on:click="open=false">Cancel</button>
-                                                                <button type="button" class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700" x-on:click="$refs.delForm.submit()">Delete</button>
+                                                    </a>
+                                                @endcan
+                                                @can('students.delete')
+                                                    <span x-data="{ open:false }" class="inline">
+                                                        <button title="Delete" type="button" class="text-red-600 hover:text-red-800" x-on:click="open=true">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                            </svg>
+                                                        </button>
+                                                        <form x-ref="delForm" class="hidden" method="POST" action="{{ route('students.destroy', $s) }}">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                        </form>
+                                                        <div x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center">
+                                                            <div class="absolute inset-0 bg-black/40" x-on:click="open=false"></div>
+                                                            <div class="relative z-10 w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
+                                                                <div class="text-sm font-semibold text-gray-800">Delete Student</div>
+                                                                <div class="mt-2 text-sm text-gray-600">Are you sure you want to delete this student?</div>
+                                                                <div class="mt-4 flex justify-end gap-2">
+                                                                    <button type="button" class="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50" x-on:click="open=false">Cancel</button>
+                                                                    <button type="button" class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700" x-on:click="$refs.delForm.submit()">Delete</button>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                </span>
+                                                    </span>
+                                                @endcan
                                                 @can('students.promote')
                                                     <span x-data="{ open: false, reason: '' }" class="inline">
                                                         <button title="Promote" type="button" class="text-emerald-600 hover:text-emerald-800" x-on:click="open=true">

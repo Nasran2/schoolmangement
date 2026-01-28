@@ -29,6 +29,66 @@
                 </div>
             @endif
 
+            <!-- Statistics Cards -->
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Total Teachers</p>
+                            <p class="mt-2 text-3xl font-bold text-gray-900">{{ $totalTeachers ?? $teachers->total() }}</p>
+                        </div>
+                        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Active Teachers</p>
+                            <p class="mt-2 text-3xl font-bold text-emerald-600">{{ $activeTeachers ?? $teachers->where('active', true)->count() }}</p>
+                        </div>
+                        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Salary Due (This Month)</p>
+                            <p class="mt-2 text-3xl font-bold text-rose-600">{{ $teachersSalaryDueCount ?? 0 }}</p>
+                        </div>
+                        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-600">Total Payable (This Month)</p>
+                            <p class="mt-2 text-3xl font-bold text-rose-600">Rs {{ number_format((float) ($totalSalaryPayable ?? 0), 2) }}</p>
+                            <p class="text-xs text-gray-500 mt-1">Unpaid active teachers</p>
+                        </div>
+                        <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a5 5 0 00-10 0v2m-2 0h14a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2v-7a2 2 0 012-2z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Search Card -->
             <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 mb-6">
                 <form method="GET" class="flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -106,35 +166,37 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                     </svg>
                                 </a>
-                                <span x-data="{ open:false }" class="inline-block">
-                                    <button type="button" x-on:click="open=true" class="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                        </svg>
-                                    </button>
-                                    <form x-ref="delForm" class="hidden" method="POST" action="{{ route('teachers.destroy', $t) }}">
-                                        @csrf
-                                        @method('DELETE')
-                                    </form>
-                                    <div x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center">
-                                        <div class="absolute inset-0 bg-black/40" x-on:click="open=false"></div>
-                                        <div class="relative z-10 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
-                                            <div class="flex items-center gap-3 mb-4">
-                                                <div class="bg-red-100 rounded-full p-2">
-                                                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                                                    </svg>
+                                @can('teachers.delete')
+                                    <span x-data="{ open:false }" class="inline-block">
+                                        <button type="button" x-on:click="open=true" class="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                        <form x-ref="delForm" class="hidden" method="POST" action="{{ route('teachers.destroy', $t) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                        </form>
+                                        <div x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center">
+                                            <div class="absolute inset-0 bg-black/40" x-on:click="open=false"></div>
+                                            <div class="relative z-10 w-full max-w-sm rounded-xl bg-white p-6 shadow-2xl">
+                                                <div class="flex items-center gap-3 mb-4">
+                                                    <div class="bg-red-100 rounded-full p-2">
+                                                        <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                                        </svg>
+                                                    </div>
+                                                    <h3 class="text-lg font-bold text-gray-900">Delete Teacher</h3>
                                                 </div>
-                                                <h3 class="text-lg font-bold text-gray-900">Delete Teacher</h3>
-                                            </div>
-                                            <p class="text-sm text-gray-600 mb-6">Are you sure you want to delete <strong>{{ $t->name }}</strong>? This action cannot be undone.</p>
-                                            <div class="flex justify-end gap-3">
-                                                <button type="button" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-all" x-on:click="open=false">Cancel</button>
-                                                <button type="button" class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all" x-on:click="$refs.delForm.submit()">Delete</button>
+                                                <p class="text-sm text-gray-600 mb-6">Are you sure you want to delete <strong>{{ $t->name }}</strong>? This action cannot be undone.</p>
+                                                <div class="flex justify-end gap-3">
+                                                    <button type="button" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-all" x-on:click="open=false">Cancel</button>
+                                                    <button type="button" class="px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-all" x-on:click="$refs.delForm.submit()">Delete</button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </span>
+                                    </span>
+                                @endcan
                             @endcan
                         </div>
                     </div>

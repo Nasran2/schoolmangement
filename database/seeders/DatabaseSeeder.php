@@ -18,5 +18,11 @@ class DatabaseSeeder extends Seeder
             RbacSeeder::class,
             DefaultRevenueCategoriesSeeder::class,
         ]);
+
+        if (env('SEED_SAMPLE_DATA', false)) {
+            $this->call([
+                SampleTeachersAndStudentsSeeder::class,
+            ]);
+        }
     }
 }

@@ -66,25 +66,29 @@
                                         <td class="px-4 py-2 text-sm text-gray-800">{{ $item->category?->name }}</td>
                                         <td class="px-4 py-2 text-right text-sm font-semibold text-gray-900">{{ number_format($item->amount, 2) }}</td>
                                         <td class="px-4 py-2 text-right text-sm">
-                                            <a href="{{ route('expense.items.edit', $item) }}" class="text-indigo-600 hover:underline">Edit</a>
-                                            <span x-data="{ open:false }" class="inline-block">
-                                                <button type="button" class="ms-2 text-red-600 hover:underline" x-on:click="open=true">Delete</button>
-                                                <form x-ref="delForm" class="hidden" method="POST" action="{{ route('expense.items.destroy', $item) }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                </form>
-                                                <div x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center">
-                                                    <div class="absolute inset-0 bg-black/40" x-on:click="open=false"></div>
-                                                    <div class="relative z-10 w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
-                                                        <div class="text-sm font-semibold text-gray-800">Delete Expense</div>
-                                                        <div class="mt-2 text-sm text-gray-600">Are you sure you want to delete this expense?</div>
-                                                        <div class="mt-4 flex justify-end gap-2">
-                                                            <button type="button" class="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50" x-on:click="open=false">Cancel</button>
-                                                            <button type="button" class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700" x-on:click="$refs.delForm.submit()">Delete</button>
+                                            @can('expense.manage')
+                                                <a href="{{ route('expense.items.edit', $item) }}" class="text-indigo-600 hover:underline">Edit</a>
+                                            @endcan
+                                            @can('expense.delete')
+                                                <span x-data="{ open:false }" class="inline-block">
+                                                    <button type="button" class="ms-2 text-red-600 hover:underline" x-on:click="open=true">Delete</button>
+                                                    <form x-ref="delForm" class="hidden" method="POST" action="{{ route('expense.items.destroy', $item) }}">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                    </form>
+                                                    <div x-cloak x-show="open" class="fixed inset-0 z-50 flex items-center justify-center">
+                                                        <div class="absolute inset-0 bg-black/40" x-on:click="open=false"></div>
+                                                        <div class="relative z-10 w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
+                                                            <div class="text-sm font-semibold text-gray-800">Delete Expense</div>
+                                                            <div class="mt-2 text-sm text-gray-600">Are you sure you want to delete this expense?</div>
+                                                            <div class="mt-4 flex justify-end gap-2">
+                                                                <button type="button" class="rounded-md border px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50" x-on:click="open=false">Cancel</button>
+                                                                <button type="button" class="rounded-md bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700" x-on:click="$refs.delForm.submit()">Delete</button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </span>
+                                                </span>
+                                            @endcan
                                         </td>
                                     </tr>
                                 @empty

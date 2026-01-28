@@ -442,6 +442,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/due', [\App\Http\Controllers\SeminarReportController::class, 'due'])->name('reports.due');
     });
 
+    // Teacher lookup (Teachers + Visiting Teachers)
+    Route::get('teacher-lookup', \App\Http\Controllers\TeacherLookupController::class)
+        ->name('teacher-lookup');
+
     // Extra classes module
     Route::prefix('extra-classes')->name('extra-classes.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ExtraClassController::class, 'index'])->name('index');

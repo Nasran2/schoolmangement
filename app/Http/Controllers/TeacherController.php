@@ -28,9 +28,35 @@ class TeacherController extends Controller
             });
         }
 
+        $teachers = (clone $query)->orderBy('name')->paginate(15)->withQueryString();
+
+        $totalTeachers = (clone $query)->count();
+        $activeTeachers = (clone $query)->where('active', true)->count();
+
+        $today = now();
+        $monthStart = $today->copy()->startOfMonth();
+        $monthEnd = $today->copy()->endOfMonth();
+        $paidTeacherIds = TeacherSalaryPayment::query()
+            ->whereBetween('paid_at', [$monthStart, $monthEnd])
+            ->distinct()
+            ->pluck('teacher_id')
+            ->filter()
+            ->values();
+
+        $dueQuery = (clone $query)
+            ->where('active', true)
+            ->when($paidTeacherIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $paidTeacherIds));
+
+        $teachersSalaryDueCount = (clone $dueQuery)->count();
+        $totalSalaryPayable = (float) (clone $dueQuery)->sum('salary_amount');
+
         return view('teachers.index', [
-            'teachers' => $query->orderBy('name')->paginate(15)->withQueryString(),
+            'teachers' => $teachers,
             'filters' => $request->only(['q']),
+            'totalTeachers' => $totalTeachers,
+            'activeTeachers' => $activeTeachers,
+            'teachersSalaryDueCount' => $teachersSalaryDueCount,
+            'totalSalaryPayable' => $totalSalaryPayable,
         ]);
     }
 

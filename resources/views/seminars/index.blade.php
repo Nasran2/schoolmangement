@@ -58,12 +58,14 @@
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900">{{ $seminar->name }}</div>
-                                            <div class="text-xs text-gray-500">
-                                                @if($seminar->visitingTeacher)
-                                                    {{ $seminar->visitingTeacher->name }}
-                                                @else
-                                                    Internal
-                                                @endif
+                                                <div class="text-xs text-gray-500">
+                                                    @if($seminar->teacher)
+                                                        {{ $seminar->teacher->name }}
+                                                    @elseif($seminar->visitingTeacher)
+                                                        {{ $seminar->visitingTeacher->name }}
+                                                    @else
+                                                        Internal
+                                                    @endif
                                             </div>
                                         </div>
                                     </div>

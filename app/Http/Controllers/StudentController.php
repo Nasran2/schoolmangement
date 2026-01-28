@@ -99,9 +99,30 @@ class StudentController extends Controller
             $query->where('alumni', false);
         }
 
+        $students = (clone $query)->orderBy('name')->paginate(15)->withQueryString();
+
+        $totalStudents = (clone $query)->count();
+        $activeStudents = (clone $query)->where('active', true)->count();
+
+        // Accurate due totals (computed when available). For larger datasets this can be slower.
+        $dueCandidates = (clone $query)->get();
+        $studentsWithDueCount = 0;
+        $totalReceivableDue = 0.0;
+        foreach ($dueCandidates as $s) {
+            $due = (float) ($s->computed_due_amount ?? $s->due_amount);
+            if ($due > 0) {
+                $studentsWithDueCount++;
+                $totalReceivableDue += $due;
+            }
+        }
+
         return view('students.index', [
-            'students' => $query->orderBy('name')->paginate(15)->withQueryString(),
+            'students' => $students,
             'filters' => $request->only(['q']) + ['status' => $status],
+            'totalStudents' => $totalStudents,
+            'activeStudents' => $activeStudents,
+            'studentsWithDueCount' => $studentsWithDueCount,
+            'totalReceivableDue' => $totalReceivableDue,
         ]);
     }
 

@@ -8,6 +8,7 @@ use App\Models\Student;
 use App\Models\SeminarStudent;
 use App\Models\SeminarTeacherPayment;
 use App\Models\Expense;
+use App\Models\Teacher;
 use App\Models\VisitingTeacher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +19,7 @@ class SeminarController extends Controller
 {
     public function index(Request $request)
     {
-        $seminarsQuery = Seminar::query()->with('visitingTeacher')->latest();
+        $seminarsQuery = Seminar::query()->with(['visitingTeacher', 'teacher'])->latest();
 
         $term = (string) ($request->query('q') ?? $request->query('search') ?? '');
         $term = trim($term);
@@ -27,6 +28,9 @@ class SeminarController extends Controller
             $seminarsQuery->where(function ($sub) use ($like) {
                 $sub->where('name', 'like', $like)
                     ->orWhereHas('visitingTeacher', function ($t) use ($like) {
+                        $t->where('name', 'like', $like);
+                    })
+                    ->orWhereHas('teacher', function ($t) use ($like) {
                         $t->where('name', 'like', $like);
                     });
             });
@@ -41,8 +45,7 @@ class SeminarController extends Controller
     {
         $classRooms = ClassRoom::query()->orderBy('name')->get();
         $students = Student::query()->orderBy('name')->limit(200)->get();
-        $visitingTeachers = VisitingTeacher::query()->orderBy('name')->get();
-        return view('seminars.create', compact('classRooms', 'students', 'visitingTeachers'));
+        return view('seminars.create', compact('classRooms', 'students'));
     }
 
     public function store(Request $request)
@@ -59,18 +62,40 @@ class SeminarController extends Controller
             'class_room_ids.*' => ['integer','exists:class_rooms,id'],
             'student_ids' => ['array'],
             'student_ids.*' => ['integer','exists:students,id'],
-            'visiting_teacher_id' => ['nullable','integer','exists:visiting_teachers,id'],
+            'teacher_id' => ['nullable','integer','exists:teachers,id','prohibits:visiting_teacher_id'],
+            'visiting_teacher_id' => ['nullable','integer','exists:visiting_teachers,id','prohibits:teacher_id'],
             'notes' => ['nullable','string'],
         ]);
 
         DB::transaction(function () use ($data) {
+            // Ensure only one type is stored.
+            if (!empty($data['teacher_id'])) {
+                $data['visiting_teacher_id'] = null;
+            }
+            if (!empty($data['visiting_teacher_id'])) {
+                $data['teacher_id'] = null;
+            }
+
             $seminar = Seminar::create($data);
+
+            // Additional classrooms (separate from primary classroom)
             if (!empty($data['class_room_ids'])) {
                 $seminar->classRooms()->sync($data['class_room_ids']);
+            }
 
-                // Auto-enroll students from selected classrooms
+            // Auto-enroll students from the primary classroom + any additional classrooms
+            $allClassRoomIds = [];
+            if (!empty($data['class_room_id'])) {
+                $allClassRoomIds[] = (int) $data['class_room_id'];
+            }
+            if (!empty($data['class_room_ids'])) {
+                $allClassRoomIds = array_merge($allClassRoomIds, array_map('intval', $data['class_room_ids']));
+            }
+            $allClassRoomIds = array_values(array_unique(array_filter($allClassRoomIds)));
+
+            if (!empty($allClassRoomIds)) {
                 $studentsFromClasses = Student::query()
-                    ->whereIn('class_room_id', $data['class_room_ids'])
+                    ->whereIn('class_room_id', $allClassRoomIds)
                     ->where('active', true)
                     ->pluck('id')
                     ->all();
@@ -104,10 +129,9 @@ class SeminarController extends Controller
     {
         $classRooms = ClassRoom::query()->orderBy('name')->get();
         $students = Student::query()->orderBy('name')->limit(200)->get();
-        $visitingTeachers = VisitingTeacher::query()->orderBy('name')->get();
         $selectedClassRooms = $seminar->classRooms()->pluck('id')->all();
         $enrolledStudentIds = $seminar->students()->pluck('student_id')->all();
-        return view('seminars.edit', compact('seminar','classRooms','students','visitingTeachers','selectedClassRooms','enrolledStudentIds'));
+        return view('seminars.edit', compact('seminar','classRooms','students','selectedClassRooms','enrolledStudentIds'));
     }
 
     public function update(Request $request, Seminar $seminar)
@@ -124,9 +148,18 @@ class SeminarController extends Controller
             'class_room_ids.*' => ['integer','exists:class_rooms,id'],
             'student_ids' => ['array'],
             'student_ids.*' => ['integer','exists:students,id'],
-            'visiting_teacher_id' => ['nullable','integer','exists:visiting_teachers,id'],
+            'teacher_id' => ['nullable','integer','exists:teachers,id','prohibits:visiting_teacher_id'],
+            'visiting_teacher_id' => ['nullable','integer','exists:visiting_teachers,id','prohibits:teacher_id'],
             'notes' => ['nullable','string'],
         ]);
+
+        // Ensure only one type is stored.
+        if (!empty($data['teacher_id'])) {
+            $data['visiting_teacher_id'] = null;
+        }
+        if (!empty($data['visiting_teacher_id'])) {
+            $data['teacher_id'] = null;
+        }
 
         DB::transaction(function () use ($data, $seminar) {
             $seminar->update($data);
@@ -134,9 +167,19 @@ class SeminarController extends Controller
 
             // Re-sync students (preserve present/paid where possible)
             $keepIds = [];
+
+            $allClassRoomIds = [];
+            if (!empty($data['class_room_id'])) {
+                $allClassRoomIds[] = (int) $data['class_room_id'];
+            }
             if (!empty($data['class_room_ids'])) {
+                $allClassRoomIds = array_merge($allClassRoomIds, array_map('intval', $data['class_room_ids']));
+            }
+            $allClassRoomIds = array_values(array_unique(array_filter($allClassRoomIds)));
+
+            if (!empty($allClassRoomIds)) {
                 $fromClasses = Student::query()
-                    ->whereIn('class_room_id', $data['class_room_ids'])
+                    ->whereIn('class_room_id', $allClassRoomIds)
                     ->where('active', true)
                     ->pluck('id')->all();
                 $keepIds = array_merge($keepIds, $fromClasses);
@@ -167,6 +210,8 @@ class SeminarController extends Controller
 
     public function show(Seminar $seminar)
     {
+        $seminar->syncEnrollmentsFromClassroomsIfEmpty();
+
         $students = $seminar->students()->with('student')->paginate(50);
         $teacherPayments = $seminar->teacherPayments()->orderByDesc('paid_at')->get();
         $teacherTarget = (float) ($seminar->teacher_payment ?? 0);

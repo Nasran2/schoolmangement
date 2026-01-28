@@ -10,6 +10,8 @@ class SeminarPaymentController extends Controller
 {
     public function index(Seminar $seminar)
     {
+        $seminar->syncEnrollmentsFromClassroomsIfEmpty();
+
         $enrollments = $seminar->students()->with('student')->orderByDesc('id')->paginate(100);
         return view('seminars.payments', compact('seminar','enrollments'));
     }
