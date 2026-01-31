@@ -34,7 +34,7 @@
     <div class="py-6 max-w-7xl mx-auto space-y-6">
         
         <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                 <div>
                     <div class="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Enrolled</div>
@@ -50,7 +50,7 @@
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                 <div>
                     <div class="text-sm font-medium text-gray-500 uppercase tracking-wide">Expected Revenue</div>
-                    <div class="text-2xl font-bold text-gray-900 mt-1">Rs {{ number_format($seminar->students()->sum('amount'), 2) }}</div>
+                    <div class="text-2xl font-bold text-gray-900 mt-1">Rs {{ number_format($expectedTotal ?? $seminar->students()->sum('amount'), 2) }}</div>
                 </div>
                 <div class="h-12 w-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -79,6 +79,23 @@
                         <path class="text-indigo-600" stroke-dasharray="{{ $rate }}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3" />
                     </svg>
                     <div class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">{{ $rate }}%</div>
+                </div>
+            </div>
+
+            @php
+                $net = (float) ($profitAfterPayouts ?? 0);
+                $netColor = $net >= 0 ? 'text-emerald-600' : 'text-red-600';
+            @endphp
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                    <div class="text-sm font-medium text-gray-500 uppercase tracking-wide">Profit / Loss</div>
+                    <div class="text-2xl font-bold mt-1 {{ $netColor }}">Rs {{ number_format($net, 2) }}</div>
+                    <div class="text-xs text-gray-500 mt-1">Collected: {{ number_format((float) ($collectedTotal ?? 0), 2) }} • Paid out: {{ number_format((float) ($teacherPaidTotal ?? 0), 2) }}</div>
+                </div>
+                <div class="h-12 w-12 {{ $net >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600' }} rounded-full flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
                 </div>
             </div>
         </div>

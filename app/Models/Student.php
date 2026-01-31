@@ -138,12 +138,20 @@ class Student extends Model
             $paidGross = (float) Revenue::query()
                 ->where('student_id', $this->id)
                 ->where('revenue_category_id', $monthlyCatId)
+                ->where(function ($q) {
+                    $q->whereNull('payment_status')
+                        ->orWhere('payment_status', 'confirmed');
+                })
                 ->sum('amount');
 
             $refunds = (float) RevenueAdjustment::query()
                 ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
                 ->where('revenues.student_id', $this->id)
                 ->where('revenues.revenue_category_id', $monthlyCatId)
+                ->where(function ($q) {
+                    $q->whereNull('revenues.payment_status')
+                        ->orWhere('revenues.payment_status', 'confirmed');
+                })
                 ->where('revenue_adjustments.type', 'refund')
                 ->sum('revenue_adjustments.amount');
 
@@ -151,6 +159,10 @@ class Student extends Model
                 ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
                 ->where('revenues.student_id', $this->id)
                 ->where('revenues.revenue_category_id', $monthlyCatId)
+                ->where(function ($q) {
+                    $q->whereNull('revenues.payment_status')
+                        ->orWhere('revenues.payment_status', 'confirmed');
+                })
                 ->where('revenue_adjustments.type', 'waiver')
                 ->sum('revenue_adjustments.amount');
         }
@@ -204,12 +216,20 @@ class Student extends Model
         $paidGross = (float) Revenue::query()
             ->where('student_id', $this->id)
             ->where('revenue_category_id', $catId)
+            ->where(function ($q) {
+                $q->whereNull('payment_status')
+                    ->orWhere('payment_status', 'confirmed');
+            })
             ->sum('amount');
 
         $refunds = (float) RevenueAdjustment::query()
             ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
             ->where('revenues.student_id', $this->id)
             ->where('revenues.revenue_category_id', $catId)
+            ->where(function ($q) {
+                $q->whereNull('revenues.payment_status')
+                    ->orWhere('revenues.payment_status', 'confirmed');
+            })
             ->where('revenue_adjustments.type', 'refund')
             ->sum('revenue_adjustments.amount');
 
@@ -225,6 +245,10 @@ class Student extends Model
             ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
             ->where('revenues.student_id', $this->id)
             ->where('revenues.revenue_category_id', $catId)
+            ->where(function ($q) {
+                $q->whereNull('revenues.payment_status')
+                    ->orWhere('revenues.payment_status', 'confirmed');
+            })
             ->where('revenue_adjustments.type', 'waiver')
             ->sum('revenue_adjustments.amount');
     }

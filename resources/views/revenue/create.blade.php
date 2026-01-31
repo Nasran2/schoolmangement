@@ -322,6 +322,112 @@
                                     </div>
                                 </div>
 
+                                {{-- Payment Method --}}
+                                <div class="mt-2">
+                                    <label class="block text-sm font-semibold text-gray-800 mb-3">Payment Method</label>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <label class="flex items-center gap-2 rounded-xl border px-4 py-3 cursor-pointer transition"
+                                            :class="formData.payment_method==='cash' ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                                            <input type="radio" name="payment_method" value="cash" class="text-indigo-600 focus:ring-indigo-500"
+                                                x-model="formData.payment_method">
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-gray-900">Cash</div>
+                                                <div class="text-xs text-gray-500">No extra details</div>
+                                            </div>
+                                        </label>
+
+                                        <label class="flex items-center gap-2 rounded-xl border px-4 py-3 cursor-pointer transition"
+                                            :class="formData.payment_method==='bank_transfer' ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                                            <input type="radio" name="payment_method" value="bank_transfer" class="text-indigo-600 focus:ring-indigo-500"
+                                                x-model="formData.payment_method">
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-gray-900">Bank Transfer</div>
+                                                <div class="text-xs text-gray-500">Ref No + Bank (optional)</div>
+                                            </div>
+                                        </label>
+
+                                        <label class="flex items-center gap-2 rounded-xl border px-4 py-3 cursor-pointer transition"
+                                            :class="formData.payment_method==='cheque' ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200' : 'border-gray-200 bg-white hover:bg-gray-50'">
+                                            <input type="radio" name="payment_method" value="cheque" class="text-indigo-600 focus:ring-indigo-500"
+                                                x-model="formData.payment_method">
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-gray-900">Cheque</div>
+                                                <div class="text-xs text-gray-500">Pending confirmation</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    @error('payment_method')
+                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                    @enderror
+
+                                    {{-- Bank Transfer Fields --}}
+                                    <div x-show="formData.payment_method === 'bank_transfer'" x-cloak class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-800 mb-3">Bank <span class="font-normal text-gray-500">(optional)</span></label>
+                                            <input type="text" name="bank_name"
+                                                class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                                placeholder="Bank name" value="{{ old('bank_name') }}">
+                                            @error('bank_name')
+                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-800 mb-3">Reference No <span class="font-normal text-gray-500">(optional)</span></label>
+                                            <input type="text" name="bank_ref_no"
+                                                class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                                placeholder="Transaction reference" value="{{ old('bank_ref_no') }}">
+                                            @error('bank_ref_no')
+                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    {{-- Cheque Fields (pending confirmation) --}}
+                                    <div x-show="formData.payment_method === 'cheque'" x-cloak class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-800 mb-3">Cheque Date</label>
+                                            <input type="date" name="cheque_date"
+                                                class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                                value="{{ old('cheque_date') }}">
+                                            @error('cheque_date')
+                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-800 mb-3">Cheque Number</label>
+                                            <input type="text" name="cheque_number"
+                                                class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                                placeholder="Cheque number" value="{{ old('cheque_number') }}">
+                                            @error('cheque_number')
+                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-800 mb-3">Bank</label>
+                                            <input type="text" name="cheque_bank"
+                                                class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                                placeholder="Bank name" value="{{ old('cheque_bank') }}">
+                                            @error('cheque_bank')
+                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-semibold text-gray-800 mb-3">Student Name <span class="font-normal text-gray-500">(optional)</span></label>
+                                            <input type="text" name="cheque_student_name"
+                                                class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                                placeholder="Student name (as on cheque)" value="{{ old('cheque_student_name') }}">
+                                            @error('cheque_student_name')
+                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div class="sm:col-span-2">
+                                            <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                                Cheque payments will be saved as <span class="font-semibold">Pending confirmation</span> until approved.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {{-- Allocation summary --}}
                                 <div x-show="categoryType === 'monthly' && selectedStudentId && formData.amount" x-cloak class="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
                                     <div class="mt-1">
@@ -616,7 +722,8 @@
                         category_id: '{{ old('revenue_category_id', $preselectedCategoryId) }}',
                         amount: '{{ old('amount') }}',
                         date: '{{ old('paid_at', date('d-m-Y')) }}',
-                        bill_no: '{{ old('bill_no', $autogenerate ? '' : ($nextBillNumberPreview ?? '')) }}'
+                        bill_no: '{{ old('bill_no', $autogenerate ? '' : ($nextBillNumberPreview ?? '')) }}',
+                        payment_method: '{{ old('payment_method', 'cash') }}',
                     },
                     categories: @json($categories),
                     categoryName: '',

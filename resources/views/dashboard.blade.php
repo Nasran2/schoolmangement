@@ -117,6 +117,100 @@
             @endcan
         </div>
 
+        @if(($pendingChequeCount ?? 0) > 0)
+            <div class="mt-6" x-data="{ open: true }" x-show="open" x-cloak>
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex items-start gap-3">
+                            <span class="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                            </span>
+                            <div class="min-w-0">
+                                <div class="text-sm font-semibold text-amber-900">Pending Cheque Confirmation</div>
+                                <div class="mt-1 text-sm text-amber-900/80">
+                                    <span class="font-semibold">{{ $pendingChequeCount }}</span> pending cheque{{ ($pendingChequeCount ?? 0) > 1 ? 's' : '' }} (Total: <span class="font-semibold">Rs {{ number_format($pendingChequeTotal ?? 0, 2) }}</span>)
+                                    @if(($pendingChequeDueCount ?? 0) > 0)
+                                        <span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{{ $pendingChequeDueCount }} due now</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            @can('revenue.manage')
+                                <a href="{{ route('revenue.cheques.index', ['status' => 'pending']) }}" class="inline-flex items-center rounded-md bg-amber-700 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-amber-800">
+                                    View Pending Cheques
+                                </a>
+                            @endcan
+                            <button type="button" class="rounded-md p-2 text-amber-800 hover:bg-amber-100" @click="open = false" aria-label="Dismiss">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    @if(($pendingCheques ?? collect())->count() > 0)
+                        <div class="mt-4 overflow-hidden rounded-md border border-amber-200 bg-white">
+                            <div class="divide-y">
+                                @foreach(($pendingCheques ?? collect()) as $item)
+                                    <div class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="min-w-0">
+                                            <div class="text-sm font-semibold text-gray-900">
+                                                Rs {{ number_format($item->amount ?? 0, 2) }}
+                                                <span class="ml-2 text-xs font-normal text-gray-600">Bill: {{ $item->bill_no ?? '—' }}</span>
+                                            </div>
+                                            <div class="mt-0.5 text-xs text-gray-700">
+                                                Cheque Date: <span class="font-semibold">{{ $item->cheque_date ? \Carbon\Carbon::parse($item->cheque_date)->format('d M Y') : '—' }}</span>
+                                                <span class="mx-2">•</span>
+                                                No: <span class="font-semibold">{{ data_get($item->payment_meta, 'cheque_number') ?? '—' }}</span>
+                                                <span class="mx-2">•</span>
+                                                Bank: <span class="font-semibold">{{ data_get($item->payment_meta, 'bank') ?? '—' }}</span>
+                                            </div>
+                                            @if($item->cheque_date)
+                                                @php
+                                                    $cd = \Carbon\Carbon::parse($item->cheque_date)->startOfDay();
+                                                    $autoOn = $cd->copy()->addDays((int)($chequeAutoPassDays ?? 14));
+                                                    $daysToAuto = \Carbon\Carbon::today()->diffInDays($autoOn, false);
+                                                @endphp
+                                                <div class="mt-0.5 text-xs text-gray-700">
+                                                    Auto-pass: 
+                                                    @if($daysToAuto > 0)
+                                                        <span class="font-semibold">in {{ $daysToAuto }} day{{ $daysToAuto > 1 ? 's' : '' }}</span>
+                                                    @elseif($daysToAuto === 0)
+                                                        <span class="font-semibold text-amber-700">today</span>
+                                                    @else
+                                                        <span class="font-semibold text-rose-700">overdue (should be auto-passed)</span>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                            <div class="mt-0.5 text-xs text-gray-700">
+                                                Student: <span class="font-semibold">{{ $item->student?->name ?? (data_get($item->payment_meta, 'student_name') ?? '—') }}</span>
+                                                @if($item->student)
+                                                    <span class="ml-2 text-[11px] text-gray-500">ID: {{ $item->student->admission_number ?? $item->student->id }}</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            @can('revenue.manage')
+                                                <form method="POST" action="{{ route('revenue.items.cheque.passed', $item) }}" onsubmit="return confirm('Mark this cheque as PASSED? It will be confirmed and counted as paid on the cheque date.');">
+                                                    @csrf
+                                                    <button type="submit" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700">Passed</button>
+                                                </form>
+                                                <form method="POST" action="{{ route('revenue.items.cheque.returned', $item) }}" onsubmit="return confirm('Mark this cheque as RETURNED? It will be rejected and will NOT count as paid.');">
+                                                    @csrf
+                                                    <button type="submit" class="inline-flex items-center rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700">Returned</button>
+                                                </form>
+                                                <a class="inline-flex items-center rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-gray-700" href="{{ route('revenue.items.edit', $item) }}">Open</a>
+                                            @endcan
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
             @can('dashboard.widget.revenue_vs_expense.view')
             <div class="xl:col-span-2 bg-white overflow-hidden shadow-sm sm:rounded-lg">

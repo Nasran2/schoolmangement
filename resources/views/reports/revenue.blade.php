@@ -26,9 +26,11 @@
                             <x-text-input 
                                 id="from" 
                                 name="from" 
-                                type="text" placeholder="DD-MM-YYYY" 
+                                type="text"
+                                data-datepicker
+                                placeholder="YYYY-MM-DD"
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
-                                :value="$filters['from'] ?? ''" 
+                                :value="$filters['from'] ?? now()->toDateString()" 
                             />
                         </div>
 
@@ -38,9 +40,11 @@
                             <x-text-input 
                                 id="to" 
                                 name="to" 
-                                type="text" placeholder="DD-MM-YYYY" 
+                                type="text"
+                                data-datepicker
+                                placeholder="YYYY-MM-DD"
                                 class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm" 
-                                :value="$filters['to'] ?? ''" 
+                                :value="$filters['to'] ?? now()->toDateString()" 
                             />
                         </div>
 

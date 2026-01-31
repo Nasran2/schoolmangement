@@ -249,6 +249,14 @@ Route::middleware('auth')->group(function () {
         Route::post('items/{item}/waiver', [RevenueAdjustmentController::class, 'waiver'])
             ->middleware('permission:revenue.manage')
             ->name('items.waiver');
+
+        // Cheque confirmation workflow
+        Route::post('items/{item}/cheque/passed', [RevenueController::class, 'markChequePassed'])
+            ->middleware('permission:revenue.manage')
+            ->name('items.cheque.passed');
+        Route::post('items/{item}/cheque/returned', [RevenueController::class, 'markChequeReturned'])
+            ->middleware('permission:revenue.manage')
+            ->name('items.cheque.returned');
         // Preview allocation for monthly payments
         Route::post('items/preview-allocation', [RevenueController::class, 'previewAllocation'])
             ->middleware('permission:revenue.add')
@@ -262,6 +270,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('items/{item}', [RevenueController::class, 'destroy'])
             ->middleware('permission:revenue.delete')
             ->name('items.destroy');
+
+        Route::get('cheques', [RevenueController::class, 'chequesIndex'])
+            ->middleware('permission:revenue.manage')
+            ->name('cheques.index');
     });
 
     // Printer slip routes

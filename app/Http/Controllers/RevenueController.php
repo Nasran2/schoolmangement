@@ -11,12 +11,99 @@ use App\Models\Student;
 use App\Services\AuditLogger;
 use App\Services\Billing\BillNumberService;
 use App\Services\Billing\MonthlyFeeAllocator;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class RevenueController extends Controller
 {
+    public function chequesIndex(Request $request): View
+    {
+        $query = Revenue::query()
+            ->with(['student', 'category'])
+            ->where('payment_method', 'cheque');
+
+        if ($request->filled('status')) {
+            $query->where('payment_status', $request->string('status'));
+        }
+
+        if ($request->filled('cheque_from')) {
+            $query->whereDate('cheque_date', '>=', $request->string('cheque_from'));
+        }
+
+        if ($request->filled('cheque_to')) {
+            $query->whereDate('cheque_date', '<=', $request->string('cheque_to'));
+        }
+
+        $state = (string) $request->query('state', '');
+        $today = Carbon::today();
+        if ($state === 'upcoming') {
+            $query->whereDate('cheque_date', '>', $today->toDateString());
+        } elseif ($state === 'due') {
+            $query->whereDate('cheque_date', '=', $today->toDateString());
+        } elseif ($state === 'overdue') {
+            $query->whereDate('cheque_date', '<', $today->toDateString());
+        }
+
+        if ($request->filled('q')) {
+            $raw = (string) $request->string('q');
+            $q = '%' . str_replace('%', '\\%', $raw) . '%';
+            $query->where(function ($sub) use ($q) {
+                $sub->where('bill_no', 'like', $q)
+                    ->orWhere('notes', 'like', $q)
+                    ->orWhere('payment_meta', 'like', $q)
+                    ->orWhereHas('student', function ($s) use ($q) {
+                        $s->where('name', 'like', $q)
+                            ->orWhere('admission_number', 'like', $q);
+                    });
+            });
+        }
+
+        return view('revenue.cheques', [
+            'items' => $query->orderByDesc('cheque_date')->orderByDesc('paid_at')->paginate(15)->withQueryString(),
+            'filters' => $request->only(['q', 'status', 'state', 'cheque_from', 'cheque_to']),
+        ]);
+    }
+
+    public function markChequePassed(Request $request, Revenue $item): RedirectResponse
+    {
+        if (($item->payment_method ?? null) !== 'cheque') {
+            return back()->withErrors(['cheque' => 'This revenue item is not a cheque payment.']);
+        }
+        if (($item->payment_status ?? 'confirmed') !== 'pending') {
+            return back()->withErrors(['cheque' => 'This cheque is not pending.']);
+        }
+
+        $paidAt = $item->cheque_date ? Carbon::parse($item->cheque_date)->toDateString() : now()->toDateString();
+
+        $item->forceFill([
+            'payment_status' => 'confirmed',
+            'confirmed_at' => now(),
+            // Per workflow: only count as paid on the cheque date (pass date)
+            'paid_at' => $paidAt,
+        ])->save();
+
+        return back()->with('success', 'Cheque marked as PASSED and payment confirmed.');
+    }
+
+    public function markChequeReturned(Request $request, Revenue $item): RedirectResponse
+    {
+        if (($item->payment_method ?? null) !== 'cheque') {
+            return back()->withErrors(['cheque' => 'This revenue item is not a cheque payment.']);
+        }
+        if (($item->payment_status ?? 'confirmed') !== 'pending') {
+            return back()->withErrors(['cheque' => 'This cheque is not pending.']);
+        }
+
+        $item->forceFill([
+            'payment_status' => 'rejected',
+            'confirmed_at' => now(),
+        ])->save();
+
+        return back()->with('success', 'Cheque marked as RETURNED. It will not count as paid.');
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -45,6 +132,14 @@ class RevenueController extends Controller
             $query->where('revenue_category_id', $request->string('category_id'));
         }
 
+        if ($request->filled('payment_method')) {
+            $query->where('payment_method', $request->string('payment_method'));
+        }
+
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->string('payment_status'));
+        }
+
         if ($request->filled('from')) {
             $query->whereDate('paid_at', '>=', $request->string('from'));
         }
@@ -56,7 +151,7 @@ class RevenueController extends Controller
         return view('revenue.index', [
             'items' => $query->orderByDesc('paid_at')->paginate(15)->withQueryString(),
             'categories' => RevenueCategory::query()->orderBy('name')->get(),
-            'filters' => $request->only(['category_id', 'from', 'to', 'q']),
+            'filters' => $request->only(['category_id', 'from', 'to', 'q', 'payment_method', 'payment_status']),
         ]);
     }
 
@@ -138,6 +233,13 @@ class RevenueController extends Controller
             'student_id' => ['nullable', 'exists:students,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'paid_at' => ['required', 'date'],
+            'payment_method' => ['nullable', 'in:cash,bank_transfer,cheque'],
+            'bank_ref_no' => ['nullable', 'string', 'max:100'],
+            'bank_name' => ['nullable', 'string', 'max:100'],
+            'cheque_date' => ['required_if:payment_method,cheque', 'nullable', 'date'],
+            'cheque_number' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
+            'cheque_bank' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
+            'cheque_student_name' => ['nullable', 'string', 'max:120'],
             // When auto-generate is enabled, user input is ignored; avoid failing validation on duplicates.
             'bill_no' => $autogenerate
                 ? ['nullable', 'string', 'max:50']
@@ -196,12 +298,45 @@ class RevenueController extends Controller
         // Notes: only save what the user typed; do not auto-generate
         $notes = $validated['notes'] ?? null;
 
+        $paymentMethod = $validated['payment_method'] ?? 'cash';
+        if (! in_array($paymentMethod, ['cash', 'bank_transfer', 'cheque'], true)) {
+            $paymentMethod = 'cash';
+        }
+
+        $paymentMeta = null;
+        $paymentStatus = 'confirmed';
+        $confirmedAt = now();
+        $chequeDate = null;
+
+        if ($paymentMethod === 'bank_transfer') {
+            $paymentMeta = [
+                'bank' => $validated['bank_name'] ?? null,
+                'ref_no' => $validated['bank_ref_no'] ?? null,
+            ];
+        }
+
+        if ($paymentMethod === 'cheque') {
+            $paymentStatus = 'pending';
+            $confirmedAt = null;
+            $chequeDate = $validated['cheque_date'] ?? null;
+            $paymentMeta = [
+                'cheque_number' => $validated['cheque_number'] ?? null,
+                'bank' => $validated['cheque_bank'] ?? null,
+                'student_name' => $validated['cheque_student_name'] ?? null,
+            ];
+        }
+
         // Create revenue AFTER successful allocation preview to avoid double-counting in ledger
         $revenue = Revenue::create([
             'bill_no' => $billNo,
             'revenue_category_id' => (int) $validated['revenue_category_id'],
             'student_id' => $validated['student_id'] ? (int) $validated['student_id'] : null,
             'amount' => $validated['amount'],
+            'payment_method' => $paymentMethod,
+            'payment_status' => $paymentStatus,
+            'payment_meta' => $paymentMeta,
+            'cheque_date' => $chequeDate,
+            'confirmed_at' => $confirmedAt,
             'paid_at' => $validated['paid_at'],
             'notes' => $notes,
             'created_by' => $request->user()?->id,

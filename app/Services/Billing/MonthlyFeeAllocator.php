@@ -106,9 +106,15 @@ class MonthlyFeeAllocator
 
         // Apply existing allocations first
         $allocs = StudentMonthFeeAllocation::query()
-            ->where('student_id', $student->id)
+            ->join('revenues', 'revenues.id', '=', 'student_month_fee_allocations.revenue_id')
+            ->where('student_month_fee_allocations.student_id', $student->id)
+            ->where(function ($q) {
+                $q->whereNull('revenues.payment_status')
+                    ->orWhere('revenues.payment_status', 'confirmed');
+            })
             ->orderBy('year')
             ->orderBy('month')
+            ->select('student_month_fee_allocations.*')
             ->get();
         foreach ($allocs as $a) {
             $key = sprintf('%04d-%02d', (int)$a->year, (int)$a->month);
@@ -124,6 +130,10 @@ class MonthlyFeeAllocator
             $legacy = Revenue::query()
                 ->where('student_id', $student->id)
                 ->where('revenue_category_id', $monthlyCatId)
+                ->where(function ($q) {
+                    $q->whereNull('payment_status')
+                        ->orWhere('payment_status', 'confirmed');
+                })
                 ->orderBy('paid_at')
                 ->get();
             foreach ($legacy as $rev) {

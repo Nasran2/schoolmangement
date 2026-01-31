@@ -218,7 +218,21 @@ class SeminarController extends Controller
         $teacherPaidTotal = $teacherPayments->sum('amount');
         $teacherDueTotal = max(0, $teacherTarget - $teacherPaidTotal);
 
-        return view('seminars.show', compact('seminar','students','teacherPayments','teacherTarget','teacherPaidTotal','teacherDueTotal'));
+        $expectedTotal = (float) $seminar->students()->sum('amount');
+        $collectedTotal = (float) $seminar->students()->where('paid', true)->sum('amount');
+        $profitAfterPayouts = $collectedTotal - (float) $teacherPaidTotal;
+
+        return view('seminars.show', compact(
+            'seminar',
+            'students',
+            'teacherPayments',
+            'teacherTarget',
+            'teacherPaidTotal',
+            'teacherDueTotal',
+            'expectedTotal',
+            'collectedTotal',
+            'profitAfterPayouts'
+        ));
     }
 
     public function storeTeacherPayment(Request $request, Seminar $seminar)

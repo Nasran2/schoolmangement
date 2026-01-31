@@ -38,14 +38,23 @@ class ReportController extends Controller
     {
         $query = Revenue::query()->with(['category', 'student']);
 
+        $isExport = $request->boolean('pdf') || $request->boolean('download');
+        $from = $request->input('from');
+        $to = $request->input('to');
+
+        // On-screen report: do not auto-filter unless user submitted a range.
+        // Exports: default to today's range if user did not submit dates.
+        $fromForQuery = $isExport ? ($from ?: now()->toDateString()) : $from;
+        $toForQuery = $isExport ? ($to ?: now()->toDateString()) : $to;
+
         if ($request->filled('category_id')) {
             $query->where('revenue_category_id', $request->string('category_id'));
         }
-        if ($request->filled('from')) {
-            $query->whereDate('paid_at', '>=', $request->string('from'));
+        if (! empty($fromForQuery)) {
+            $query->whereDate('paid_at', '>=', $fromForQuery);
         }
-        if ($request->filled('to')) {
-            $query->whereDate('paid_at', '<=', $request->string('to'));
+        if (! empty($toForQuery)) {
+            $query->whereDate('paid_at', '<=', $toForQuery);
         }
 
         $query->orderByDesc('paid_at');
@@ -59,7 +68,11 @@ class ReportController extends Controller
             $html = view('reports.revenue-pdf', [
                 'items' => $rows,
                 'totalAmount' => $totalAmount,
-                'filters' => $request->only(['category_id', 'from', 'to']),
+                'filters' => [
+                    'category_id' => $request->input('category_id'),
+                    'from' => $fromForQuery,
+                    'to' => $toForQuery,
+                ],
                 'categories' => RevenueCategory::query()->orderBy('name')->get(),
             ])->render();
 
@@ -98,7 +111,11 @@ class ReportController extends Controller
         return view('reports.revenue', [
             'items' => $query->paginate(20)->withQueryString(),
             'categories' => RevenueCategory::query()->orderBy('name')->get(),
-            'filters' => $request->only(['category_id', 'from', 'to']),
+            'filters' => [
+                'category_id' => $request->input('category_id'),
+                'from' => $from ?: now()->toDateString(),
+                'to' => $to ?: now()->toDateString(),
+            ],
         ]);
     }
 
@@ -386,8 +403,8 @@ class ReportController extends Controller
         }
 
         // Sum teacher payout actually paid for seminars
-        $teacherPaidSub = DB::table('seminar_teacher_payouts')
-            ->selectRaw('seminar_id, SUM(CASE WHEN paid = 1 THEN amount ELSE 0 END) as teacher_paid')
+        $teacherPaidSub = DB::table('seminar_teacher_payments')
+            ->selectRaw('seminar_id, SUM(amount) as teacher_paid')
             ->groupBy('seminar_id');
 
         $rows = $query

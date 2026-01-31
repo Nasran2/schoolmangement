@@ -15,6 +15,11 @@ class Revenue extends Model
         'revenue_category_id',
         'student_id',
         'amount',
+        'payment_method',
+        'payment_status',
+        'payment_meta',
+        'cheque_date',
+        'confirmed_at',
         'paid_at',
         'notes',
         'created_by',
@@ -22,6 +27,9 @@ class Revenue extends Model
 
     protected $casts = [
         'paid_at' => 'date',
+        'cheque_date' => 'date',
+        'confirmed_at' => 'datetime',
+        'payment_meta' => 'array',
         'amount' => 'decimal:2',
     ];
 

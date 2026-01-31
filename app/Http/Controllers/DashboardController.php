@@ -23,7 +23,10 @@ class DashboardController extends Controller
         $today = Carbon::today();
         [$rangeKey, $rangeLabel, $rangeStart, $rangeEnd] = $this->resolveRange($request, $today);
 
-        $revenueQuery = Revenue::query()->whereBetween('paid_at', [$rangeStart, $rangeEnd]);
+        // NOTE: pending/rejected cheques are not counted as revenue until confirmed.
+        $revenueQuery = Revenue::query()
+            ->where('payment_status', 'confirmed')
+            ->whereBetween('paid_at', [$rangeStart, $rangeEnd]);
         $expenseQuery = Expense::query()->whereBetween('expense_date', [$rangeStart, $rangeEnd]);
         $salaryQuery = TeacherSalaryPayment::query()->whereBetween('paid_at', [$rangeStart, $rangeEnd]);
 
@@ -39,7 +42,10 @@ class DashboardController extends Controller
             $rangeStart,
             $rangeEnd,
             $granularity,
-            fn ($s, $e) => (float) Revenue::query()->whereBetween('paid_at', [$s, $e])->sum('amount'),
+            fn ($s, $e) => (float) Revenue::query()
+                ->where('payment_status', 'confirmed')
+                ->whereBetween('paid_at', [$s, $e])
+                ->sum('amount'),
             fn ($s, $e) => (float) Expense::query()->whereBetween('expense_date', [$s, $e])->sum('amount') + (float) TeacherSalaryPayment::query()->whereBetween('paid_at', [$s, $e])->sum('amount'),
         );
 
@@ -133,6 +139,7 @@ class DashboardController extends Controller
 
         $recentRevenues = Revenue::query()
             ->with(['category', 'student'])
+            ->where('payment_status', 'confirmed')
             ->whereBetween('paid_at', [$rangeStart, $rangeEnd])
             ->orderByDesc('paid_at')
             ->limit(6)
@@ -226,10 +233,59 @@ class DashboardController extends Controller
         $activityActions = AuditLog::query()->select('action')->distinct()->orderBy('action')->pluck('action');
         $activityUsers = User::query()->orderBy('name')->limit(50)->get(['id', 'name']);
 
+        // Auto-pass pending cheques after N days from cheque_date.
+        // This is also scheduled in routes/console.php, but running here keeps UI consistent even without cron.
+        $chequeAutoPassDays = 14;
+        try {
+            $chequeAutoPassDays = (int) (app('settings')->get('cheques.auto_pass_days', '14') ?: 14);
+            $chequeAutoPassDays = max(1, min(90, $chequeAutoPassDays));
+        } catch (\Throwable $e) {
+            $chequeAutoPassDays = 14;
+        }
+
+        Revenue::query()
+            ->where('payment_method', 'cheque')
+            ->where('payment_status', 'pending')
+            ->whereNotNull('cheque_date')
+            ->whereDate('cheque_date', '<=', $today->copy()->subDays($chequeAutoPassDays)->toDateString())
+            ->update([
+                'payment_status' => 'confirmed',
+                'confirmed_at' => now(),
+                'paid_at' => DB::raw('cheque_date'),
+            ]);
+
+        // Show dashboard alert ONLY when the cheque date has arrived.
+        // Keep showing until auto-pass day (same window as auto-pass).
+        $chequeAlertDays = $chequeAutoPassDays;
+        $chequeAlertStart = $today->copy()->subDays($chequeAlertDays)->startOfDay();
+        $chequeAlertEnd = $today->copy()->endOfDay();
+
+        $pendingChequeQuery = Revenue::query()
+            ->with(['student'])
+            ->where('payment_method', 'cheque')
+            ->where('payment_status', 'pending')
+            ->whereNotNull('cheque_date')
+            ->whereBetween('cheque_date', [$chequeAlertStart, $chequeAlertEnd]);
+
+        $pendingChequeCount = (int) $pendingChequeQuery->clone()->count();
+        $pendingChequeTotal = (float) $pendingChequeQuery->clone()->sum('amount');
+        $pendingChequeDueCount = $pendingChequeCount;
+
+        $pendingCheques = $pendingChequeQuery->clone()
+            ->orderBy('cheque_date')
+            ->orderByDesc('paid_at')
+            ->limit(5)
+            ->get();
+
         return view('dashboard', [
             'totalRevenue' => $totalRevenue,
             'totalExpenses' => $totalExpenses,
             'netProfit' => $netProfit,
+            'pendingChequeCount' => $pendingChequeCount,
+            'pendingChequeDueCount' => $pendingChequeDueCount,
+            'pendingChequeTotal' => $pendingChequeTotal,
+            'pendingCheques' => $pendingCheques,
+            'chequeAutoPassDays' => $chequeAutoPassDays,
             'dueStudents' => $dueStudents,
             'dueTeachers' => $dueTeachers,
             'dueTeachersTotal' => $dueTeachersTotal,
