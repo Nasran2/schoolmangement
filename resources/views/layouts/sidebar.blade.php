@@ -209,14 +209,33 @@
                     <svg class="h-4 w-4 transition" :class="open.reports ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="open.reports" class="mt-1 space-y-1 pl-8" x-cloak>
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.index') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.index') }}">All Reports</a>
+                    @can('reports.download')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.exports') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.exports') }}">Advanced Exports</a>
+                    @endcan
                     @can('reports.revenue.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.revenue') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.revenue') }}">Revenue</a>
                     @endcan
                     @can('reports.expense.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.expense') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.expense') }}">Expense</a>
                     @endcan
+                    @can('reports.outflows.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.outflows') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.outflows') }}">All Outflows</a>
+                    @endcan
                     @can('reports.financial.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.financial') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.financial') }}">Financial</a>
+                    @endcan
+                    @can('reports.daily_ledger.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.daily_ledger') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.daily_ledger') }}">Daily Ledger</a>
+                    @endcan
+                    @can('reports.cash_transactions.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.cash_transactions') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.cash_transactions') }}">Cash Transactions</a>
+                    @endcan
+                    @can('reports.bank_transactions.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.bank_transactions') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.bank_transactions') }}">Bank Transactions</a>
+                    @endcan
+                    @can('reports.cheque_history.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.cheque_history') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.cheque_history') }}">Cheque History</a>
                     @endcan
                     @can('reports.student_due.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.student_due') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.student_due') }}">Student Due</a>
@@ -230,8 +249,14 @@
                     @can('reports.teacher_epf.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.teacher_epf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.teacher_epf') }}">Teacher EPF</a>
                     @endcan
+                    @can('reports.company_epf.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.company_epf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.company_epf') }}">Company EPF</a>
+                    @endcan
                     @can('reports.teacher_etf.view')
-                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.teacher_etf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.teacher_etf') }}">Teacher ETF</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.teacher_etf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.teacher_etf') }}">Company ETF</a>
+                    @endcan
+                    @can('reports.epf_etf_totals.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.epf_etf_totals') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.epf_etf_totals') }}">EPF/ETF Totals</a>
                     @endcan
                     @can('reports.fee_collection_summary.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.fee_collection_summary') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.fee_collection_summary') }}">Fee Collection Summary</a>
@@ -251,12 +276,29 @@
                     @can('reports.fee_refunds.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.fee_refunds') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.fee_refunds') }}">Refund/Cancellation</a>
                     @endcan
-                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.seminars_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.seminars_collection') }}">Seminars Collection</a>
-                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.extra_classes_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.extra_classes_collection') }}">Extra Classes Collection</a>
+                    @can('reports.seminars_collection.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.seminars_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.seminars_collection') }}">Seminars Collection</a>
+                    @endcan
+                    @can('reports.extra_classes_collection.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.extra_classes_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.extra_classes_collection') }}">Extra Classes Collection</a>
+                    @endcan
+                </div>
             </div>
         @endcan
 
-        @canany(['settings.manage','roles.manage'])
+        @canany([
+            'settings.manage',
+            'settings.general.manage',
+            'settings.status.view',
+            'settings.promotion.manage',
+            'settings.printer.manage',
+            'settings.sms.manage',
+            'settings.email.manage',
+            'settings.salary_components.manage',
+            'settings.backups.manage',
+            'settings.opening_balance.manage',
+            'roles.manage',
+        ])
             <div class="mt-2">
                 <button type="button" @click="open.settings = !open.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isSettings ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -266,16 +308,33 @@
                     <svg class="h-4 w-4 transition" :class="open.settings ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="open.settings" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @can('settings.manage')
+                    @canany(['settings.manage','settings.general.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.general.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.general.edit') }}">School General</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.status.view'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.status.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.status.index') }}">System Status</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.promotion.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.promotion.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.promotion.edit') }}">Promotion</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.printer.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.printer.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.printer.edit') }}">Printer</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.sms.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.sms.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.sms.edit') }}">SMS</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.email.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.email.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.email.edit') }}">Email (SMTP)</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.salary_components.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.salary-components.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.salary-components.edit') }}">Salary Components</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.backups.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.backups.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.backups.index') }}">Backups</a>
-                    @endcan
+                    @endcanany
+                    @canany(['settings.manage','settings.opening_balance.manage'])
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.opening-balance.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.opening-balance.edit') }}">Opening Balance</a>
+                    @endcanany
                     @can('roles.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('rbac.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('rbac.roles.index') }}">Roles & Permissions</a>
                     @endcan
@@ -508,14 +567,33 @@
                     <svg class="h-4 w-4 transition" :class="menus.reports ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="menus.reports" class="mt-1 space-y-1 pl-8" x-cloak>
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.index') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.index') }}">All Reports</a>
+                    @can('reports.download')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.exports') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.exports') }}">Advanced Exports</a>
+                    @endcan
                     @can('reports.revenue.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.revenue') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.revenue') }}">Revenue</a>
                     @endcan
                     @can('reports.expense.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.expense') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.expense') }}">Expense</a>
                     @endcan
+                    @can('reports.outflows.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.outflows') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.outflows') }}">All Outflows</a>
+                    @endcan
                     @can('reports.financial.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.financial') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.financial') }}">Financial</a>
+                    @endcan
+                    @can('reports.daily_ledger.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.daily_ledger') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.daily_ledger') }}">Daily Ledger</a>
+                    @endcan
+                    @can('reports.cash_transactions.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.cash_transactions') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.cash_transactions') }}">Cash Transactions</a>
+                    @endcan
+                    @can('reports.bank_transactions.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.bank_transactions') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.bank_transactions') }}">Bank Transactions</a>
+                    @endcan
+                    @can('reports.cheque_history.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.cheque_history') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.cheque_history') }}">Cheque History</a>
                     @endcan
                     @can('reports.student_due.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.student_due') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.student_due') }}">Student Due</a>
@@ -529,8 +607,14 @@
                     @can('reports.teacher_epf.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.teacher_epf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.teacher_epf') }}">Teacher EPF</a>
                     @endcan
+                    @can('reports.company_epf.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.company_epf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.company_epf') }}">Company EPF</a>
+                    @endcan
                     @can('reports.teacher_etf.view')
-                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.teacher_etf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.teacher_etf') }}">Teacher ETF</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.teacher_etf') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.teacher_etf') }}">Company ETF</a>
+                    @endcan
+                    @can('reports.epf_etf_totals.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.epf_etf_totals') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.epf_etf_totals') }}">EPF/ETF Totals</a>
                     @endcan
                     @can('reports.fee_collection_summary.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.fee_collection_summary') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.fee_collection_summary') }}">Fee Collection Summary</a>
@@ -550,12 +634,29 @@
                     @can('reports.fee_refunds.view')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.fee_refunds') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.fee_refunds') }}">Refund/Cancellation</a>
                     @endcan
-                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.seminars_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.seminars_collection') }}">Seminars Collection</a>
-                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.extra_classes_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.extra_classes_collection') }}">Extra Classes Collection</a>
+                    @can('reports.seminars_collection.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.seminars_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.seminars_collection') }}">Seminars Collection</a>
+                    @endcan
+                    @can('reports.extra_classes_collection.view')
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.extra_classes_collection') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.extra_classes_collection') }}">Extra Classes Collection</a>
+                    @endcan
+                </div>
             </div>
         @endcan
 
-        @canany(['settings.manage','roles.manage'])
+        @canany([
+            'settings.manage',
+            'settings.general.manage',
+            'settings.status.view',
+            'settings.promotion.manage',
+            'settings.printer.manage',
+            'settings.sms.manage',
+            'settings.email.manage',
+            'settings.salary_components.manage',
+            'settings.backups.manage',
+            'settings.opening_balance.manage',
+            'roles.manage',
+        ])
             <div class="mt-2">
                 <button type="button" @click="menus.settings = !menus.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isSettings ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -565,14 +666,33 @@
                     <svg class="h-4 w-4 transition" :class="menus.settings ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="menus.settings" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @can('settings.manage')
+                    @canany(['settings.manage','settings.general.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.general.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.general.edit') }}">School General</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.status.view'])
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.status.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.status.index') }}">System Status</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.promotion.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.promotion.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.promotion.edit') }}">Promotion</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.printer.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.printer.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.printer.edit') }}">Printer</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.sms.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.sms.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.sms.edit') }}">SMS</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.email.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.email.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.email.edit') }}">Email (SMTP)</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.salary_components.manage'])
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.salary-components.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.salary-components.edit') }}">Salary Components</a>
-                    @endcan
+                    @endcanany
+                    @canany(['settings.manage','settings.backups.manage'])
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.backups.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.backups.index') }}">Backups</a>
+                    @endcanany
+                    @canany(['settings.manage','settings.opening_balance.manage'])
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.opening-balance.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.opening-balance.edit') }}">Opening Balance</a>
+                    @endcanany
                     @can('roles.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('rbac.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('rbac.roles.index') }}">Roles & Permissions</a>
                     @endcan

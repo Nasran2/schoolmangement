@@ -212,6 +212,12 @@ class ExtraClassController extends Controller
         $data = $request->validate([
             'extra_class_student_id' => ['required', 'integer', 'exists:extra_class_students,id'],
             'days' => ['required', 'integer', 'min:1'],
+            'payment_method' => ['nullable', 'in:cash,bank_transfer,cheque'],
+            'bank_name' => ['required_if:payment_method,bank_transfer', 'nullable', 'string', 'max:120'],
+            'bank_ref_no' => ['nullable', 'string', 'max:120'],
+            'cheque_date' => ['required_if:payment_method,cheque', 'nullable', 'date'],
+            'cheque_number' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
+            'cheque_bank' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
         ]);
 
         $enrollment = ExtraClassStudent::where('extra_class_id', $extraClass->id)
@@ -226,7 +232,34 @@ class ExtraClassController extends Controller
         $amountPerDay = $enrollment->amount ?: $extraClass->fee;
         $totalAmount = $amountPerDay * $data['days'];
 
-        DB::transaction(function () use ($enrollment, $totalAmount, $category, $data, $extraClass) {
+        $paymentMethod = $data['payment_method'] ?? 'cash';
+        if (! in_array($paymentMethod, ['cash', 'bank_transfer', 'cheque'], true)) {
+            $paymentMethod = 'cash';
+        }
+
+        $paymentMeta = null;
+        $paymentStatus = 'confirmed';
+        $confirmedAt = now();
+        $chequeDate = null;
+
+        if ($paymentMethod === 'bank_transfer') {
+            $paymentMeta = [
+                'bank' => $data['bank_name'] ?? null,
+                'ref_no' => $data['bank_ref_no'] ?? null,
+            ];
+        }
+
+        if ($paymentMethod === 'cheque') {
+            $paymentStatus = 'pending';
+            $confirmedAt = null;
+            $chequeDate = $data['cheque_date'] ?? null;
+            $paymentMeta = [
+                'cheque_number' => $data['cheque_number'] ?? null,
+                'bank' => $data['cheque_bank'] ?? null,
+            ];
+        }
+
+        DB::transaction(function () use ($enrollment, $totalAmount, $category, $data, $extraClass, $paymentMethod, $paymentStatus, $paymentMeta, $chequeDate, $confirmedAt) {
             // Create Revenue
             $billNo = app(\App\Services\Billing\BillNumberService::class)->nextRevenueBillNumber();
             \App\Models\Revenue::create([
@@ -234,6 +267,11 @@ class ExtraClassController extends Controller
                 'revenue_category_id' => $category->id,
                 'student_id' => $enrollment->student_id,
                 'amount' => $totalAmount,
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentStatus,
+                'payment_meta' => $paymentMeta,
+                'cheque_date' => $chequeDate,
+                'confirmed_at' => $confirmedAt,
                 'paid_at' => now(),
                 'notes' => "Payment for {$extraClass->name} - {$data['days']} days",
                 'created_by' => Auth::id(),

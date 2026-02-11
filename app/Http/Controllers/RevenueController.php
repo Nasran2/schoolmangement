@@ -75,16 +75,23 @@ class RevenueController extends Controller
             return back()->withErrors(['cheque' => 'This cheque is not pending.']);
         }
 
-        $paidAt = $item->cheque_date ? Carbon::parse($item->cheque_date)->toDateString() : now()->toDateString();
+        $passedDate = (string) ($request->input('passed_date') ?: now()->toDateString());
+        try {
+            $passedDate = Carbon::parse($passedDate)->toDateString();
+        } catch (\Throwable $e) {
+            return back()->withErrors(['passed_date' => 'Invalid passed date. Use YYYY-MM-DD.']);
+        }
+
+        $confirmedAt = Carbon::parse($passedDate)->setTimeFrom(now());
 
         $item->forceFill([
             'payment_status' => 'confirmed',
-            'confirmed_at' => now(),
-            // Per workflow: only count as paid on the cheque date (pass date)
-            'paid_at' => $paidAt,
+            // Store the user-selected pass date
+            'confirmed_at' => $confirmedAt,
+            'paid_at' => $passedDate,
         ])->save();
 
-        return back()->with('success', 'Cheque marked as PASSED and payment confirmed.');
+        return back()->with('success', 'Cheque marked as PASSED on ' . $passedDate . '.');
     }
 
     public function markChequeReturned(Request $request, Revenue $item): RedirectResponse
@@ -99,6 +106,8 @@ class RevenueController extends Controller
         $item->forceFill([
             'payment_status' => 'rejected',
             'confirmed_at' => now(),
+            // Returned cheques must not count as paid
+            'paid_at' => null,
         ])->save();
 
         return back()->with('success', 'Cheque marked as RETURNED. It will not count as paid.');

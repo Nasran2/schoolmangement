@@ -31,6 +31,7 @@
                             <select 
                                 id="teacher_id" 
                                 name="teacher_id" 
+                                data-searchable-select
                                 class="mt-1 block w-full border-gray-300 focus:border-green-500 focus:ring-green-500 rounded-lg shadow-sm"
                             >
                                 <option value="">All Teachers</option>
@@ -155,7 +156,7 @@
                                 <th class="px-6 py-3 text-left font-semibold text-gray-700">Teacher</th>
                                 <th class="px-6 py-3 text-left font-semibold text-gray-700">Month</th>
                                 <th class="px-6 py-3 text-left font-semibold text-gray-700">Date</th>
-                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Base Salary</th>
+                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Total Salary</th>
                                 <th class="px-6 py-3 text-right font-semibold text-gray-700">Deductions</th>
                                 <th class="px-6 py-3 text-right font-semibold text-gray-700">Net Amount</th>
                                 <th class="px-6 py-3 text-center font-semibold text-gray-700">Actions</th>

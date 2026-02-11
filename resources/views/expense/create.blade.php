@@ -33,6 +33,69 @@
                             </div>
                         </div>
 
+                        @php
+                            $pm = old('payment_method', 'cash');
+                        @endphp
+
+                        <div x-data="{ pm: '{{ $pm }}' }">
+                            <x-input-label :value="__('Payment Method')" />
+
+                            <div class="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer" :class="pm==='cash' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'">
+                                    <input type="radio" name="payment_method" value="cash" class="mt-1" x-model="pm">
+                                    <div>
+                                        <div class="text-sm font-semibold text-gray-900">Cash</div>
+                                        <div class="text-xs text-gray-500">No extra details</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer" :class="pm==='bank_transfer' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'">
+                                    <input type="radio" name="payment_method" value="bank_transfer" class="mt-1" x-model="pm">
+                                    <div>
+                                        <div class="text-sm font-semibold text-gray-900">Bank Transfer</div>
+                                        <div class="text-xs text-gray-500">Ref no + Bank</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-start gap-3 rounded-lg border p-3 cursor-pointer" :class="pm==='cheque' ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'">
+                                    <input type="radio" name="payment_method" value="cheque" class="mt-1" x-model="pm">
+                                    <div>
+                                        <div class="text-sm font-semibold text-gray-900">Cheque</div>
+                                        <div class="text-xs text-gray-500">Cheque details</div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div x-show="pm === 'bank_transfer'" x-cloak class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <x-input-label for="bank_name" :value="__('Bank Name')" />
+                                    <x-text-input id="bank_name" name="bank_name" type="text" class="mt-1 block w-full" :value="old('bank_name')" />
+                                    <x-input-error class="mt-2" :messages="$errors->get('bank_name')" />
+                                </div>
+                                <div>
+                                    <x-input-label for="bank_ref_no" :value="__('Reference No (optional)')" />
+                                    <x-text-input id="bank_ref_no" name="bank_ref_no" type="text" class="mt-1 block w-full" :value="old('bank_ref_no')" />
+                                    <x-input-error class="mt-2" :messages="$errors->get('bank_ref_no')" />
+                                </div>
+                            </div>
+
+                            <div x-show="pm === 'cheque'" x-cloak class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <x-input-label for="cheque_date" :value="__('Cheque Date')" />
+                                    <x-text-input id="cheque_date" name="cheque_date" type="date" class="mt-1 block w-full" :value="old('cheque_date')" />
+                                    <x-input-error class="mt-2" :messages="$errors->get('cheque_date')" />
+                                </div>
+                                <div>
+                                    <x-input-label for="cheque_number" :value="__('Cheque Number')" />
+                                    <x-text-input id="cheque_number" name="cheque_number" type="text" class="mt-1 block w-full" :value="old('cheque_number')" />
+                                    <x-input-error class="mt-2" :messages="$errors->get('cheque_number')" />
+                                </div>
+                                <div class="sm:col-span-2">
+                                    <x-input-label for="cheque_bank" :value="__('Bank (on cheque)')" />
+                                    <x-text-input id="cheque_bank" name="cheque_bank" type="text" class="mt-1 block w-full" :value="old('cheque_bank')" />
+                                    <x-input-error class="mt-2" :messages="$errors->get('cheque_bank')" />
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
                             <x-input-label for="notes" :value="__('Notes (optional)')" />
                             <textarea id="notes" name="notes" class="mt-1 block w-full rounded-md border-gray-300" rows="3">{{ old('notes') }}</textarea>

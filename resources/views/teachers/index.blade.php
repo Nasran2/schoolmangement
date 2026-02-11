@@ -1,4 +1,7 @@
 <x-app-layout>
+    @php
+        $canViewSalaryAmounts = auth()->user()?->can('teachers.salary.amounts.view') ?? false;
+    @endphp
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div>
@@ -77,8 +80,12 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm font-medium text-gray-600">Total Payable (This Month)</p>
-                            <p class="mt-2 text-3xl font-bold text-rose-600">Rs {{ number_format((float) ($totalSalaryPayable ?? 0), 2) }}</p>
-                            <p class="text-xs text-gray-500 mt-1">Unpaid active teachers</p>
+                            @if($canViewSalaryAmounts)
+                                <p class="mt-2 text-3xl font-bold text-rose-600">Rs {{ number_format((float) ($totalSalaryPayable ?? 0), 2) }}</p>
+                                <p class="text-xs text-gray-500 mt-1">Unpaid active teachers</p>
+                            @else
+                                <p class="mt-2 text-xl font-semibold text-gray-500">No permission</p>
+                            @endif
                         </div>
                         <div class="inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-white">
@@ -150,7 +157,11 @@
                             <div class="pt-3 border-t border-gray-100">
                                 <div class="flex items-center justify-between">
                                     <span class="text-xs font-semibold text-gray-500 uppercase">Monthly Salary</span>
-                                    <span class="text-xl font-bold text-green-600">Rs {{ number_format($t->salary_amount, 2) }}</span>
+                                    @if($canViewSalaryAmounts)
+                                        <span class="text-xl font-bold text-green-600">Rs {{ number_format($t->salary_amount, 2) }}</span>
+                                    @else
+                                        <span class="text-sm font-semibold text-gray-500">No permission</span>
+                                    @endif
                                 </div>
                             </div>
                         </div>

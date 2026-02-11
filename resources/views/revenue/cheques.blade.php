@@ -16,7 +16,7 @@
         </div>
     </x-slot>
 
-    <div class="py-10 bg-gradient-to-b from-slate-50 to-white">
+    <div class="py-10 bg-gradient-to-b from-slate-50 to-white" x-data="{ passModal: false, passAction: '', passMode: 'today', passDate: '{{ now()->toDateString() }}', today: '{{ now()->toDateString() }}' }">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             @if (session('success'))
                 <div class="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-800 shadow-sm">{{ session('success') }}</div>
@@ -149,10 +149,11 @@
                                         <div class="inline-flex items-center gap-2">
                                             @can('revenue.manage')
                                                 @if(($item->payment_status ?? 'confirmed') === 'pending')
-                                                    <form method="POST" action="{{ route('revenue.items.cheque.passed', $item) }}" onsubmit="return confirm('Mark this cheque as PASSED? It will be confirmed and counted as paid on the cheque date.');">
-                                                        @csrf
-                                                        <button type="submit" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700">Passed</button>
-                                                    </form>
+                                                    <button type="button"
+                                                        class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700"
+                                                        @click="passAction='{{ route('revenue.items.cheque.passed', $item) }}'; passMode='today'; passDate=today; passModal=true">
+                                                        Passed
+                                                    </button>
                                                     <form method="POST" action="{{ route('revenue.items.cheque.returned', $item) }}" onsubmit="return confirm('Mark this cheque as RETURNED? It will be rejected and will NOT count as paid.');">
                                                         @csrf
                                                         <button type="submit" class="inline-flex items-center rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700">Returned</button>
@@ -173,6 +174,43 @@
                 </div>
 
                 <div class="px-6 py-4 border-t border-gray-100">{{ $items->links() }}</div>
+            </div>
+
+            <div x-show="passModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+                <div class="absolute inset-0 bg-black/40" @click="passModal=false"></div>
+                <div class="relative w-full max-w-lg rounded-xl bg-white shadow-xl">
+                    <div class="px-6 py-4 border-b">
+                        <div class="text-base font-semibold text-gray-900">Mark Cheque as Passed</div>
+                        <div class="text-sm text-gray-600 mt-1">Choose the passed date (today or custom)</div>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 text-sm text-gray-800">
+                                <input type="radio" class="text-indigo-600" value="today" x-model="passMode">
+                                <span>Today (<span class="font-semibold" x-text="today"></span>)</span>
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-gray-800">
+                                <input type="radio" class="text-indigo-600" value="custom" x-model="passMode">
+                                <span>Custom date</span>
+                            </label>
+                        </div>
+
+                        <div>
+                            <x-input-label for="passed_date2" :value="__('Passed Date')" class="font-semibold mb-2" />
+                            <input id="passed_date2" type="date" class="block w-full border-gray-300 rounded-lg"
+                                x-model="passDate" :disabled="passMode !== 'custom'">
+                            <p class="text-xs text-gray-500 mt-1">You can select or type the date.</p>
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 border-t flex items-center justify-end gap-2">
+                        <button type="button" class="inline-flex items-center rounded-md bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200" @click="passModal=false">Cancel</button>
+                        <form method="POST" :action="passAction">
+                            @csrf
+                            <input type="hidden" name="passed_date" :value="passMode === 'today' ? today : passDate">
+                            <button type="submit" class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700">Confirm Passed</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

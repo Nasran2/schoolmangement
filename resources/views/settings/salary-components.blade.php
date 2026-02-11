@@ -62,17 +62,24 @@
                     <div class="mt-8 border-t pt-6">
                         <h3 class="text-lg font-semibold text-gray-800 mb-2">EPF / ETF Percentages</h3>
                         <p class="text-sm text-gray-500 mb-4">These percentages are applied only on the teacher's basic salary.</p>
-                        <div class="grid md:grid-cols-2 gap-6">
+
+                        <div class="grid md:grid-cols-3 gap-6">
                             <div>
-                                <label for="epf_percent" class="text-sm font-medium text-gray-700">EPF (%)</label>
-                                <input id="epf_percent" name="epf_percent" type="number" step="0.01" min="0" max="100"
-                                       value="{{ old('epf_percent', $epfPercent ?? 0) }}"
+                                <label for="employee_epf_percent" class="text-sm font-medium text-gray-700">Employee EPF (%)</label>
+                                <input id="employee_epf_percent" name="employee_epf_percent" type="number" step="0.01" min="0" max="100"
+                                       value="{{ old('employee_epf_percent', $employeeEpfPercent ?? 0) }}"
                                        class="mt-1 block w-full border-gray-300 rounded-md focus:border-blue-500 focus:ring-blue-500" />
                             </div>
                             <div>
-                                <label for="etf_percent" class="text-sm font-medium text-gray-700">ETF (%)</label>
-                                <input id="etf_percent" name="etf_percent" type="number" step="0.01" min="0" max="100"
-                                       value="{{ old('etf_percent', $etfPercent ?? 0) }}"
+                                <label for="employer_epf_percent" class="text-sm font-medium text-gray-700">Company EPF (%)</label>
+                                <input id="employer_epf_percent" name="employer_epf_percent" type="number" step="0.01" min="0" max="100"
+                                       value="{{ old('employer_epf_percent', $employerEpfPercent ?? 12) }}"
+                                       class="mt-1 block w-full border-gray-300 rounded-md focus:border-blue-500 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label for="employer_etf_percent" class="text-sm font-medium text-gray-700">Company ETF (%)</label>
+                                <input id="employer_etf_percent" name="employer_etf_percent" type="number" step="0.01" min="0" max="100"
+                                       value="{{ old('employer_etf_percent', $employerEtfPercent ?? 3) }}"
                                        class="mt-1 block w-full border-gray-300 rounded-md focus:border-blue-500 focus:ring-blue-500" />
                             </div>
                         </div>

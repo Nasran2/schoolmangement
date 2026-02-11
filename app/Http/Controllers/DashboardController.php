@@ -251,7 +251,7 @@ class DashboardController extends Controller
             ->update([
                 'payment_status' => 'confirmed',
                 'confirmed_at' => now(),
-                'paid_at' => DB::raw('cheque_date'),
+                'paid_at' => now()->toDateString(),
             ]);
 
         // Show dashboard alert ONLY when the cheque date has arrived.

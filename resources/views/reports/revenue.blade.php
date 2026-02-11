@@ -100,6 +100,17 @@
                                     </svg>
                                     CSV
                                 </a>
+
+                                <a
+                                    class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition shadow-sm"
+                                    href="{{ route('reports.revenue', array_merge(request()->query(), ['excel' => 1])) }}"
+                                    title="Download as Excel"
+                                >
+                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7.414A2 2 0 0016.414 6L14 3.586A2 2 0 0012.586 3H5zm7 2H5v10h10V8h-3a1 1 0 01-1-1V5z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Excel
+                                </a>
                             @endcan
                         </div>
                     </form>

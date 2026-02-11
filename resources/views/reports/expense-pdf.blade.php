@@ -258,6 +258,18 @@
             </div>
         @endif
 
+        @if (!empty($includeSalary))
+            <div class="filters" style="margin-top: -10px;">
+                <h3>Extra Inclusion</h3>
+                <div class="filter-row" style="grid-template-columns: 1fr;">
+                    <div class="filter-item">
+                        <strong>Include Salary Payments</strong>
+                        <span>Yes</span>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <!-- Summary Cards -->
         <div class="summary">
             <div class="summary-card blue">
@@ -312,6 +324,32 @@
                 </div>
             @endif
         </div>
+
+        @if (!empty($includeSalary) && isset($salaryPayments) && $salaryPayments->count())
+            <div class="table-section">
+                <h3>Salary Payments</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Teacher</th>
+                            <th>Notes</th>
+                            <th style="text-align:right;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($salaryPayments as $p)
+                            <tr>
+                                <td>{{ optional($p->paid_at)->format('M d, Y') }}</td>
+                                <td>{{ $p->teacher?->name ?? '—' }}</td>
+                                <td>{{ $p->notes ?? '-' }}</td>
+                                <td class="amount">{{ number_format((float)$p->amount, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
         <!-- Footer -->
         <div class="footer">

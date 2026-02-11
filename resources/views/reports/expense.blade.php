@@ -19,7 +19,7 @@
                 </div>
                 
                 <div class="p-8">
-                    <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                    <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
                         <!-- From Date -->
                         <div>
                             <x-input-label for="from" :value="__('From Date')" class="font-semibold mb-2" />
@@ -61,6 +61,15 @@
                             </select>
                         </div>
 
+                        <!-- Include Salary Payments -->
+                        <div class="flex items-end">
+                            <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                <input type="checkbox" name="include_salary" value="1" class="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                                    {{ request()->boolean('include_salary') ? 'checked' : '' }}>
+                                <span class="font-semibold">Include Salary Payments</span>
+                            </label>
+                        </div>
+
                         <!-- Action Buttons -->
                         <div class="flex items-end gap-2 col-span-1 lg:col-span-2">
                             <button 
@@ -96,6 +105,17 @@
                                     </svg>
                                     CSV
                                 </a>
+
+                                <a
+                                    class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition shadow-sm"
+                                    href="{{ route('reports.expense', array_merge(request()->query(), ['excel' => 1])) }}"
+                                    title="Download as Excel"
+                                >
+                                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5 3a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2V7.414A2 2 0 0016.414 6L14 3.586A2 2 0 0012.586 3H5zm7 2H5v10h10V8h-3a1 1 0 01-1-1V5z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    Excel
+                                </a>
                             @endcan
                         </div>
                     </form>
@@ -108,7 +128,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-gray-600 font-medium">Total Transactions</p>
-                            <p class="text-3xl font-bold text-gray-900 mt-2">{{ $items->total() }}</p>
+                            <p class="text-3xl font-bold text-gray-900 mt-2">{{ (int)($summary['total_count'] ?? $items->total()) }}</p>
                         </div>
                         <div class="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center">
                             <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
@@ -122,7 +142,10 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-gray-600 font-medium">Total Expenses</p>
-                            <p class="text-3xl font-bold text-red-600 mt-2">Rs {{ number_format($items->sum('amount'), 2) }}</p>
+                            <p class="text-3xl font-bold text-red-600 mt-2">Rs {{ number_format((float)($summary['total_amount'] ?? $items->sum('amount')), 2) }}</p>
+                            @if (!empty($includeSalary))
+                                <p class="text-xs text-gray-600 mt-1">Expense: Rs {{ number_format((float)($summary['expense_amount'] ?? 0), 2) }} · Salary: Rs {{ number_format((float)($summary['salary_amount'] ?? 0), 2) }}</p>
+                            @endif
                         </div>
                         <div class="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center">
                             <svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
@@ -136,7 +159,7 @@
                     <div class="flex items-center justify-between">
                         <div>
                             <p class="text-sm text-gray-600 font-medium">Average Amount</p>
-                            <p class="text-3xl font-bold text-orange-600 mt-2">Rs {{ number_format($items->avg('amount') ?? 0, 2) }}</p>
+                            <p class="text-3xl font-bold text-orange-600 mt-2">Rs {{ number_format((float)($summary['avg_amount'] ?? ($items->avg('amount') ?? 0)), 2) }}</p>
                         </div>
                         <div class="h-12 w-12 rounded-lg bg-orange-100 flex items-center justify-center">
                             <svg class="w-6 h-6 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
@@ -200,6 +223,42 @@
                     {{ $items->links() }}
                 </div>
             </div>
+
+            @if (!empty($includeSalary) && isset($salaryPayments) && $salaryPayments->count())
+                <div class="mt-8 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
+                    <div class="border-b border-gray-200 px-6 py-6 bg-gradient-to-r from-emerald-50 to-green-50">
+                        <h3 class="text-lg font-semibold text-gray-800">Salary Payments (Included)</h3>
+                        <p class="text-sm text-gray-600 mt-1">These rows are included in exports when the checkbox is enabled.</p>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-200 bg-gray-50">
+                                    <th class="px-6 py-3 text-left font-semibold text-gray-700">Date</th>
+                                    <th class="px-6 py-3 text-left font-semibold text-gray-700">Teacher</th>
+                                    <th class="px-6 py-3 text-right font-semibold text-gray-700">Amount</th>
+                                    <th class="px-6 py-3 text-left font-semibold text-gray-700">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($salaryPayments as $p)
+                                    <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+                                        <td class="px-6 py-3 text-gray-600">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                                {{ optional($p->paid_at)->format('d-m-Y') }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-3 text-gray-700">{{ $p->teacher?->name ?? '—' }}</td>
+                                        <td class="px-6 py-3 text-right font-semibold text-gray-900">Rs {{ number_format((float)$p->amount, 2) }}</td>
+                                        <td class="px-6 py-3 text-gray-600 text-xs">{{ $p->notes ?? '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 </x-app-layout>

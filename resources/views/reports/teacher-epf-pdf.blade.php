@@ -53,9 +53,12 @@
             @foreach($items as $row)
                 @php
                     $deductions = is_array($row->deductions) ? $row->deductions : [];
-                    $epf = 0;
-                    foreach ($deductions as $d) {
-                        if (strtolower((string)($d['reason'] ?? '')) === 'epf') { $epf += (float)($d['amount'] ?? 0); }
+                    $epf = $row->employee_epf_amount;
+                    if ($epf === null) {
+                        $epf = 0;
+                        foreach ($deductions as $d) {
+                            if (strtolower((string)($d['reason'] ?? '')) === 'epf') { $epf += (float)($d['amount'] ?? 0); }
+                        }
                     }
                 @endphp
                 <tr>

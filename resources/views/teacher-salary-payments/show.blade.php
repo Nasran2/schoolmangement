@@ -102,7 +102,7 @@
                 <div class="p-8">
                     <div class="space-y-4">
                         <div class="flex justify-between items-center py-3 border-b border-gray-200">
-                            <span class="text-gray-700 font-medium">Base Salary</span>
+                            <span class="text-gray-700 font-medium">Total Salary</span>
                             <span class="text-xl font-bold text-gray-900">Rs {{ number_format($payment->base_salary, 2) }}</span>
                         </div>
 

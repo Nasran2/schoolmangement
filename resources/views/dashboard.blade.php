@@ -118,7 +118,7 @@
         </div>
 
         @if(($pendingChequeCount ?? 0) > 0)
-            <div class="mt-6" x-data="{ open: true }" x-show="open" x-cloak>
+            <div class="mt-6" x-data="{ open: true, passModal: false, passAction: '', passMode: 'today', passDate: '{{ now()->toDateString() }}', today: '{{ now()->toDateString() }}' }" x-show="open" x-cloak>
                 <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
                     <div class="flex items-start justify-between gap-4">
                         <div class="flex items-start gap-3">
@@ -191,10 +191,11 @@
                                         </div>
                                         <div class="flex items-center gap-2">
                                             @can('revenue.manage')
-                                                <form method="POST" action="{{ route('revenue.items.cheque.passed', $item) }}" onsubmit="return confirm('Mark this cheque as PASSED? It will be confirmed and counted as paid on the cheque date.');">
-                                                    @csrf
-                                                    <button type="submit" class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700">Passed</button>
-                                                </form>
+                                                <button type="button"
+                                                    class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700"
+                                                    @click="passAction='{{ route('revenue.items.cheque.passed', $item) }}'; passMode='today'; passDate=today; passModal=true">
+                                                    Passed
+                                                </button>
                                                 <form method="POST" action="{{ route('revenue.items.cheque.returned', $item) }}" onsubmit="return confirm('Mark this cheque as RETURNED? It will be rejected and will NOT count as paid.');">
                                                     @csrf
                                                     <button type="submit" class="inline-flex items-center rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700">Returned</button>
@@ -207,6 +208,43 @@
                             </div>
                         </div>
                     @endif
+                </div>
+
+                <div x-show="passModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center">
+                    <div class="absolute inset-0 bg-black/40" @click="passModal=false"></div>
+                    <div class="relative w-full max-w-lg rounded-xl bg-white shadow-xl">
+                        <div class="px-6 py-4 border-b">
+                            <div class="text-base font-semibold text-gray-900">Mark Cheque as Passed</div>
+                            <div class="text-sm text-gray-600 mt-1">Choose the passed date (today or custom)</div>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <div class="space-y-2">
+                                <label class="flex items-center gap-2 text-sm text-gray-800">
+                                    <input type="radio" class="text-indigo-600" value="today" x-model="passMode">
+                                    <span>Today (<span class="font-semibold" x-text="today"></span>)</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-gray-800">
+                                    <input type="radio" class="text-indigo-600" value="custom" x-model="passMode">
+                                    <span>Custom date</span>
+                                </label>
+                            </div>
+
+                            <div>
+                                <x-input-label for="passed_date" :value="__('Passed Date')" class="font-semibold mb-2" />
+                                <input id="passed_date" type="date" class="block w-full border-gray-300 rounded-lg"
+                                    x-model="passDate" :disabled="passMode !== 'custom'">
+                                <p class="text-xs text-gray-500 mt-1">You can select or type the date.</p>
+                            </div>
+                        </div>
+                        <div class="px-6 py-4 border-t flex items-center justify-end gap-2">
+                            <button type="button" class="inline-flex items-center rounded-md bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200" @click="passModal=false">Cancel</button>
+                            <form method="POST" :action="passAction">
+                                @csrf
+                                <input type="hidden" name="passed_date" :value="passMode === 'today' ? today : passDate">
+                                <button type="submit" class="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700">Confirm Passed</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         @endif
@@ -285,7 +323,11 @@
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Upcoming Teacher Salary Payments</div>
                     <div class="mt-2 text-2xl font-semibold text-gray-900">{{ ($dueTeachers ?? collect())->count() }}</div>
-                    <div class="mt-1 text-sm font-semibold text-red-600">Rs {{ number_format($dueTeachersTotal ?? 0, 2) }}</div>
+                    @can('teachers.salary.amounts.view')
+                        <div class="mt-1 text-sm font-semibold text-red-600">Rs {{ number_format($dueTeachersTotal ?? 0, 2) }}</div>
+                    @else
+                        <div class="mt-1 text-sm font-semibold text-gray-500">Hidden</div>
+                    @endcan
                     @if(!empty($salaryDeadline))
                         <div class="mt-1 text-xs text-gray-600">Deadline: {{ \Carbon\Carbon::parse($salaryDeadline)->format('d M Y') }}</div>
                     @endif
@@ -296,7 +338,11 @@
                                     <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">{{ strtoupper(substr($teacher->name,0,1)) }}</span>
                                     <div class="text-sm font-medium text-gray-900">{{ $teacher->name }}</div>
                                 </div>
-                                <div class="text-sm font-semibold text-gray-800">Rs {{ number_format($teacher->salary_amount ?? 0, 2) }}</div>
+                                @can('teachers.salary.amounts.view')
+                                    <div class="text-sm font-semibold text-gray-800">Rs {{ number_format($teacher->salary_amount ?? 0, 2) }}</div>
+                                @else
+                                    <div class="text-sm font-semibold text-gray-500">Hidden</div>
+                                @endcan
                             </div>
                         @empty
                             <div class="px-4 py-3 text-sm text-gray-600">No upcoming salary payments.</div>
@@ -365,64 +411,85 @@
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
-                    <div class="flex items-center justify-between">
-                        <div class="text-base font-semibold text-gray-900">Recent Activity</div>
-                        <form method="GET" class="flex items-end gap-2">
-                            <div>
-                                <label class="block text-xs text-gray-600">Range</label>
-                                <select name="activity_range" class="border-gray-300 rounded-md shadow-sm text-xs">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <div class="text-base font-semibold text-gray-900">Recent Activity</div>
+                            <div class="mt-1 text-xs text-gray-500">Filtered audit logs (who did what and when)</div>
+                        </div>
+
+                        <form method="GET" class="w-full sm:w-auto">
+                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3 items-end">
+                                <div class="col-span-1">
+                                    <label class="block text-xs font-medium text-gray-600">Range</label>
+                                    <select name="activity_range" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
                                     <option value="today" @selected(($activityFilters['range'] ?? '')==='today')>Today</option>
                                     <option value="last_7_days" @selected(($activityFilters['range'] ?? '')==='last_7_days')>Last 7 Days</option>
                                     <option value="last_30_days" @selected(($activityFilters['range'] ?? '')==='last_30_days')>Last 30 Days</option>
                                     <option value="this_month" @selected(($activityFilters['range'] ?? '')==='this_month')>This Month</option>
                                     <option value="this_year" @selected(($activityFilters['range'] ?? '')==='this_year')>This Year</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-600">Action</label>
-                                <select name="activity_action" class="border-gray-300 rounded-md shadow-sm text-xs">
+                                    </select>
+                                </div>
+
+                                <div class="col-span-1">
+                                    <label class="block text-xs font-medium text-gray-600">Action</label>
+                                    <select name="activity_action" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
                                     <option value="">All</option>
                                     @foreach(($activityFilters['actions'] ?? collect()) as $act)
                                         <option value="{{ $act }}" @selected(($activityFilters['action'] ?? '')===$act)>{{ $act }}</option>
                                     @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-600">User</label>
-                                <select name="activity_user" class="border-gray-300 rounded-md shadow-sm text-xs">
+                                    </select>
+                                </div>
+
+                                <div class="col-span-1">
+                                    <label class="block text-xs font-medium text-gray-600">User</label>
+                                    <select name="activity_user" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
                                     <option value="">All</option>
                                     @foreach(($activityFilters['users'] ?? collect()) as $u)
                                         <option value="{{ $u->id }}" @selected(($activityFilters['user'] ?? '')==$u->id)>{{ $u->name }}</option>
                                     @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-gray-600">Search</label>
-                                <input type="text" name="activity_q" value="{{ $activityFilters['q'] ?? '' }}" placeholder="description" class="border-gray-300 rounded-md shadow-sm text-xs">
-                            </div>
-                            <div class="flex gap-2">
-                                <button type="submit" class="inline-flex items-center px-3 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">Apply</button>
-                                <a href="{{ route('dashboard') }}" class="inline-flex items-center px-3 py-2 bg-gray-100 border border-transparent rounded-md font-semibold text-xs text-gray-800 uppercase tracking-widest hover:bg-gray-200">Reset</a>
+                                    </select>
+                                </div>
+
+                                <div class="col-span-2 sm:col-span-1">
+                                    <label class="block text-xs font-medium text-gray-600">Search</label>
+                                    <input type="text" name="activity_q" value="{{ $activityFilters['q'] ?? '' }}" placeholder="Description / metadata" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
+                                </div>
+
+                                <div class="col-span-2 sm:col-span-1 flex gap-2">
+                                    <button type="submit" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">Apply</button>
+                                    <a href="{{ route('dashboard') }}" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-100 border border-transparent rounded-md font-semibold text-xs text-gray-800 uppercase tracking-widest hover:bg-gray-200">Reset</a>
+                                </div>
                             </div>
                         </form>
                     </div>
 
                     <div class="mt-4 divide-y rounded border">
                         @forelse(($recentAuditLogs ?? collect()) as $log)
-                            <div class="px-4 py-3 flex items-start justify-between gap-3">
-                                <div class="min-w-0">
-                                    <div class="flex items-center gap-2 text-sm text-gray-600">
-                                        <span class="font-medium text-gray-900">{{ optional($log->created_at)->format('M d, H:i') }}</span>
-                                        <span>·</span>
-                                        <span>{{ $log->user?->name ?? 'System' }}</span>
-                                        <span>·</span>
-                                        <span class="text-xs rounded bg-gray-100 px-2 py-0.5">{{ $log->action }}</span>
-                                    </div>
-                                    <div class="mt-1 text-sm text-gray-700 truncate">{{ $log->description }}</div>
-                                    <div class="mt-1 text-xs text-gray-500 truncate">{{ class_basename($log->auditable_type) }} #{{ $log->auditable_id }} · IP {{ $log->ip_address }}</div>
+                            <div class="px-4 py-3">
+                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
+                                    <span class="font-medium text-gray-900">{{ optional($log->created_at)->format('M d, H:i') }}</span>
+                                    <span class="text-gray-300">•</span>
+                                    <span>{{ $log->user?->name ?? 'System' }}</span>
+                                    <span class="text-gray-300">•</span>
+                                    <span class="text-[11px] rounded bg-gray-100 px-2 py-0.5 text-gray-700 max-w-full truncate">{{ $log->action }}</span>
                                 </div>
+
+                                <div class="mt-1 text-sm text-gray-800 break-words">{{ $log->description }}</div>
+
+                                <div class="mt-1 text-xs text-gray-500 break-words">
+                                    {{ $log->auditable_type ? class_basename($log->auditable_type) : '—' }}
+                                    @if(!empty($log->auditable_id))
+                                        #{{ $log->auditable_id }}
+                                    @endif
+                                    <span class="text-gray-300">•</span>
+                                    IP {{ $log->ip_address ?? '—' }}
+                                </div>
+
                                 @if(!empty($log->metadata))
-                                    <div class="text-xs text-gray-500 max-w-xs truncate">{{ json_encode($log->metadata) }}</div>
+                                    <details class="mt-2 rounded-md bg-gray-50 px-3 py-2">
+                                        <summary class="cursor-pointer select-none text-xs font-semibold text-gray-700">Metadata</summary>
+                                        <pre class="mt-2 text-[11px] text-gray-700 whitespace-pre-wrap break-words">{{ json_encode($log->metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                    </details>
                                 @endif
                             </div>
                         @empty

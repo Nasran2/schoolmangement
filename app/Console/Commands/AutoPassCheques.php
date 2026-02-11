@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\Revenue;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class AutoPassCheques extends Command
 {
@@ -38,7 +37,7 @@ class AutoPassCheques extends Command
             ->update([
                 'payment_status' => 'confirmed',
                 'confirmed_at' => now(),
-                'paid_at' => DB::raw('cheque_date'),
+                'paid_at' => now()->toDateString(),
             ]);
 
         $this->info('Auto-passed cheques: '.$updated);

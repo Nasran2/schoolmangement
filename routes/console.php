@@ -18,3 +18,9 @@ Schedule::command('cheques:auto-pass')
     ->dailyAt('03:00')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Prune audit logs older than N days (default: 10)
+Schedule::command('audit-logs:prune --days=' . (int) config('audit_logs.retention_days', 10))
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->runInBackground();

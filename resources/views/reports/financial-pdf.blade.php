@@ -332,7 +332,7 @@
         </div>
 
         <!-- Filters Applied -->
-        @if ((isset($filters['from']) && $filters['from']) || (isset($filters['to']) && $filters['to']))
+        @if ((isset($filters['from']) && $filters['from']) || (isset($filters['to']) && $filters['to']) || (isset($filters['method']) && $filters['method'] && $filters['method'] !== 'all'))
             <div class="filters">
                 <h3>Report Period</h3>
                 <div class="filter-row">
@@ -349,6 +349,21 @@
                         </div>
                     @endif
                 </div>
+
+                @if (isset($filters['method']) && $filters['method'] && $filters['method'] !== 'all')
+                    @php
+                        $label = $filters['method'] === 'bank' ? 'Bank (Transfer + Cheque)'
+                            : ($filters['method'] === 'bank_transfer' ? 'Bank Transfer'
+                            : ($filters['method'] === 'cheque' ? 'Cheque'
+                            : ($filters['method'] === 'cash' ? 'Cash' : (string) $filters['method'])));
+                    @endphp
+                    <div class="filter-row">
+                        <div class="filter-item">
+                            <strong>Method</strong>
+                            <span>{{ $label }}</span>
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
 

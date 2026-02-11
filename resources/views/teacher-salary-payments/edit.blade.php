@@ -35,13 +35,21 @@
                             <!-- Teacher -->
                             <div>
                                 <x-input-label for="teacher_id" :value="__('Teacher *')" class="mb-2 font-semibold" />
-                                <select id="teacher_id" name="teacher_id" required
+                                <select id="teacher_id" name="teacher_id" data-searchable-select required
                                     class="block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm"
                                     onchange="updateBaseSalary()">
                                     <option value="">Select Teacher</option>
                                     @foreach($teachers as $teacher)
+                                        @php
+                                            $basicSalaryAmount = (float) data_get(
+                                                collect($teacher->salary_components ?? [])->firstWhere('type', 'Basic Salary'),
+                                                'amount',
+                                                0
+                                            );
+                                        @endphp
                                         <option value="{{ $teacher->id }}" 
                                                 data-salary="{{ $teacher->salary_amount }}"
+                                                data-basic-salary="{{ $basicSalaryAmount }}"
                                                 @selected(old('teacher_id', $payment->teacher_id) == $teacher->id)>
                                             {{ $teacher->name }}
                                         </option>
@@ -116,9 +124,9 @@
                                 </div>
                             </div>
 
-                            <!-- Base Salary -->
+                            <!-- Total Salary -->
                             <div>
-                                <x-input-label for="base_salary" :value="__('Base Salary (Rs) *')" class="mb-2 font-semibold" />
+                                <x-input-label for="base_salary" :value="__('Total Salary (Rs) *')" class="mb-2 font-semibold" />
                                 <div class="relative">
                                     <span class="absolute left-3 top-3 text-gray-500 font-medium">Rs</span>
                                     <x-text-input 
@@ -133,6 +141,16 @@
                                     />
                                 </div>
                                 <x-input-error :messages="$errors->get('base_salary')" class="mt-2" />
+
+                                <div class="mt-4">
+                                    <x-input-label for="basic_salary_for_epf" :value="__('Basic Salary (for EPF/ETF)')" class="mb-2 font-semibold" />
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-3 text-gray-500 font-medium">Rs</span>
+                                        <x-text-input id="basic_salary_for_epf" type="number" step="0.01" readonly
+                                            class="block w-full pl-12 bg-gray-50" value="" />
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">EPF/ETF is calculated only from Basic Salary.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -177,7 +195,7 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="bg-white rounded-lg p-4 border border-gray-200">
-                                <p class="text-sm text-gray-600 font-medium">Base Salary</p>
+                                <p class="text-sm text-gray-600 font-medium">Total Salary</p>
                                 <p class="text-2xl font-bold text-blue-600 mt-1" id="display-base-salary">Rs 0.00</p>
                             </div>
                             <div class="bg-white rounded-lg p-4 border border-gray-200">
@@ -238,7 +256,22 @@
                 @endforeach
             @endif
             calculateTotal();
+            updateBaseSalary(false);
         });
+
+        function updateBaseSalary(alsoSetTotal = true) {
+            const select = document.getElementById('teacher_id');
+            const selected = select?.options?.[select.selectedIndex];
+            const basicSalary = parseFloat(selected?.dataset?.basicSalary || 0) || 0;
+            const basicInput = document.getElementById('basic_salary_for_epf');
+            if (basicInput) basicInput.value = basicSalary > 0 ? basicSalary.toFixed(2) : '';
+
+            if (!alsoSetTotal) return;
+            const totalSalary = parseFloat(selected?.dataset?.salary || 0) || 0;
+            const totalInput = document.getElementById('base_salary');
+            if (totalInput && totalSalary > 0) totalInput.value = totalSalary.toFixed(2);
+            calculateTotal();
+        }
 
         function addDeduction(reason = '', amount = '') {
             const container = document.getElementById('deductions-container');

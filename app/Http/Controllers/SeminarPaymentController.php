@@ -29,7 +29,7 @@ class SeminarPaymentController extends Controller
     {
         $seminar->syncEnrollmentsFromClassroomsIfEmpty();
 
-        $enrollments = $seminar->students()->with('student')->orderByDesc('id')->paginate(100);
+        $enrollments = $seminar->students()->with(['student', 'revenue'])->orderByDesc('id')->paginate(100);
         return view('seminars.payments', compact('seminar','enrollments'));
     }
 
@@ -40,6 +40,12 @@ class SeminarPaymentController extends Controller
             'items.*.id' => ['required','integer','exists:seminar_students,id'],
             'items.*.present' => ['nullable','boolean'],
             'items.*.paid' => ['nullable','boolean'],
+            'items.*.payment_method' => ['nullable', 'in:cash,bank_transfer,cheque'],
+            'items.*.bank_name' => ['nullable', 'string', 'max:120'],
+            'items.*.bank_ref_no' => ['nullable', 'string', 'max:120'],
+            'items.*.cheque_date' => ['nullable', 'date'],
+            'items.*.cheque_number' => ['nullable', 'string', 'max:100'],
+            'items.*.cheque_bank' => ['nullable', 'string', 'max:100'],
         ]);
 
         $category = $this->seminarRevenueCategory();
@@ -61,6 +67,39 @@ class SeminarPaymentController extends Controller
 
                 $paidRequested = (bool) ($item['paid'] ?? false);
                 if ($paidRequested) {
+                    $paymentMethod = (string) ($item['payment_method'] ?? 'cash');
+                    if (! in_array($paymentMethod, ['cash', 'bank_transfer', 'cheque'], true)) {
+                        $paymentMethod = 'cash';
+                    }
+
+                    $paymentMeta = null;
+                    $paymentStatus = 'confirmed';
+                    $confirmedAt = now();
+                    $chequeDate = null;
+
+                    if ($paymentMethod === 'bank_transfer') {
+                        $paymentMeta = [
+                            'bank' => $item['bank_name'] ?? null,
+                            'ref_no' => $item['bank_ref_no'] ?? null,
+                        ];
+                        if (empty($paymentMeta['bank']) && empty($paymentMeta['ref_no'])) {
+                            $paymentMeta = null;
+                        }
+                    }
+
+                    if ($paymentMethod === 'cheque') {
+                        $paymentStatus = 'pending';
+                        $confirmedAt = null;
+                        $chequeDate = $item['cheque_date'] ?? null;
+                        $paymentMeta = [
+                            'cheque_number' => $item['cheque_number'] ?? null,
+                            'bank' => $item['cheque_bank'] ?? null,
+                        ];
+                        if (empty($paymentMeta['cheque_number']) && empty($paymentMeta['bank']) && empty($chequeDate)) {
+                            $paymentMeta = null;
+                        }
+                    }
+
                     $row->paid = true;
                     $row->paid_at = $row->paid_at ?: now();
                     $row->amount = $row->amount ?? $seminar->fee_per_student;
@@ -75,6 +114,11 @@ class SeminarPaymentController extends Controller
                                 'revenue_category_id' => $category->id,
                                 'student_id' => $row->student_id,
                                 'amount' => $amount,
+                                'payment_method' => $paymentMethod,
+                                'payment_status' => $paymentStatus,
+                                'payment_meta' => $paymentMeta,
+                                'cheque_date' => $chequeDate,
+                                'confirmed_at' => $confirmedAt,
                                 'paid_at' => $paidDate,
                             ]);
                         } else {
@@ -90,6 +134,11 @@ class SeminarPaymentController extends Controller
                             'revenue_category_id' => $category->id,
                             'student_id' => $row->student_id,
                             'amount' => $amount,
+                            'payment_method' => $paymentMethod,
+                            'payment_status' => $paymentStatus,
+                            'payment_meta' => $paymentMeta,
+                            'cheque_date' => $chequeDate,
+                            'confirmed_at' => $confirmedAt,
                             'paid_at' => $paidDate,
                             'notes' => "Seminar {$seminar->name} fee",
                             'created_by' => Auth::id(),

@@ -29,7 +29,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-600">Visiting Teacher</label>
-                        <select name="visiting_teacher_id" class="rounded-md border-gray-300 w-full">
+                        <select name="visiting_teacher_id" data-searchable-select class="rounded-md border-gray-300 w-full">
                             <option value="">All</option>
                             @foreach($visitingTeachers as $t)
                                 <option value="{{ $t->id }}" @selected(($filters['visiting_teacher_id'] ?? '') == $t->id)>{{ $t->name }}</option>

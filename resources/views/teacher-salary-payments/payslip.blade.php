@@ -60,20 +60,15 @@
 
 		@php
 			$svc = app(\App\Services\SettingsService::class);
-			$epfPercent = (float) ($svc->get('salary_epf_percent', '0') ?: 0);
-			$etfPercent = (float) ($svc->get('salary_etf_percent', '0') ?: 0);
 			$base = (float) ($payment->base_salary ?? 0);
-			$baseForStat = max(27000, $base);
-			$epfAmount = round($baseForStat * ($epfPercent / 100), 2);
-			$etfAmount = round($baseForStat * ($etfPercent / 100), 2);
 			$deductions = collect($payment->deductions ?? []);
 			$epfEntry = $deductions->first(fn($d) => strtolower($d['reason'] ?? '') === 'epf');
-			$etfEntry = $deductions->first(fn($d) => strtolower($d['reason'] ?? '') === 'etf');
-			if ($epfEntry) { $epfAmount = (float) $epfEntry['amount']; }
-			if ($etfEntry) { $etfAmount = (float) $etfEntry['amount']; }
-			$otherDeductions = $deductions->filter(fn($d) => !in_array(strtolower($d['reason'] ?? ''), ['epf','etf']));
+			$epfAmount = $payment->employee_epf_amount !== null
+				? (float) $payment->employee_epf_amount
+				: ($epfEntry ? (float) ($epfEntry['amount'] ?? 0) : 0.0);
+			$otherDeductions = $deductions->filter(fn($d) => strtolower($d['reason'] ?? '') !== 'epf');
 			$otherTotal = (float) $otherDeductions->sum('amount');
-			$totalDeductions = $epfAmount + $etfAmount + $otherTotal;
+			$totalDeductions = $epfAmount + $otherTotal;
 			$netAmount = $base - $totalDeductions;
 			$periodText = $payment->payment_month;
 			try {
@@ -89,7 +84,7 @@
 					<div class="row"><div class="muted">Employee</div><div>{{ $payment->teacher->name }}</div></div>
 					<div class="row"><div class="muted">Employee ID</div><div>{{ $payment->teacher->id }}</div></div>
 					<div class="row"><div class="muted">Designation</div><div>Teacher</div></div>
-					<div class="row"><div class="muted">Basic Salary</div><div class="amount">LKR {{ number_format($payment->base_salary, 2) }}</div></div>
+					<div class="row"><div class="muted">Total Salary</div><div class="amount">LKR {{ number_format($payment->base_salary, 2) }}</div></div>
 					<div class="row"><div class="muted">Pay Period</div><div>{{ $periodText }}</div></div>
 					<div class="row"><div class="muted">Date Issued</div><div>{{ $payment->paid_at->format('d/m/Y') }}</div></div>
 				</div>
@@ -97,7 +92,7 @@
 			<div class="box">
 				<div class="box-header">DEDUCTIONS</div>
 				<div class="box-body">
-					<div class="row"><div>EPF / ETF</div><div class="amount">LKR {{ number_format($epfAmount + $etfAmount, 2) }}</div></div>
+					<div class="row"><div>Employee EPF</div><div class="amount">LKR {{ number_format($epfAmount, 2) }}</div></div>
 					@if($otherTotal > 0)
 					<div class="row"><div>Other Deductions</div><div class="amount">LKR {{ number_format($otherTotal, 2) }}</div></div>
 					@endif

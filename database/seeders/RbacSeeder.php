@@ -30,6 +30,16 @@ class RbacSeeder extends Seeder
             'dashboard.widget.recent_activity.view',
             // Settings
             'settings.manage',
+            'settings.general.manage',
+            'settings.status.view',
+            'settings.promotion.manage',
+            'settings.printer.manage',
+            'settings.sms.manage',
+            'settings.email.manage',
+            'settings.salary_components.manage',
+            'settings.backups.manage',
+            'settings.opening_balance.manage',
+            'settings.opening_balance.reset',
 
             // Class Rooms
             'classrooms.view',
@@ -67,6 +77,7 @@ class RbacSeeder extends Seeder
             'teachers.bulk_upload',
             'teachers.salary.pay',
             'teachers.salary.summary.view',
+            'teachers.salary.amounts.view',
             'teachers.reports.download',
 
             // SMS
@@ -82,12 +93,19 @@ class RbacSeeder extends Seeder
             // Reports (granular view)
             'reports.revenue.view',
             'reports.expense.view',
+            'reports.outflows.view',
             'reports.financial.view',
+            'reports.daily_ledger.view',
+            'reports.cash_transactions.view',
+            'reports.bank_transactions.view',
+            'reports.cheque_history.view',
             'reports.student_due.view',
             'reports.student_due_aging.view',
             'reports.student_top_due.view',
             'reports.teacher_epf.view',
             'reports.teacher_etf.view',
+            'reports.company_epf.view',
+            'reports.epf_etf_totals.view',
             'reports.fee_collection_summary.view',
             'reports.fee_collection_by_class.view',
             'reports.fee_collection_by_category.view',

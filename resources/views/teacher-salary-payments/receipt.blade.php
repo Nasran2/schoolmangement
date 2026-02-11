@@ -195,7 +195,7 @@
             </thead>
             <tbody>
                 <tr>
-                    <td>Base Salary</td>
+                    <td>Total Salary</td>
                     <td style="text-align: right; font-weight: bold;">Rs {{ number_format($payment->base_salary, 2) }}</td>
                 </tr>
                 @if($payment->deductions && count($payment->deductions) > 0)
@@ -216,7 +216,7 @@
         <!-- Summary Section -->
         <div class="summary">
             <div class="summary-row">
-                <span class="summary-label">Base Salary:</span>
+                <span class="summary-label">Total Salary:</span>
                 <span class="summary-value">Rs {{ number_format($payment->base_salary, 2) }}</span>
             </div>
             <div class="summary-row">

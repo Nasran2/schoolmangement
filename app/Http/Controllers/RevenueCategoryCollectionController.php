@@ -96,6 +96,12 @@ class RevenueCategoryCollectionController extends Controller
             'student_ids.*' => ['integer', 'exists:students,id'],
             'paid_at' => ['required', 'date'],
             'amount' => ['nullable', 'numeric', 'min:0.01'],
+            'payment_method' => ['nullable', 'in:cash,bank_transfer,cheque'],
+            'bank_name' => ['required_if:payment_method,bank_transfer', 'nullable', 'string', 'max:120'],
+            'bank_ref_no' => ['nullable', 'string', 'max:120'],
+            'cheque_date' => ['required_if:payment_method,cheque', 'nullable', 'date'],
+            'cheque_number' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
+            'cheque_bank' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -145,8 +151,35 @@ class RevenueCategoryCollectionController extends Controller
             $notes = $cycleDue ? ('Bulk payment for cycle due '.$cycleDue->format('d-m-Y')) : 'Bulk payment';
         }
 
+        $paymentMethod = $validated['payment_method'] ?? 'cash';
+        if (! in_array($paymentMethod, ['cash', 'bank_transfer', 'cheque'], true)) {
+            $paymentMethod = 'cash';
+        }
+
+        $paymentMeta = null;
+        $paymentStatus = 'confirmed';
+        $confirmedAt = now();
+        $chequeDate = null;
+
+        if ($paymentMethod === 'bank_transfer') {
+            $paymentMeta = [
+                'bank' => $validated['bank_name'] ?? null,
+                'ref_no' => $validated['bank_ref_no'] ?? null,
+            ];
+        }
+
+        if ($paymentMethod === 'cheque') {
+            $paymentStatus = 'pending';
+            $confirmedAt = null;
+            $chequeDate = $validated['cheque_date'] ?? null;
+            $paymentMeta = [
+                'cheque_number' => $validated['cheque_number'] ?? null,
+                'bank' => $validated['cheque_bank'] ?? null,
+            ];
+        }
+
         $created = [];
-        DB::transaction(function () use ($students, $category, $request, $billNumbers, $amount, $validated, $notes, &$created) {
+        DB::transaction(function () use ($students, $category, $request, $billNumbers, $amount, $validated, $notes, $paymentMethod, $paymentStatus, $paymentMeta, $chequeDate, $confirmedAt, &$created) {
             foreach ($students as $s) {
                 $billNo = $billNumbers->nextRevenueBillNumber();
                 $created[] = Revenue::create([
@@ -154,6 +187,11 @@ class RevenueCategoryCollectionController extends Controller
                     'revenue_category_id' => (int) $category->id,
                     'student_id' => (int) $s->id,
                     'amount' => $amount,
+                    'payment_method' => $paymentMethod,
+                    'payment_status' => $paymentStatus,
+                    'payment_meta' => $paymentMeta,
+                    'cheque_date' => $chequeDate,
+                    'confirmed_at' => $confirmedAt,
                     'paid_at' => $validated['paid_at'],
                     'notes' => $notes,
                     'created_by' => $request->user()?->id,

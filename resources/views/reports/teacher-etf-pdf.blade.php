@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>ETF Report</title>
+    <title>Company ETF Report</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 12px; color: #111827; }
         h1 { font-size: 18px; margin: 0 0 6px 0; }
@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>ETF Report</h1>
+    <h1>Company ETF Report</h1>
     <div class="muted">Generated: {{ now()->format('d-m-Y H:i') }}</div>
 
     @if(($groupByMonth ?? false) && !empty($monthTotals ?? []))
@@ -53,9 +53,12 @@
             @foreach($items as $row)
                 @php
                     $deductions = is_array($row->deductions) ? $row->deductions : [];
-                    $etf = 0;
-                    foreach ($deductions as $d) {
-                        if (strtolower((string)($d['reason'] ?? '')) === 'etf') { $etf += (float)($d['amount'] ?? 0); }
+                    $etf = $row->employer_etf_amount;
+                    if ($etf === null) {
+                        $etf = 0;
+                        foreach ($deductions as $d) {
+                            if (strtolower((string)($d['reason'] ?? '')) === 'etf') { $etf += (float)($d['amount'] ?? 0); }
+                        }
                     }
                 @endphp
                 <tr>

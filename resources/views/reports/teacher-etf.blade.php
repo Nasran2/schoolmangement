@@ -2,8 +2,8 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="font-bold text-2xl text-gray-900">ETF Report</h2>
-                <p class="text-gray-600 text-sm mt-1">Teacher ETF deductions from salary payments</p>
+                <h2 class="font-bold text-2xl text-gray-900">Company ETF Report</h2>
+                <p class="text-gray-600 text-sm mt-1">Company ETF contribution from teacher salary payments</p>
             </div>
             <a class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition" href="{{ route('reports.index') }}">← Back to Reports</a>
         </div>
@@ -13,7 +13,7 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white rounded-lg shadow-lg border border-gray-100 mb-8">
                 <div class="border-b border-gray-200 px-6 py-6 bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <h3 class="text-lg font-semibold text-gray-800">Filter ETF</h3>
+                    <h3 class="text-lg font-semibold text-gray-800">Filter Company ETF</h3>
                     <p class="text-sm text-gray-600 mt-1">Filter by date range, month, and teacher</p>
                 </div>
 
@@ -33,7 +33,7 @@
                         </div>
                         <div>
                             <x-input-label for="teacher_id" :value="__('Teacher')" class="font-semibold mb-2" />
-                            <select id="teacher_id" name="teacher_id" class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm">
+                            <select id="teacher_id" name="teacher_id" data-searchable-select class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm">
                                 <option value="">All Teachers</option>
                                 @foreach($teachers as $t)
                                     <option value="{{ $t->id }}" @selected(($filters['teacher_id'] ?? '') == $t->id)>{{ $t->name }}</option>
@@ -63,9 +63,9 @@
 
                             @can('reports.download')
                                 <a class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition shadow-sm"
-                                   href="{{ route('reports.teacher_etf', array_merge(request()->query(), ['pdf' => 1])) }}">PDF</a>
+                                   href="{{ route($routeName ?? 'reports.teacher_etf', array_merge(request()->query(), ['pdf' => 1])) }}">PDF</a>
                                 <a class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition shadow-sm"
-                                   href="{{ route('reports.teacher_etf', array_merge(request()->query(), ['download' => 1])) }}">CSV</a>
+                                   href="{{ route($routeName ?? 'reports.teacher_etf', array_merge(request()->query(), ['download' => 1])) }}">CSV</a>
                             @endcan
                         </div>
                     </form>
@@ -74,7 +74,7 @@
 
             <div class="bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden mb-8">
                 <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-800">Teacher ETF Summary</h3>
+                    <h3 class="text-lg font-semibold text-gray-800">Company ETF Summary</h3>
                     <p class="text-sm text-gray-600">Totals per teacher for current filters</p>
                 </div>
                 <div class="overflow-x-auto">

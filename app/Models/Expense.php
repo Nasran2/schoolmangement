@@ -10,6 +10,9 @@ class Expense extends Model
     protected $fillable = [
         'expense_category_id',
         'amount',
+        'payment_method',
+        'payment_meta',
+        'cheque_date',
         'expense_date',
         'notes',
         'created_by',
@@ -17,6 +20,8 @@ class Expense extends Model
 
     protected $casts = [
         'expense_date' => 'date',
+        'cheque_date' => 'date',
+        'payment_meta' => 'array',
         'amount' => 'decimal:2',
     ];
 

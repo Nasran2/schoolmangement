@@ -26,7 +26,11 @@
                     <div class="p-6">
                         <div class="text-sm text-gray-500">Due Teachers ({{ $monthLabel ?? '' }})</div>
                         <div class="mt-1 text-2xl font-semibold text-gray-900">{{ ($dueTeachers ?? collect())->count() }}</div>
-                        <div class="mt-2 text-sm font-semibold text-red-600">Rs {{ number_format($dueTotal ?? 0, 2) }}</div>
+                        @can('teachers.salary.amounts.view')
+                            <div class="mt-2 text-sm font-semibold text-red-600">Rs {{ number_format($dueTotal ?? 0, 2) }}</div>
+                        @else
+                            <div class="mt-2 text-sm font-semibold text-gray-500">Hidden</div>
+                        @endcan
                         <div class="mt-2 text-xs text-gray-600">Deadline: {{ optional($deadlineDate)->format('d M Y') }}</div>
                     </div>
                 </div>
@@ -34,7 +38,11 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <div class="text-sm text-gray-500">Paid Total ({{ $monthLabel ?? '' }})</div>
-                        <div class="mt-1 text-2xl font-semibold text-gray-900">Rs {{ number_format($paidTotal ?? 0, 2) }}</div>
+                        @can('teachers.salary.amounts.view')
+                            <div class="mt-1 text-2xl font-semibold text-gray-900">Rs {{ number_format($paidTotal ?? 0, 2) }}</div>
+                        @else
+                            <div class="mt-1 text-2xl font-semibold text-gray-500">Hidden</div>
+                        @endcan
                         <div class="mt-2 text-xs text-gray-600">Payments recorded: {{ ($payments ?? collect())->count() }}</div>
                     </div>
                 </div>
@@ -42,7 +50,11 @@
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6">
                         <div class="text-sm text-gray-500">Upcoming Expected ({{ $nextMonthLabel ?? '' }})</div>
-                        <div class="mt-1 text-2xl font-semibold text-gray-900">Rs {{ number_format($nextMonthTotalExpected ?? 0, 2) }}</div>
+                        @can('teachers.salary.amounts.view')
+                            <div class="mt-1 text-2xl font-semibold text-gray-900">Rs {{ number_format($nextMonthTotalExpected ?? 0, 2) }}</div>
+                        @else
+                            <div class="mt-1 text-2xl font-semibold text-gray-500">Hidden</div>
+                        @endcan
                         <div class="mt-2 text-xs text-gray-600">Based on active teachers’ salary amounts</div>
                     </div>
                 </div>
@@ -60,7 +72,11 @@
                                 <div class="flex items-center justify-between px-4 py-3">
                                     <div class="min-w-0">
                                         <div class="text-sm font-medium text-gray-900 truncate">{{ $t->name }}</div>
-                                        <div class="text-xs text-gray-600 truncate">Salary: Rs {{ number_format($t->salary_amount ?? 0, 2) }}</div>
+                                        @can('teachers.salary.amounts.view')
+                                            <div class="text-xs text-gray-600 truncate">Salary: Rs {{ number_format($t->salary_amount ?? 0, 2) }}</div>
+                                        @else
+                                            <div class="text-xs text-gray-500 truncate">Salary: Hidden</div>
+                                        @endcan
                                     </div>
                                     <div class="flex items-center gap-2">
                                         @can('teachers.manage')
@@ -93,7 +109,11 @@
                                         <div class="text-sm font-medium text-gray-900 truncate">{{ $t->name }}</div>
                                         <div class="text-xs text-gray-600 truncate">
                                             @if($p)
-                                                Paid: Rs {{ number_format(($row['total_paid'] ?? 0), 2) }} · {{ optional($p->paid_at)->format('d M Y') }}
+                                                @can('teachers.salary.amounts.view')
+                                                    Paid: Rs {{ number_format(($row['total_paid'] ?? 0), 2) }} · {{ optional($p->paid_at)->format('d M Y') }}
+                                                @else
+                                                    Paid: Hidden · {{ optional($p->paid_at)->format('d M Y') }}
+                                                @endcan
                                             @else
                                                 Paid
                                             @endif

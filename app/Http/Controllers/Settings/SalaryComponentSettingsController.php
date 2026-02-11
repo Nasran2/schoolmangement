@@ -37,14 +37,25 @@ class SalaryComponentSettingsController extends Controller
     {
         $componentTypes = $this->loadJsonArray('salary_component_types', self::DEFAULT_COMPONENT_TYPES);
         $deductionTypes = $this->loadJsonArray('salary_deduction_types', self::DEFAULT_DEDUCTION_TYPES);
-        $epfPercent = (float) ($this->settings->get('salary_epf_percent', '0') ?: 0);
-        $etfPercent = (float) ($this->settings->get('salary_etf_percent', '0') ?: 0);
+
+        $employeeEpfPercent = (float) ($this->settings->get('salary_epf_employee_percent', '') !== ''
+            ? ($this->settings->get('salary_epf_employee_percent', '0') ?: 0)
+            : ($this->settings->get('salary_epf_percent', '0') ?: 0));
+
+        $employerEpfPercent = (float) ($this->settings->get('salary_epf_employer_percent', '') !== ''
+            ? ($this->settings->get('salary_epf_employer_percent', '12') ?: 12)
+            : 12);
+
+        $employerEtfPercent = (float) ($this->settings->get('salary_etf_employer_percent', '') !== ''
+            ? ($this->settings->get('salary_etf_employer_percent', '3') ?: 3)
+            : ($this->settings->get('salary_etf_percent', '0') ?: 0));
 
         return view('settings.salary-components', [
             'componentTypes' => $componentTypes,
             'deductionTypes' => $deductionTypes,
-            'epfPercent' => $epfPercent,
-            'etfPercent' => $etfPercent,
+            'employeeEpfPercent' => $employeeEpfPercent,
+            'employerEpfPercent' => $employerEpfPercent,
+            'employerEtfPercent' => $employerEtfPercent,
         ]);
     }
 
@@ -55,8 +66,9 @@ class SalaryComponentSettingsController extends Controller
             'component_types.*' => ['required', 'string', 'max:120'],
             'deduction_types' => ['required', 'array', 'min:1'],
             'deduction_types.*' => ['required', 'string', 'max:120'],
-            'epf_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'etf_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'employee_epf_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'employer_epf_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'employer_etf_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $componentTypes = $this->sanitizeList($validated['component_types']);
@@ -64,8 +76,18 @@ class SalaryComponentSettingsController extends Controller
 
         $this->settings->set('salary_component_types', json_encode($componentTypes), 'salary');
         $this->settings->set('salary_deduction_types', json_encode($deductionTypes), 'salary');
-        $this->settings->set('salary_epf_percent', (string) ($validated['epf_percent'] ?? '0'), 'salary');
-        $this->settings->set('salary_etf_percent', (string) ($validated['etf_percent'] ?? '0'), 'salary');
+
+        $employee = (string) ($validated['employee_epf_percent'] ?? '0');
+        $employerEpf = (string) ($validated['employer_epf_percent'] ?? '12');
+        $employerEtf = (string) ($validated['employer_etf_percent'] ?? '3');
+
+        $this->settings->set('salary_epf_employee_percent', $employee, 'salary');
+        $this->settings->set('salary_epf_employer_percent', $employerEpf, 'salary');
+        $this->settings->set('salary_etf_employer_percent', $employerEtf, 'salary');
+
+        // Backwards-compat keys (used by older code paths)
+        $this->settings->set('salary_epf_percent', $employee, 'salary');
+        $this->settings->set('salary_etf_percent', $employerEtf, 'salary');
 
         return back()->with('status', 'Salary settings updated.');
     }

@@ -125,13 +125,23 @@ class TeacherSalaryPaymentController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         $teachers = Teacher::query()->orderBy('name')->get();
         $deductionTypes = $this->getDeductionTypes(app(SettingsService::class));
+
+        $prefillTeacherId = null;
+        if ($request->filled('teacher_id')) {
+            $requestedId = (int) $request->query('teacher_id');
+            if ($requestedId > 0 && $teachers->firstWhere('id', $requestedId)) {
+                $prefillTeacherId = $requestedId;
+            }
+        }
+
         return view('teacher-salary-payments.create', [
             'teachers' => $teachers,
             'deductionTypes' => $deductionTypes,
+            'prefillTeacherId' => $prefillTeacherId,
         ]);
     }
 
@@ -154,14 +164,14 @@ class TeacherSalaryPaymentController extends Controller
         ]);
 
         $deductions = $validated['deductions'] ?? [];
-        // Deduplicate EPF/ETF while preserving the first user-provided entry
+        // Deduplicate EPF while preserving the first user-provided entry
         $normalized = [];
-        $seen = ['epf' => false, 'etf' => false];
+        $seen = ['epf' => false];
         foreach ($deductions as $d) {
             $reason = strtolower((string) ($d['reason'] ?? ''));
-            if ($reason === 'epf' || $reason === 'etf') {
-                if ($seen[$reason]) { continue; }
-                $seen[$reason] = true;
+            if ($reason === 'epf') {
+                if ($seen['epf']) { continue; }
+                $seen['epf'] = true;
             }
             $normalized[] = [
                 'reason' => (string) ($d['reason'] ?? ''),
@@ -170,12 +180,14 @@ class TeacherSalaryPaymentController extends Controller
         }
         $deductions = $normalized;
 
-        // Auto-apply EPF/ETF based on basic salary from settings
+        // Auto-apply Employee EPF (deduction) + compute Employer EPF/ETF (company contributions)
         $settings = app(SettingsService::class);
-        $epfPercent = (float) ($settings->get('salary_epf_percent', '0') ?: 0);
-        $etfPercent = (float) ($settings->get('salary_etf_percent', '0') ?: 0);
-        $base = (float) $validated['base_salary'];
-        $statutoryBase = max(27000, $base);
+
+        $employeeEpfPercent = (float) ($settings->get('salary_epf_employee_percent', (string) ($settings->get('salary_epf_percent', '0') ?: '0')) ?: 0);
+        $employerEpfPercent = (float) ($settings->get('salary_epf_employer_percent', '12') ?: 12);
+        $employerEtfPercent = (float) ($settings->get('salary_etf_employer_percent', (string) ($settings->get('salary_etf_percent', '3') ?: '3')) ?: 3);
+
+        $totalSalary = (float) $validated['base_salary'];
         $teacher = Teacher::query()->find((int) $validated['teacher_id']);
         $epfEnabled = true;
         $etfEnabled = true;
@@ -185,37 +197,62 @@ class TeacherSalaryPaymentController extends Controller
             $etfEnabled = $teacher->etf_enabled === null ? true : (bool) $teacher->etf_enabled;
         }
 
-        $hasEpf = collect($deductions)->contains(function ($d) { return strtolower((string)($d['reason'] ?? '')) === 'epf'; });
-        $hasEtf = collect($deductions)->contains(function ($d) { return strtolower((string)($d['reason'] ?? '')) === 'etf'; });
+        $basicSalary = 0.0;
+        if ($teacher) {
+            $basicSalary = (float) data_get(
+                collect($teacher->salary_components ?? [])->firstWhere('type', 'Basic Salary'),
+                'amount',
+                0
+            );
+        }
+        $epfBaseSalary = $basicSalary > 0 ? $basicSalary : $totalSalary;
 
-        if ($epfEnabled && $epfPercent > 0 && !$hasEpf) {
-            $deductions[] = [
-                'reason' => 'EPF',
-                'amount' => round($statutoryBase * ($epfPercent / 100), 2),
-            ];
+        $hasEmployeeEpf = collect($deductions)->contains(function ($d) { return strtolower((string)($d['reason'] ?? '')) === 'epf'; });
+
+        $computedEmployeeEpf = 0.0;
+        if ($epfEnabled && $employeeEpfPercent > 0) {
+            $computedEmployeeEpf = round($epfBaseSalary * ($employeeEpfPercent / 100), 2);
+            if (! $hasEmployeeEpf) {
+                $deductions[] = [
+                    'reason' => 'EPF',
+                    'amount' => $computedEmployeeEpf,
+                ];
+            }
         }
-        if ($etfEnabled && $etfPercent > 0 && !$hasEtf) {
-            $deductions[] = [
-                'reason' => 'ETF',
-                'amount' => round($statutoryBase * ($etfPercent / 100), 2),
-            ];
+
+        // If teacher has EPF disabled, strip it even if present
+        if (! $epfEnabled) {
+            $deductions = array_values(array_filter($deductions, function ($d) {
+                return strtolower((string)($d['reason'] ?? '')) !== 'epf';
+            }));
         }
-        // If teacher has EPF/ETF disabled, strip them even if present
-        if (!$epfEnabled) {
-            $deductions = array_values(array_filter($deductions, function ($d) { return strtolower((string)($d['reason'] ?? '')) !== 'epf'; }));
+
+        $employeeEpfAmount = 0.0;
+        $epfRow = collect($deductions)->first(function ($d) {
+            return strtolower((string)($d['reason'] ?? '')) === 'epf';
+        });
+        if ($epfEnabled && $employeeEpfPercent > 0) {
+            $employeeEpfAmount = $epfRow ? (float) ($epfRow['amount'] ?? 0) : (float) $computedEmployeeEpf;
         }
-        if (!$etfEnabled) {
-            $deductions = array_values(array_filter($deductions, function ($d) { return strtolower((string)($d['reason'] ?? '')) !== 'etf'; }));
-        }
+
+        $employerEpfAmount = ($epfEnabled && $employerEpfPercent > 0)
+            ? round($epfBaseSalary * ($employerEpfPercent / 100), 2)
+            : 0.0;
+        $employerEtfAmount = ($etfEnabled && $employerEtfPercent > 0)
+            ? round($epfBaseSalary * ($employerEtfPercent / 100), 2)
+            : 0.0;
 
         $totalDeductions = collect($deductions)->sum('amount');
-        $finalAmount = $base - $totalDeductions;
+        $finalAmount = $totalSalary - $totalDeductions;
 
         $payment = TeacherSalaryPayment::create([
             'teacher_id' => (int) $validated['teacher_id'],
             'base_salary' => $validated['base_salary'],
             'deductions' => $deductions,
             'total_deductions' => $totalDeductions,
+            'employee_epf_amount' => $employeeEpfAmount,
+            'employer_epf_amount' => $employerEpfAmount,
+            'employer_etf_amount' => $employerEtfAmount,
             'amount' => $finalAmount,
             'paid_at' => $validated['paid_at'],
             'payment_month' => $validated['payment_month'],
@@ -413,14 +450,14 @@ class TeacherSalaryPaymentController extends Controller
         ]);
 
         $deductions = $validated['deductions'] ?? [];
-        // Deduplicate EPF/ETF while preserving the first user-provided entry
+        // Deduplicate EPF while preserving the first user-provided entry
         $normalized = [];
-        $seen = ['epf' => false, 'etf' => false];
+        $seen = ['epf' => false];
         foreach ($deductions as $d) {
             $reason = strtolower((string) ($d['reason'] ?? ''));
-            if ($reason === 'epf' || $reason === 'etf') {
-                if ($seen[$reason]) { continue; }
-                $seen[$reason] = true;
+            if ($reason === 'epf') {
+                if ($seen['epf']) { continue; }
+                $seen['epf'] = true;
             }
             $normalized[] = [
                 'reason' => (string) ($d['reason'] ?? ''),
@@ -429,12 +466,14 @@ class TeacherSalaryPaymentController extends Controller
         }
         $deductions = $normalized;
 
-        // Re-apply EPF/ETF on update to reflect current settings
+        // Re-apply Employee EPF (deduction) + recompute Employer EPF/ETF (company contributions)
         $settings = app(SettingsService::class);
-        $epfPercent = (float) ($settings->get('salary_epf_percent', '0') ?: 0);
-        $etfPercent = (float) ($settings->get('salary_etf_percent', '0') ?: 0);
-        $base = (float) $validated['base_salary'];
-        $statutoryBase = max(27000, $base);
+
+        $employeeEpfPercent = (float) ($settings->get('salary_epf_employee_percent', (string) ($settings->get('salary_epf_percent', '0') ?: '0')) ?: 0);
+        $employerEpfPercent = (float) ($settings->get('salary_epf_employer_percent', '12') ?: 12);
+        $employerEtfPercent = (float) ($settings->get('salary_etf_employer_percent', (string) ($settings->get('salary_etf_percent', '3') ?: '3')) ?: 3);
+
+        $totalSalary = (float) $validated['base_salary'];
         $teacher = Teacher::query()->find((int) $validated['teacher_id']);
         $epfEnabled = true;
         $etfEnabled = true;
@@ -444,37 +483,61 @@ class TeacherSalaryPaymentController extends Controller
             $etfEnabled = $teacher->etf_enabled === null ? true : (bool) $teacher->etf_enabled;
         }
 
-        $hasEpf = collect($deductions)->contains(function ($d) { return strtolower((string)($d['reason'] ?? '')) === 'epf'; });
-        $hasEtf = collect($deductions)->contains(function ($d) { return strtolower((string)($d['reason'] ?? '')) === 'etf'; });
+        $basicSalary = 0.0;
+        if ($teacher) {
+            $basicSalary = (float) data_get(
+                collect($teacher->salary_components ?? [])->firstWhere('type', 'Basic Salary'),
+                'amount',
+                0
+            );
+        }
+        $epfBaseSalary = $basicSalary > 0 ? $basicSalary : $totalSalary;
 
-        if ($epfEnabled && $epfPercent > 0 && !$hasEpf) {
-            $deductions[] = [
-                'reason' => 'EPF',
-                'amount' => round($statutoryBase * ($epfPercent / 100), 2),
-            ];
+        $hasEmployeeEpf = collect($deductions)->contains(function ($d) { return strtolower((string)($d['reason'] ?? '')) === 'epf'; });
+
+        $computedEmployeeEpf = 0.0;
+        if ($epfEnabled && $employeeEpfPercent > 0) {
+            $computedEmployeeEpf = round($epfBaseSalary * ($employeeEpfPercent / 100), 2);
+            if (! $hasEmployeeEpf) {
+                $deductions[] = [
+                    'reason' => 'EPF',
+                    'amount' => $computedEmployeeEpf,
+                ];
+            }
         }
-        if ($etfEnabled && $etfPercent > 0 && !$hasEtf) {
-            $deductions[] = [
-                'reason' => 'ETF',
-                'amount' => round($statutoryBase * ($etfPercent / 100), 2),
-            ];
+
+        if (! $epfEnabled) {
+            $deductions = array_values(array_filter($deductions, function ($d) {
+                return strtolower((string)($d['reason'] ?? '')) !== 'epf';
+            }));
         }
-        // If teacher has EPF/ETF disabled, strip them even if present
-        if (!$epfEnabled) {
-            $deductions = array_values(array_filter($deductions, function ($d) { return strtolower((string)($d['reason'] ?? '')) !== 'epf'; }));
+
+        $employeeEpfAmount = 0.0;
+        $epfRow = collect($deductions)->first(function ($d) {
+            return strtolower((string)($d['reason'] ?? '')) === 'epf';
+        });
+        if ($epfEnabled && $employeeEpfPercent > 0) {
+            $employeeEpfAmount = $epfRow ? (float) ($epfRow['amount'] ?? 0) : (float) $computedEmployeeEpf;
         }
-        if (!$etfEnabled) {
-            $deductions = array_values(array_filter($deductions, function ($d) { return strtolower((string)($d['reason'] ?? '')) !== 'etf'; }));
-        }
+
+        $employerEpfAmount = ($epfEnabled && $employerEpfPercent > 0)
+            ? round($epfBaseSalary * ($employerEpfPercent / 100), 2)
+            : 0.0;
+        $employerEtfAmount = ($etfEnabled && $employerEtfPercent > 0)
+            ? round($epfBaseSalary * ($employerEtfPercent / 100), 2)
+            : 0.0;
 
         $totalDeductions = collect($deductions)->sum('amount');
-        $finalAmount = $base - $totalDeductions;
+        $finalAmount = $totalSalary - $totalDeductions;
 
         $teacherSalaryPayment->update([
             'teacher_id' => (int) $validated['teacher_id'],
             'base_salary' => $validated['base_salary'],
             'deductions' => $deductions,
             'total_deductions' => $totalDeductions,
+            'employee_epf_amount' => $employeeEpfAmount,
+            'employer_epf_amount' => $employerEpfAmount,
+            'employer_etf_amount' => $employerEtfAmount,
             'amount' => $finalAmount,
             'paid_at' => $validated['paid_at'],
             'payment_month' => $validated['payment_month'],

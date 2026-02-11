@@ -19,7 +19,7 @@
                 </div>
                 
                 <div class="p-8">
-                    <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                    <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
                         <!-- From Date -->
                         <div>
                             <x-input-label for="from" :value="__('From Date')" class="font-semibold mb-2" />
@@ -44,6 +44,22 @@
                             />
                         </div>
 
+                        <!-- Payment Method -->
+                        <div>
+                            <x-input-label for="method" :value="__('Method')" class="font-semibold mb-2" />
+                            @php
+                                $m = $filters['method'] ?? 'all';
+                                if (!$m) { $m = 'all'; }
+                            @endphp
+                            <select id="method" name="method" class="mt-1 block w-full border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg shadow-sm rounded-lg">
+                                <option value="all" @selected($m === 'all')>All</option>
+                                <option value="cash" @selected($m === 'cash')>Cash</option>
+                                <option value="bank" @selected($m === 'bank')>Bank (Transfer + Cheque)</option>
+                                <option value="bank_transfer" @selected($m === 'bank_transfer')>Bank Transfer</option>
+                                <option value="cheque" @selected($m === 'cheque')>Cheque</option>
+                            </select>
+                        </div>
+
                         <!-- Toggle: Daily vs Aggregated -->
                         <div class="sm:col-span-2 flex items-end">
                             <label class="inline-flex items-center gap-2 select-none">
@@ -54,7 +70,7 @@
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="flex items-end gap-2 col-span-1 lg:col-span-3">
+                        <div class="flex items-end gap-2 col-span-1 lg:col-span-2">
                             <button 
                                 type="submit" 
                                 class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition shadow-sm"
@@ -89,7 +105,7 @@
                             @endcan
                         </div>
                         <!-- Quick Ranges -->
-                        <div class="lg:col-span-5 mt-4">
+                        <div class="lg:col-span-6 mt-4">
                             <div class="flex flex-wrap gap-2">
                                 <a href="{{ route('reports.financial', array_merge(request()->query(), ['from' => now()->toDateString(), 'to' => now()->toDateString()])) }}" class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50">Today</a>
                                 <a href="{{ route('reports.financial', array_merge(request()->query(), ['from' => now()->copy()->subMonth()->startOfMonth()->toDateString(), 'to' => now()->toDateString()])) }}" class="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50">Last 1 Month</a>
@@ -187,6 +203,13 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+
+                        <div class="mt-4 text-sm text-gray-600 flex flex-wrap gap-4">
+                            <div>Cash In: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($d['income_cash'] ?? 0), 2) }}</span></div>
+                            <div>Bank In: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($d['income_bank'] ?? 0), 2) }}</span></div>
+                            <div>Cash Out: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($d['expense_cash'] ?? 0), 2) }}</span></div>
+                            <div>Bank Out: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($d['expense_bank'] ?? 0), 2) }}</span></div>
                         </div>
 
                         <div class="mt-6 border-t pt-4 flex items-center justify-between">

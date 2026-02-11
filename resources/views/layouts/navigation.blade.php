@@ -49,8 +49,31 @@
                         </x-nav-link>
                     @endcan
 
-                    @if (Route::has('settings.general.edit'))
-                        <x-nav-link :href="route('settings.general.edit')" :active="request()->routeIs('settings.*')">
+                    @php
+                        $settingsLink = null;
+                        if (auth()->user()?->can('settings.manage') || auth()->user()?->can('settings.general.manage')) {
+                            $settingsLink = route('settings.general.edit');
+                        } elseif (auth()->user()?->can('settings.status.view')) {
+                            $settingsLink = route('settings.status.index');
+                        } elseif (auth()->user()?->can('settings.promotion.manage')) {
+                            $settingsLink = route('settings.promotion.edit');
+                        } elseif (auth()->user()?->can('settings.printer.manage')) {
+                            $settingsLink = route('settings.printer.edit');
+                        } elseif (auth()->user()?->can('settings.sms.manage')) {
+                            $settingsLink = route('settings.sms.edit');
+                        } elseif (auth()->user()?->can('settings.email.manage')) {
+                            $settingsLink = route('settings.email.edit');
+                        } elseif (auth()->user()?->can('settings.salary_components.manage')) {
+                            $settingsLink = route('settings.salary-components.edit');
+                        } elseif (auth()->user()?->can('settings.backups.manage')) {
+                            $settingsLink = route('settings.backups.index');
+                        } elseif (auth()->user()?->can('settings.opening_balance.manage')) {
+                            $settingsLink = route('settings.opening-balance.edit');
+                        }
+                    @endphp
+
+                    @if ($settingsLink)
+                        <x-nav-link :href="$settingsLink" :active="request()->routeIs('settings.*')">
                             {{ __('Settings') }}
                         </x-nav-link>
                     @endif

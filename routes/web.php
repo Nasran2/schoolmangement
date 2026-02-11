@@ -64,72 +64,83 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/general', [GeneralSettingsController::class, 'edit'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.general.manage')
             ->name('general.edit');
         Route::put('/general', [GeneralSettingsController::class, 'update'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.general.manage')
             ->name('general.update');
 
         Route::get('/status', [\App\Http\Controllers\Settings\SystemStatusController::class, 'index'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.status.view')
             ->name('status.index');
 
         Route::get('/sms', [\App\Http\Controllers\Settings\SmsSettingsController::class, 'edit'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.sms.manage')
             ->name('sms.edit');
         Route::put('/sms', [\App\Http\Controllers\Settings\SmsSettingsController::class, 'update'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.sms.manage')
             ->name('sms.update');
 
         Route::post('/sms/test', [\App\Http\Controllers\Settings\SmsSettingsController::class, 'sendTest'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.sms.manage')
             ->name('sms.test');
 
         Route::get('/email', [\App\Http\Controllers\Settings\EmailSettingsController::class, 'edit'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.email.manage')
             ->name('email.edit');
         Route::put('/email', [\App\Http\Controllers\Settings\EmailSettingsController::class, 'update'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.email.manage')
             ->name('email.update');
 
         Route::post('/email/test', [\App\Http\Controllers\Settings\EmailSettingsController::class, 'sendTest'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.email.manage')
             ->name('email.test');
         Route::get('/printer', [\App\Http\Controllers\Settings\PrinterSettingsController::class, 'edit'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.printer.manage')
             ->name('printer.edit');
         Route::put('/printer', [\App\Http\Controllers\Settings\PrinterSettingsController::class, 'update'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.printer.manage')
             ->name('printer.update');
         Route::get('/promotion', [\App\Http\Controllers\Settings\PromotionSettingsController::class, 'edit'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.promotion.manage')
             ->name('promotion.edit');
         Route::put('/promotion', [\App\Http\Controllers\Settings\PromotionSettingsController::class, 'update'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.promotion.manage')
             ->name('promotion.update');
 
         Route::get('/salary-components', [SalaryComponentSettingsController::class, 'edit'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.salary_components.manage')
             ->name('salary-components.edit');
         Route::put('/salary-components', [SalaryComponentSettingsController::class, 'update'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.salary_components.manage')
             ->name('salary-components.update');
 
         Route::get('/backups', [BackupSettingsController::class, 'index'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.backups.manage')
             ->name('backups.index');
         Route::put('/backups', [BackupSettingsController::class, 'updateConfig'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.backups.manage')
             ->name('backups.update');
         Route::post('/backups/run', [BackupSettingsController::class, 'run'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.backups.manage')
             ->name('backups.run');
         Route::get('/backups/{file}', [BackupSettingsController::class, 'download'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.backups.manage')
             ->name('backups.download');
         Route::delete('/backups/{file}', [BackupSettingsController::class, 'destroy'])
-            ->middleware('permission:settings.manage')
+            ->middleware('permission:settings.manage|settings.backups.manage')
             ->name('backups.destroy');
+
+        Route::get('/opening-balance', [\App\Http\Controllers\Settings\OpeningBalanceSettingsController::class, 'edit'])
+            ->middleware('permission:settings.manage|settings.opening_balance.manage')
+            ->name('opening-balance.edit');
+        Route::put('/opening-balance', [\App\Http\Controllers\Settings\OpeningBalanceSettingsController::class, 'update'])
+            ->middleware('permission:settings.manage|settings.opening_balance.manage')
+            ->name('opening-balance.update');
+
+        Route::post('/opening-balance/reset', [\App\Http\Controllers\Settings\OpeningBalanceSettingsController::class, 'reset'])
+            ->middleware('permission:settings.manage|settings.opening_balance.reset')
+            ->name('opening-balance.reset');
     });
 
     Route::prefix('rbac')->name('rbac.')->middleware('permission:roles.manage')->group(function () {
@@ -142,15 +153,38 @@ Route::middleware('auth')->group(function () {
     Route::prefix('reports')->name('reports.')->middleware('permission:reports.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
 
+        Route::get('/exports', [ReportController::class, 'exports'])->name('exports');
+        Route::get('/download-all', [ReportController::class, 'downloadAllPdfBundle'])
+            ->middleware('permission:reports.download')
+            ->name('download_all');
+
         Route::get('/revenue', [ReportController::class, 'revenue'])
             ->middleware('permission:reports.revenue.view')
             ->name('revenue');
         Route::get('/expense', [ReportController::class, 'expense'])
             ->middleware('permission:reports.expense.view')
             ->name('expense');
+        Route::get('/outflows', [ReportController::class, 'outflows'])
+            ->middleware('permission:reports.outflows.view')
+            ->name('outflows');
         Route::get('/financial', [ReportController::class, 'financial'])
             ->middleware('permission:reports.financial.view')
             ->name('financial');
+
+        Route::get('/daily-ledger', [ReportController::class, 'dailyLedger'])
+            ->middleware('permission:reports.daily_ledger.view')
+            ->name('daily_ledger');
+
+        Route::get('/transactions/cash', [ReportController::class, 'cashTransactions'])
+            ->middleware('permission:reports.cash_transactions.view')
+            ->name('cash_transactions');
+        Route::get('/transactions/bank', [ReportController::class, 'bankTransactions'])
+            ->middleware('permission:reports.bank_transactions.view')
+            ->name('bank_transactions');
+
+        Route::get('/cheques', [ReportController::class, 'chequeHistory'])
+            ->middleware('permission:reports.cheque_history.view')
+            ->name('cheque_history');
 
         Route::get('/teacher/epf', [ReportController::class, 'teacherEpf'])
             ->middleware('permission:reports.teacher_epf.view')
@@ -158,6 +192,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/teacher/etf', [ReportController::class, 'teacherEtf'])
             ->middleware('permission:reports.teacher_etf.view')
             ->name('teacher_etf');
+
+        Route::get('/company/epf', [ReportController::class, 'companyEpf'])
+            ->middleware('permission:reports.company_epf.view')
+            ->name('company_epf');
+
+        Route::get('/teacher/epf-etf-totals', [ReportController::class, 'epfEtfTotals'])
+            ->middleware('permission:reports.epf_etf_totals.view')
+            ->name('epf_etf_totals');
         Route::get('/students/due', [ReportController::class, 'studentDue'])
             ->middleware('permission:reports.student_due.view')
             ->name('student_due');
@@ -194,10 +236,10 @@ Route::middleware('auth')->group(function () {
 
         // Collections for seminars and extra classes
         Route::get('/seminars/collection', [ReportController::class, 'seminarsCollection'])
-            ->middleware('permission:reports.view|reports.seminars_collection.view')
+            ->middleware('permission:reports.seminars_collection.view')
             ->name('seminars_collection');
         Route::get('/extra-classes/collection', [ReportController::class, 'extraClassesCollection'])
-            ->middleware('permission:reports.view|reports.extra_classes_collection.view')
+            ->middleware('permission:reports.extra_classes_collection.view')
             ->name('extra_classes_collection');
     });
 

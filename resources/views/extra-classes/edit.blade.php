@@ -79,7 +79,7 @@
 
                     <div>
                          <label class="block text-sm font-semibold text-gray-700 mb-1">Visiting Teacher <span class="text-gray-400 font-normal">(Optional)</span></label>
-                        <select name="visiting_teacher_id" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
+                        <select name="visiting_teacher_id" data-searchable-select class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
                             <option value="">-- Select Teacher --</option>
                             @foreach($visitingTeachers as $vt)
                                 <option value="{{ $vt->id }}" @selected(old('visiting_teacher_id', $extraClass->visiting_teacher_id)==$vt->id)>{{ $vt->name }}</option>

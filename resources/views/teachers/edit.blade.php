@@ -1,4 +1,8 @@
 <x-app-layout>
+    @php
+        $canViewSalaryAmounts = auth()->user()?->can('teachers.salary.amounts.view') ?? false;
+        $canManageSalaryComponents = auth()->user()?->can('teachers.salary.components') ?? false;
+    @endphp
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div>
@@ -157,6 +161,7 @@
                     </div>
 
                     <!-- Salary Section -->
+                    @if($canViewSalaryAmounts && $canManageSalaryComponents)
                     <div class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
                         <div class="flex items-center justify-between mb-4">
                             <div>
@@ -297,11 +302,11 @@
                                 <label class="flex items-center cursor-pointer">
                                     <span class="mr-3 font-medium text-gray-800">EPF Enabled</span>
                                     <span class="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
-                                        <input 
-                                            type="checkbox" 
-                                            id="epf_enabled" 
-                                            name="epf_enabled" 
-                                            value="1" 
+                                        <input
+                                            type="checkbox"
+                                            id="epf_enabled"
+                                            name="epf_enabled"
+                                            value="1"
                                             {{ old('epf_enabled', $teacher->epf_enabled ? '1' : '0') === '1' ? 'checked' : '' }}
                                             class="sr-only peer"
                                         >
@@ -315,11 +320,11 @@
                                 <label class="flex items-center cursor-pointer">
                                     <span class="mr-3 font-medium text-gray-800">ETF Enabled</span>
                                     <span class="relative inline-block w-12 h-6 bg-gray-300 rounded-full">
-                                        <input 
-                                            type="checkbox" 
-                                            id="etf_enabled" 
-                                            name="etf_enabled" 
-                                            value="1" 
+                                        <input
+                                            type="checkbox"
+                                            id="etf_enabled"
+                                            name="etf_enabled"
+                                            value="1"
                                             {{ old('etf_enabled', $teacher->etf_enabled ? '1' : '0') === '1' ? 'checked' : '' }}
                                             class="sr-only peer"
                                         >
@@ -344,6 +349,7 @@
                             </div>
                         </div>
                     </div>
+                    @endif
 
                     <!-- Status Section -->
                     <div class="bg-purple-50 border border-purple-200 rounded-lg p-6 mb-8">
@@ -430,6 +436,7 @@
 
         function addSalaryComponent() {
             const container = document.getElementById('salary-components-container');
+            if (!container) return;
             const componentHtml = `
                 <div class="salary-component flex gap-3 items-start bg-white p-4 rounded-lg border border-gray-200">
                     <div class="flex-1">
@@ -537,8 +544,10 @@
                 total += value;
             });
             
-            document.getElementById('total-salary-display').textContent = 'Rs ' + total.toFixed(2);
-            document.getElementById('salary_amount').value = total.toFixed(2);
+            const display = document.getElementById('total-salary-display');
+            if (display) display.textContent = 'Rs ' + total.toFixed(2);
+            const hidden = document.getElementById('salary_amount');
+            if (hidden) hidden.value = total.toFixed(2);
         }
     </script>
 </x-app-layout>

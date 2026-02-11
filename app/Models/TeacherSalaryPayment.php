@@ -13,6 +13,9 @@ class TeacherSalaryPayment extends Model
         'base_salary',
         'deductions',
         'total_deductions',
+        'employee_epf_amount',
+        'employer_epf_amount',
+        'employer_etf_amount',
         'paid_at',
         'payment_month',
         'receipt_number',
@@ -29,6 +32,9 @@ class TeacherSalaryPayment extends Model
         'amount' => 'decimal:2',
         'base_salary' => 'decimal:2',
         'total_deductions' => 'decimal:2',
+        'employee_epf_amount' => 'decimal:2',
+        'employer_epf_amount' => 'decimal:2',
+        'employer_etf_amount' => 'decimal:2',
         'deductions' => 'array',
     ];
 

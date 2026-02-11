@@ -75,10 +75,15 @@ class TeacherController extends Controller
             });
         }
 
+        $fields = ['id', 'name', 'phone', 'active'];
+        if ($request->user()?->can('teachers.salary.amounts.view') || $request->user()?->can('teachers.salary.pay') || $request->user()?->can('teachers.salary.components')) {
+            $fields[] = 'salary_amount';
+        }
+
         $teachers = $query
             ->orderBy('name')
             ->limit(20)
-            ->get(['id', 'name', 'phone', 'salary_amount', 'active']);
+            ->get($fields);
 
         return response()->json($teachers);
     }
@@ -236,16 +241,24 @@ class TeacherController extends Controller
             'joining_date' => ['nullable', 'date'],
             'payment_start_date' => ['nullable', 'date'],
             'assigned_classes_hidden' => ['nullable', 'string'],
-            'salary_amount' => ['required', 'numeric', 'min:0.01'],
-            'salary_components' => ['nullable', 'array'],
-            'salary_components.*.type' => ['required', 'string'],
-            'salary_components.*.amount' => ['required', 'numeric', 'min:0'],
             'epf_enabled' => ['nullable', 'in:0,1'],
             'etf_enabled' => ['nullable', 'in:0,1'],
             'active' => ['nullable', 'in:0,1'],
         ]);
 
-        $teacher->update([
+        $canManageSalary = ($request->user()?->can('teachers.salary.amounts.view') ?? false)
+            && ($request->user()?->can('teachers.salary.components') ?? false);
+        if ($canManageSalary) {
+            $salaryValidated = $request->validate([
+                'salary_amount' => ['required', 'numeric', 'min:0.01'],
+                'salary_components' => ['nullable', 'array'],
+                'salary_components.*.type' => ['required', 'string'],
+                'salary_components.*.amount' => ['required', 'numeric', 'min:0'],
+            ]);
+            $validated = array_merge($validated, $salaryValidated);
+        }
+
+        $updateData = [
             'name' => $validated['name'],
             'email' => $validated['email'] ?? null,
             'address' => $validated['address'] ?? null,
@@ -253,12 +266,17 @@ class TeacherController extends Controller
             'joining_date' => $validated['joining_date'] ?? null,
             'payment_start_date' => $validated['payment_start_date'] ?? null,
             'assigned_classes' => $validated['assigned_classes_hidden'] ?? null,
-            'salary_amount' => $validated['salary_amount'],
-            'salary_components' => $validated['salary_components'] ?? null,
             'epf_enabled' => ($validated['epf_enabled'] ?? ($teacher->epf_enabled ? '1' : '0')) === '1',
             'etf_enabled' => ($validated['etf_enabled'] ?? ($teacher->etf_enabled ? '1' : '0')) === '1',
             'active' => ($validated['active'] ?? '1') === '1',
-        ]);
+        ];
+
+        if ($canManageSalary) {
+            $updateData['salary_amount'] = $validated['salary_amount'];
+            $updateData['salary_components'] = $validated['salary_components'] ?? null;
+        }
+
+        $teacher->update($updateData);
 
         return back()->with('status', 'Teacher updated successfully.');
     }
@@ -268,6 +286,12 @@ class TeacherController extends Controller
      */
     public function updateSalary(Request $request, Teacher $teacher): RedirectResponse
     {
+        if (! $request->user()
+            || ! $request->user()->can('teachers.salary.amounts.view')
+            || ! $request->user()->can('teachers.salary.components')) {
+            abort(403);
+        }
+
         $validated = $request->validate([
             'salary_amount' => ['nullable', 'numeric', 'min:0'],
             'salary_components' => ['nullable', 'array'],

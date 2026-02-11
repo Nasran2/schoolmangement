@@ -27,6 +27,10 @@
             <!-- Header/Filters Area -->
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <h2 class="text-base font-semibold text-gray-800">Student List</h2>
+
+                <div class="text-xs text-gray-500">
+                    Set payment method per student (default: Cash).
+                </div>
                 
                 <!-- Quick stats could go here if available -->
                  <div class="flex items-center gap-3 text-sm text-gray-500">
@@ -46,11 +50,21 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Student</th>
                             <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Attendance</th>
                             <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Payment Status</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Method</th>
                             <th scope="col" class="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Amount</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 bg-white">
                         @foreach($enrollments as $index => $row)
+                            @php
+                                $rowPm = old("items.$index.payment_method", (string) ($row->revenue?->payment_method ?? 'cash'));
+                                if (!$rowPm) { $rowPm = 'cash'; }
+                                $rowBank = old("items.$index.bank_name", (string) data_get($row->revenue?->payment_meta, 'bank', ''));
+                                $rowRef = old("items.$index.bank_ref_no", (string) data_get($row->revenue?->payment_meta, 'ref_no', ''));
+                                $rowChequeDate = old("items.$index.cheque_date", (string) ($row->revenue?->cheque_date?->format('Y-m-d') ?? ''));
+                                $rowChequeNo = old("items.$index.cheque_number", (string) data_get($row->revenue?->payment_meta, 'cheque_number', ''));
+                                $rowChequeBank = old("items.$index.cheque_bank", (string) data_get($row->revenue?->payment_meta, 'bank', ''));
+                            @endphp
                             <tr class="hover:bg-gray-50/80 transition-colors group">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
@@ -93,6 +107,34 @@
                                               class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
                                     </button>
                                      <div class="mt-1 text-[10px] font-medium uppercase tracking-wide" :class="paid ? 'text-indigo-600' : 'text-gray-400'" x-text="paid ? 'Paid' : 'Unpaid'"></div>
+                                </td>
+
+                                <!-- Method Radios (per student) -->
+                                <td class="px-6 py-4 whitespace-nowrap text-center" x-data="{ pm: '{{ $rowPm }}' }">
+                                    <div class="inline-flex items-center gap-3 text-xs">
+                                        <label class="inline-flex items-center gap-1 cursor-pointer select-none">
+                                            <input type="radio" class="h-3 w-3" name="items[{{ $index }}][payment_method]" value="cash" x-model="pm">
+                                            <span class="text-gray-700">Cash</span>
+                                        </label>
+                                        <label class="inline-flex items-center gap-1 cursor-pointer select-none">
+                                            <input type="radio" class="h-3 w-3" name="items[{{ $index }}][payment_method]" value="bank_transfer" x-model="pm">
+                                            <span class="text-gray-700">Transfer</span>
+                                        </label>
+                                        <label class="inline-flex items-center gap-1 cursor-pointer select-none">
+                                            <input type="radio" class="h-3 w-3" name="items[{{ $index }}][payment_method]" value="cheque" x-model="pm">
+                                            <span class="text-gray-700">Cheque</span>
+                                        </label>
+                                    </div>
+
+                                    <div x-show="pm === 'bank_transfer'" x-cloak class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <input type="text" name="items[{{ $index }}][bank_name]" value="{{ $rowBank }}" class="w-full rounded-md border-gray-300 text-xs" placeholder="Bank">
+                                        <input type="text" name="items[{{ $index }}][bank_ref_no]" value="{{ $rowRef }}" class="w-full rounded-md border-gray-300 text-xs" placeholder="Ref no">
+                                    </div>
+                                    <div x-show="pm === 'cheque'" x-cloak class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input type="date" name="items[{{ $index }}][cheque_date]" value="{{ $rowChequeDate }}" class="w-full rounded-md border-gray-300 text-xs">
+                                        <input type="text" name="items[{{ $index }}][cheque_number]" value="{{ $rowChequeNo }}" class="w-full rounded-md border-gray-300 text-xs" placeholder="Cheque no">
+                                        <input type="text" name="items[{{ $index }}][cheque_bank]" value="{{ $rowChequeBank }}" class="w-full rounded-md border-gray-300 text-xs" placeholder="Bank">
+                                    </div>
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-700 font-medium font-mono">

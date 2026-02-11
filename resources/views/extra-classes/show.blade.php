@@ -255,6 +255,73 @@
                                             <p class="mt-1 text-xs text-gray-500" x-show="payingStudent">Max due: <span x-text="payingStudent.due_days"></span> days</p>
                                         </div>
 
+                                        @php
+                                            $pm = old('payment_method', 'cash');
+                                        @endphp
+
+                                        <div class="mt-4" x-data="{ pm: '{{ $pm }}' }">
+                                            <label class="block text-sm font-medium text-gray-700">Payment Method</label>
+                                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='cash' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                                    <input type="radio" name="payment_method" value="cash" class="mt-1" x-model="pm">
+                                                    <div>
+                                                        <div class="text-xs font-semibold text-gray-800">Cash</div>
+                                                        <div class="text-[11px] text-gray-500">No extra details</div>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='bank_transfer' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                                    <input type="radio" name="payment_method" value="bank_transfer" class="mt-1" x-model="pm">
+                                                    <div>
+                                                        <div class="text-xs font-semibold text-gray-800">Bank Transfer</div>
+                                                        <div class="text-[11px] text-gray-500">Ref no + Bank</div>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='cheque' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                                    <input type="radio" name="payment_method" value="cheque" class="mt-1" x-model="pm">
+                                                    <div>
+                                                        <div class="text-xs font-semibold text-gray-800">Cheque</div>
+                                                        <div class="text-[11px] text-gray-500">Cheque details</div>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            <div x-show="pm === 'bank_transfer'" x-cloak class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <div>
+                                                    <input type="text" name="bank_name" value="{{ old('bank_name') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Bank name">
+                                                    @error('bank_name')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                                <div>
+                                                    <input type="text" name="bank_ref_no" value="{{ old('bank_ref_no') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Reference no (optional)">
+                                                    @error('bank_ref_no')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+
+                                            <div x-show="pm === 'cheque'" x-cloak class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                <div>
+                                                    <input type="date" name="cheque_date" value="{{ old('cheque_date') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                    @error('cheque_date')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                                <div>
+                                                    <input type="text" name="cheque_number" value="{{ old('cheque_number') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Cheque number">
+                                                    @error('cheque_number')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                                <div>
+                                                    <input type="text" name="cheque_bank" value="{{ old('cheque_bank') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Bank">
+                                                    @error('cheque_bank')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center mt-4">
                                             <span class="text-sm text-gray-600">Total Amount:</span>
                                             <span class="text-lg font-bold text-gray-900" x-text="new Number(payDays * amountPerDay).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>

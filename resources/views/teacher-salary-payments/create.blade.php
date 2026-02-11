@@ -49,7 +49,7 @@
                                 </div>
 
                                 <input type="hidden" id="teacher_id" name="teacher_id"
-                                    value="{{ old('teacher_id', '') }}" required />
+                                    value="{{ old('teacher_id', $prefillTeacherId ?? '') }}" required />
                                 @error('teacher_id')
                                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                                 @enderror
@@ -149,9 +149,9 @@
                                 </div>
                             </div>
 
-                            <!-- Base Salary -->
+                            <!-- Total Salary -->
                             <div>
-                                <x-input-label for="base_salary" :value="__('Basic Salary (Rs) *')"
+                                <x-input-label for="base_salary" :value="__('Total Salary (Rs) *')"
                                     class="mb-2 font-semibold" />
                                 <div class="relative">
                                     <span class="absolute left-3 top-3 text-gray-500 font-medium">Rs</span>
@@ -160,6 +160,16 @@
                                         oninput="calculateTotal()" />
                                 </div>
                                 <x-input-error :messages="$errors->get('base_salary')" class="mt-2" />
+
+                                <div class="mt-4">
+                                    <x-input-label for="basic_salary_for_epf" :value="__('Basic Salary (for EPF/ETF)')" class="mb-2 font-semibold" />
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-3 text-gray-500 font-medium">Rs</span>
+                                        <x-text-input id="basic_salary_for_epf" type="number" step="0.01" readonly
+                                            class="block w-full pl-12 bg-gray-50" value="" />
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">EPF/ETF is calculated only from Basic Salary.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -192,7 +202,6 @@
 
                         <p class="text-sm text-gray-500 mt-3 italic">Examples: Leaves, Advance, Loan, Late Arrivals,
                             etc.</p>
-                        <p class="text-xs text-gray-600 mt-2">Note: EPF/ETF are calculated on a statutory minimum base of Rs 27,000 when applicable.</p>
                     </div>
 
                     <!-- Summary Section -->
@@ -211,7 +220,7 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="bg-white rounded-lg p-4 border border-gray-200">
-                                <p class="text-sm text-gray-600 font-medium">Basic Salary</p>
+                                <p class="text-sm text-gray-600 font-medium">Total Salary</p>
                                 <p class="text-2xl font-bold text-blue-600 mt-1" id="display-base-salary">Rs 0.00</p>
                             </div>
                             <div class="bg-white rounded-lg p-4 border border-gray-200">
@@ -280,11 +289,19 @@
         // Replace your old teacher data block with this:
         const allTeachers = [
             @foreach($teachers as $teacher)
+                @php
+                    $basicSalaryAmount = (float) data_get(
+                        collect($teacher->salary_components ?? [])->firstWhere('type', 'Basic Salary'),
+                        'amount',
+                        0
+                    );
+                @endphp
                 {
                 id: {{ $teacher->id }},
                 name: {!! json_encode($teacher->name) !!},
                 phone: {!! json_encode($teacher->phone ?? '') !!},
                 salary: {{ $teacher->salary_amount ?? 0 }},
+                basic_salary: {{ $basicSalaryAmount }},
                 epf_enabled: {{ ($teacher->epf_enabled === null || $teacher->epf_enabled) ? 'true' : 'false' }},
                 etf_enabled: {{ ($teacher->etf_enabled === null || $teacher->etf_enabled) ? 'true' : 'false' }},
                 salary_components: {!! json_encode($teacher->salary_components ?? []) !!}
@@ -357,13 +374,15 @@
         let currentTeacherEpfEnabled = false;
         let currentTeacherEtfEnabled = false;
         let userEditedEpf = false;
-        let userEditedEtf = false;
         let epfIndex = null;
-        let etfIndex = null;
 
-        function selectTeacher(teacherId) {
+        const preselectedTeacherId = @json(old('teacher_id', $prefillTeacherId ?? null));
+
+        function selectTeacher(teacherId, options = {}) {
             const teacher = allTeachers.find(t => t.id === teacherId);
             if (!teacher) return;
+
+            const { setBaseSalary = true } = options;
 
             document.getElementById('teacher_id').value = teacher.id;
             document.getElementById('teacher_search').value = teacher.name;
@@ -373,9 +392,38 @@
             currentTeacherEpfEnabled = !!teacher.epf_enabled;
             currentTeacherEtfEnabled = !!teacher.etf_enabled;
             userEditedEpf = false;
-            userEditedEtf = false;
             syncStatutoryRows();
-            updateBaseSalary(teacher.salary);
+
+            if (setBaseSalary) {
+                const salaryFromField = parseFloat(teacher.salary || 0) || 0;
+                const salaryFromComponents = (teacher.salary_components && Array.isArray(teacher.salary_components))
+                    ? teacher.salary_components.reduce((sum, comp) => sum + (parseFloat(comp?.amount || 0) || 0), 0)
+                    : 0;
+                const totalSalary = salaryFromField > 0 ? salaryFromField : salaryFromComponents;
+                const basicSalary = parseFloat(teacher.basic_salary || 0) || 0;
+
+                const basicInput = document.getElementById('basic_salary_for_epf');
+                if (basicInput) {
+                    basicInput.value = (basicSalary > 0 ? basicSalary : 0).toFixed(2);
+                }
+                updateBaseSalary(totalSalary);
+            } else {
+                calculateTotal();
+            }
+        }
+
+        function preselectTeacherIfNeeded() {
+            const idField = document.getElementById('teacher_id');
+            const baseSalaryInput = document.getElementById('base_salary');
+            const idFromHidden = parseInt(idField?.value || '', 10);
+            const id = (Number.isFinite(idFromHidden) && idFromHidden > 0)
+                ? idFromHidden
+                : (typeof preselectedTeacherId === 'number' ? preselectedTeacherId : parseInt(preselectedTeacherId || '', 10));
+
+            if (!Number.isFinite(id) || id <= 0) return;
+
+            const hasBaseSalary = !!(baseSalaryInput && String(baseSalaryInput.value || '').trim() !== '');
+            selectTeacher(id, { setBaseSalary: !hasBaseSalary });
         }
 
         function displayTeacher(teacher) {
@@ -424,10 +472,12 @@
             if (card) card.style.display = 'none';
             if (baseSalary) baseSalary.value = '';
 
+            const basicInput = document.getElementById('basic_salary_for_epf');
+            if (basicInput) basicInput.value = '';
+
             currentTeacherEpfEnabled = false;
             currentTeacherEtfEnabled = false;
             userEditedEpf = false;
-            userEditedEtf = false;
             removeStatutoryRows();
 
             calculateTotal();
@@ -536,7 +586,7 @@
         }
 
         function syncStatutoryRows() {
-            // Ensure EPF/ETF rows exist or are removed based on currentTeacherEpfEnabled/currentTeacherEtfEnabled
+            // Ensure employee EPF row exists or is removed based on currentTeacherEpfEnabled
             const container = document.getElementById('deductions-container');
             if (!container) return;
 
@@ -549,9 +599,9 @@
                     <div id="epf-row" class="deduction-row flex gap-3 items-start bg-white p-4 rounded-lg border border-blue-200">
                         <div class="flex-1">
                             <div class="inline-flex items-center gap-2">
-                                <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-700">EPF</span>
+                                <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-700">EPF (Employee)</span>
                                 <input type="hidden" name="deductions[${idx}][reason]" value="EPF" />
-                                <span class="text-xs text-gray-500">Auto-calculated (min base Rs 27,000)</span>
+                                <span class="text-xs text-gray-500">Auto-calculated</span>
                             </div>
                         </div>
                         <div class="w-40">
@@ -570,71 +620,28 @@
                 existingEpf.remove();
                 epfIndex = null;
             }
-
-            // ETF
-            const existingEtf = document.getElementById('etf-row');
-            if (currentTeacherEtfEnabled && !existingEtf) {
-                const idx = deductionIndex;
-                etfIndex = idx;
-                const html = `
-                    <div id="etf-row" class="deduction-row flex gap-3 items-start bg-white p-4 rounded-lg border border-blue-200">
-                        <div class="flex-1">
-                            <div class="inline-flex items-center gap-2">
-                                <span class="px-2 py-1 text-xs font-semibold rounded bg-blue-100 text-blue-700">ETF</span>
-                                <input type="hidden" name="deductions[${idx}][reason]" value="ETF" />
-                                <span class="text-xs text-gray-500">Auto-calculated (min base Rs 27,000)</span>
-                            </div>
-                        </div>
-                        <div class="w-40">
-                            <div class="relative">
-                                <span class="absolute left-3 top-2.5 text-gray-500 text-sm">Rs</span>
-                                <input type="number" name="deductions[${idx}][amount]" step="0.01" min="0"
-                                       class="block w-full pl-10 border-gray-300 rounded-lg shadow-sm text-sm"
-                                       oninput="userEditedEtf = true; calculateTotal();" />
-                            </div>
-                        </div>
-                    </div>`;
-                container.insertAdjacentHTML('afterbegin', html);
-                deductionIndex++;
-            }
-            if (!currentTeacherEtfEnabled && existingEtf) {
-                existingEtf.remove();
-                etfIndex = null;
-            }
         }
 
         function removeStatutoryRows() {
             const epfRow = document.getElementById('epf-row');
-            const etfRow = document.getElementById('etf-row');
             if (epfRow) epfRow.remove();
-            if (etfRow) etfRow.remove();
             epfIndex = null;
-            etfIndex = null;
         }
 
         function calculateTotal() {
             const baseSalary = parseFloat(document.getElementById('base_salary').value) || 0;
-            const statutoryBase = Math.max(27000, baseSalary);
+            const basicSalary = parseFloat(document.getElementById('basic_salary_for_epf')?.value || '') || 0;
+            const epfBase = basicSalary > 0 ? basicSalary : baseSalary;
 
             // Update EPF/ETF amounts in their rows based on settings
-            const epfPercent = {{ (float) (app(\App\Services\SettingsService::class)->get('salary_epf_percent', '0') ?: 0) }};
-            const etfPercent = {{ (float) (app(\App\Services\SettingsService::class)->get('salary_etf_percent', '0') ?: 0) }};
+            const employeeEpfPercent = {{ (float) (app(\App\Services\SettingsService::class)->get('salary_epf_employee_percent', app(\App\Services\SettingsService::class)->get('salary_epf_percent', '0')) ?: 0) }};
 
             if (currentTeacherEpfEnabled) {
                 const epfRow = document.querySelector('#epf-row input[type="number"]');
                 if (epfRow) {
                     if (!userEditedEpf) {
-                        const epf = Math.round(statutoryBase * (epfPercent / 100) * 100) / 100;
+                        const epf = Math.round(epfBase * (employeeEpfPercent / 100) * 100) / 100;
                         epfRow.value = epf.toFixed(2);
-                    }
-                }
-            }
-            if (currentTeacherEtfEnabled) {
-                const etfRow = document.querySelector('#etf-row input[type="number"]');
-                if (etfRow) {
-                    if (!userEditedEtf) {
-                        const etf = Math.round(statutoryBase * (etfPercent / 100) * 100) / 100;
-                        etfRow.value = etf.toFixed(2);
                     }
                 }
             }
@@ -674,6 +681,7 @@
             document.addEventListener('DOMContentLoaded', function () {
                 setTimeout(() => {
                     initTeacherSearch();
+                    preselectTeacherIfNeeded();
                     syncStatutoryRows();
                     calculateTotal();
                     initPaymentMethodWatcher();
@@ -682,6 +690,7 @@
         } else {
             setTimeout(() => {
                 initTeacherSearch();
+                preselectTeacherIfNeeded();
                 syncStatutoryRows();
                 calculateTotal();
                 initPaymentMethodWatcher();

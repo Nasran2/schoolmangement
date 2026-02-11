@@ -55,6 +55,7 @@
                                 <tr>
                                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Date</th>
                                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Category</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Method</th>
                                     <th class="px-4 py-2 text-right text-xs font-semibold text-gray-600">Amount</th>
                                     <th class="px-4 py-2 text-right text-xs font-semibold text-gray-600">Actions</th>
                                 </tr>
@@ -64,6 +65,13 @@
                                     <tr>
                                         <td class="px-4 py-2 text-sm text-gray-800">{{ optional($item->expense_date)->format('d-m-Y') }}</td>
                                         <td class="px-4 py-2 text-sm text-gray-800">{{ $item->category?->name }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">
+                                            @php
+                                                $pm = $item->payment_method ?: 'cash';
+                                                $label = $pm === 'bank_transfer' ? 'Bank Transfer' : ($pm === 'cheque' ? 'Cheque' : 'Cash');
+                                            @endphp
+                                            <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">{{ $label }}</span>
+                                        </td>
                                         <td class="px-4 py-2 text-right text-sm font-semibold text-gray-900">{{ number_format($item->amount, 2) }}</td>
                                         <td class="px-4 py-2 text-right text-sm">
                                             @can('expense.manage')
@@ -92,13 +100,57 @@
                                         </td>
                                     </tr>
                                 @empty
-                                    <tr><td class="px-4 py-4 text-sm text-gray-600" colspan="4">No expense records found.</td></tr>
+                                    <tr><td class="px-4 py-4 text-sm text-gray-600" colspan="5">No expense records found.</td></tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
 
                     <div class="mt-4">{{ $items->links() }}</div>
+
+                    @if (isset($salaryPayments) && $salaryPayments->count())
+                        <div class="mt-10">
+                            <div class="mb-3 flex items-center justify-between">
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-800">Teacher Salary Payments</div>
+                                    <div class="text-xs text-gray-600">These are recorded under Teachers → Salary Payments.</div>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto rounded border">
+                                <table class="min-w-full divide-y">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Date</th>
+                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Teacher</th>
+                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">Method</th>
+                                            <th class="px-4 py-2 text-right text-xs font-semibold text-gray-600">Amount</th>
+                                            <th class="px-4 py-2 text-right text-xs font-semibold text-gray-600">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y">
+                                        @foreach ($salaryPayments as $p)
+                                            <tr>
+                                                <td class="px-4 py-2 text-sm text-gray-800">{{ optional($p->paid_at)->format('d-m-Y') }}</td>
+                                                <td class="px-4 py-2 text-sm text-gray-800">{{ $p->teacher?->name ?? '—' }}</td>
+                                                <td class="px-4 py-2 text-sm text-gray-700">
+                                                    @php
+                                                        $pm = $p->payment_method ?: 'cash';
+                                                        $label = $pm === 'bank_transfer' ? 'Bank Transfer' : ($pm === 'cheque' ? 'Cheque' : 'Cash');
+                                                    @endphp
+                                                    <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">{{ $label }}</span>
+                                                </td>
+                                                <td class="px-4 py-2 text-right text-sm font-semibold text-gray-900">{{ number_format($p->amount, 2) }}</td>
+                                                <td class="px-4 py-2 text-right text-sm">
+                                                    <a href="{{ route('teacher-salary-payments.show', $p) }}" class="text-indigo-600 hover:underline">View</a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>

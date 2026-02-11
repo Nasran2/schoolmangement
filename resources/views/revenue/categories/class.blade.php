@@ -81,6 +81,77 @@
                                 @enderror
                             </div>
 
+                            @php
+                                $pm = old('payment_method', 'cash');
+                            @endphp
+
+                            <div class="sm:col-span-6" x-data="{ pm: '{{ $pm }}' }">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='cash' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                        <input type="radio" name="payment_method" value="cash" class="mt-1" x-model="pm">
+                                        <div>
+                                            <div class="text-xs font-semibold text-gray-800">Cash</div>
+                                            <div class="text-[11px] text-gray-500">No extra details</div>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='bank_transfer' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                        <input type="radio" name="payment_method" value="bank_transfer" class="mt-1" x-model="pm">
+                                        <div>
+                                            <div class="text-xs font-semibold text-gray-800">Bank Transfer</div>
+                                            <div class="text-[11px] text-gray-500">Ref no + Bank</div>
+                                        </div>
+                                    </label>
+                                    <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='cheque' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                        <input type="radio" name="payment_method" value="cheque" class="mt-1" x-model="pm">
+                                        <div>
+                                            <div class="text-xs font-semibold text-gray-800">Cheque</div>
+                                            <div class="text-[11px] text-gray-500">Cheque details</div>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div x-show="pm === 'bank_transfer'" x-cloak class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600">Bank</label>
+                                        <input type="text" name="bank_name" value="{{ old('bank_name') }}" class="mt-1 w-full rounded-lg border-gray-300" placeholder="Bank name">
+                                        @error('bank_name')
+                                            <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600">Ref No (optional)</label>
+                                        <input type="text" name="bank_ref_no" value="{{ old('bank_ref_no') }}" class="mt-1 w-full rounded-lg border-gray-300" placeholder="Reference">
+                                        @error('bank_ref_no')
+                                            <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div x-show="pm === 'cheque'" x-cloak class="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600">Cheque Date</label>
+                                        <input type="date" name="cheque_date" value="{{ old('cheque_date') }}" class="mt-1 w-full rounded-lg border-gray-300">
+                                        @error('cheque_date')
+                                            <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600">Cheque No</label>
+                                        <input type="text" name="cheque_number" value="{{ old('cheque_number') }}" class="mt-1 w-full rounded-lg border-gray-300" placeholder="Cheque number">
+                                        @error('cheque_number')
+                                            <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600">Bank</label>
+                                        <input type="text" name="cheque_bank" value="{{ old('cheque_bank') }}" class="mt-1 w-full rounded-lg border-gray-300" placeholder="Bank">
+                                        @error('cheque_bank')
+                                            <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="sm:col-span-6 flex items-center justify-between">
                                 <div class="text-xs text-gray-600">
                                     <label class="inline-flex items-center gap-2">

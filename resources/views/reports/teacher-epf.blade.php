@@ -33,7 +33,7 @@
                         </div>
                         <div>
                             <x-input-label for="teacher_id" :value="__('Teacher')" class="font-semibold mb-2" />
-                            <select id="teacher_id" name="teacher_id" class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm">
+                            <select id="teacher_id" name="teacher_id" data-searchable-select class="mt-1 block w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm">
                                 <option value="">All Teachers</option>
                                 @foreach($teachers as $t)
                                     <option value="{{ $t->id }}" @selected(($filters['teacher_id'] ?? '') == $t->id)>{{ $t->name }}</option>
@@ -63,9 +63,9 @@
 
                             @can('reports.download')
                                 <a class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition shadow-sm"
-                                   href="{{ route('reports.teacher_epf', array_merge(request()->query(), ['pdf' => 1])) }}">PDF</a>
+                                   href="{{ route($routeName ?? 'reports.teacher_epf', array_merge(request()->query(), ['pdf' => 1])) }}">PDF</a>
                                 <a class="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition shadow-sm"
-                                   href="{{ route('reports.teacher_epf', array_merge(request()->query(), ['download' => 1])) }}">CSV</a>
+                                   href="{{ route($routeName ?? 'reports.teacher_epf', array_merge(request()->query(), ['download' => 1])) }}">CSV</a>
                             @endcan
                         </div>
                     </form>
