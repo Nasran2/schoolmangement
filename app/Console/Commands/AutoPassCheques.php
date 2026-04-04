@@ -9,7 +9,7 @@ class AutoPassCheques extends Command
 {
     protected $signature = 'cheques:auto-pass {--days= : Auto-pass after N days from cheque date (default from settings or 14)}';
 
-    protected $description = 'Automatically mark pending cheque revenues as passed after the configured number of days from cheque date.';
+    protected $description = 'Automatically mark hold cheque revenues as passed after the configured number of days from cheque date.';
 
     public function handle(): int
     {
@@ -31,7 +31,7 @@ class AutoPassCheques extends Command
 
         $updated = Revenue::query()
             ->where('payment_method', 'cheque')
-            ->where('payment_status', 'pending')
+            ->whereIn('payment_status', ['hold', 'pending'])
             ->whereNotNull('cheque_date')
             ->whereDate('cheque_date', '<=', $cutoffDate)
             ->update([

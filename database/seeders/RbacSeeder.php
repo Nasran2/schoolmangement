@@ -129,6 +129,9 @@ class RbacSeeder extends Seeder
         $adminRole = Role::firstOrCreate(['name' => 'Admin']);
         $adminRole->syncPermissions(Permission::all());
 
+        $developerRole = Role::firstOrCreate(['name' => 'Developer']);
+        $developerRole->syncPermissions([]);
+
         $user = User::query()->updateOrCreate(
             ['email' => 'admin@school.local'],
             [
@@ -141,5 +144,16 @@ class RbacSeeder extends Seeder
         if (! $user->hasRole($superAdminRole)) {
             $user->assignRole($superAdminRole);
         }
+
+        $developer = User::query()->updateOrCreate(
+            ['username' => 'developer'],
+            [
+                'name' => 'developer',
+                'email' => 'developer@school.local',
+                'password' => Hash::make('password'),
+            ]
+        );
+
+        $developer->syncRoles([$developerRole]);
     }
 }

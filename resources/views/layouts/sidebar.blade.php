@@ -10,6 +10,7 @@
     $isReports = request()->routeIs('reports.*');
     $isClassrooms = request()->routeIs('classrooms.*');
     $isSettings = request()->routeIs('settings.*') || request()->routeIs('rbac.*');
+    $isDeveloper = request()->routeIs('developer.*');
 @endphp
 
 <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 hidden lg:flex lg:flex-col">
@@ -39,6 +40,14 @@
             </a>
         @endcan
 
+        @if(auth()->user()?->hasRole('Developer'))
+            <a href="{{ route('developer.dashboard') }}"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDeveloper ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 3.75h4.5v3h-4.5z"/><path d="M4.5 9.75h15v10.5h-15z"/><path d="M9 14.25h6"/><path d="M12 11.25v6"/></svg>
+                <span>Developer Console</span>
+            </a>
+        @endif
+
         @canany(['revenue.add','revenue.manage','revenue.categories.manage'])
             <div class="mt-3">
                 <button type="button" @click="open.revenue = !open.revenue" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isRevenue ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -55,6 +64,7 @@
                     @endcan
                     @can('revenue.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.index') }}">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.cheques.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.cheques.index') }}">Cheque Payments</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.reminders.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.reminders.index') }}">Reminders</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.adjustments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.adjustments.index') }}">Refund / Waiver</a>
                     @endcan
@@ -393,6 +403,14 @@
             </a>
         @endcan
 
+        @if(auth()->user()?->hasRole('Developer'))
+            <a href="{{ route('developer.dashboard') }}"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDeveloper ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 3.75h4.5v3h-4.5z"/><path d="M4.5 9.75h15v10.5h-15z"/><path d="M9 14.25h6"/><path d="M12 11.25v6"/></svg>
+                <span>Developer Console</span>
+            </a>
+        @endif
+
         @canany(['revenue.add','revenue.manage','revenue.categories.manage'])
             <div class="mt-3">
                 <button type="button" @click="menus.revenue = !menus.revenue" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isRevenue ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -409,6 +427,7 @@
                     @endcan
                     @can('revenue.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.index') }}">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.cheques.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.cheques.index') }}">Cheque Payments</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.adjustments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.adjustments.index') }}">Refund / Waiver</a>
                     @endcan
                     @can('revenue.categories.manage')

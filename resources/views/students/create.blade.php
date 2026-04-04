@@ -33,6 +33,7 @@
                             placeholder="e.g., STU-2025-001"
                         />
                         <x-input-error class="mt-2" :messages="$errors->get('admission_number')" />
+                        <p id="admission_number_status" class="text-xs mt-2 hidden"></p>
                         <p class="text-gray-500 text-xs mt-1">Unique identifier for this student</p>
                     </div>
 
@@ -231,13 +232,111 @@
             const modalMessage = document.getElementById('modal-message');
             const modalConfirm = document.getElementById('modal-confirm');
             const modalCancel = document.getElementById('modal-cancel');
+            const admissionStatus = document.getElementById('admission_number_status');
+            const admissionCheckUrl = @json(route('students.check_admission'));
             
             let pendingSubmit = false;
+            let admissionCheckTimer = null;
+            let admissionCheckAbortController = null;
+            let isAdmissionAvailable = true;
+
+            const setAdmissionStatus = (type, message) => {
+                if (!admissionStatus) return;
+
+                admissionStatus.classList.remove('hidden', 'text-red-600', 'text-green-600', 'text-gray-500');
+
+                if (!message) {
+                    admissionStatus.classList.add('hidden');
+                    admissionStatus.textContent = '';
+                    return;
+                }
+
+                if (type === 'error') {
+                    admissionStatus.classList.add('text-red-600');
+                } else if (type === 'success') {
+                    admissionStatus.classList.add('text-green-600');
+                } else {
+                    admissionStatus.classList.add('text-gray-500');
+                }
+
+                admissionStatus.textContent = message;
+            };
+
+            const checkAdmissionNumberAvailability = async () => {
+                const value = (admission?.value || '').trim();
+
+                if (value === '') {
+                    isAdmissionAvailable = true;
+                    setAdmissionStatus('neutral', 'Enter an admission number to check availability.');
+                    return;
+                }
+
+                if (admissionCheckAbortController) {
+                    admissionCheckAbortController.abort();
+                }
+
+                admissionCheckAbortController = new AbortController();
+                setAdmissionStatus('neutral', 'Checking admission number...');
+
+                try {
+                    const response = await fetch(`${admissionCheckUrl}?admission_number=${encodeURIComponent(value)}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        signal: admissionCheckAbortController.signal,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Admission check failed');
+                    }
+
+                    const data = await response.json();
+                    isAdmissionAvailable = Boolean(data?.available);
+
+                    if (isAdmissionAvailable) {
+                        setAdmissionStatus('success', data?.message || 'Admission number is available.');
+                    } else {
+                        const studentName = data?.student_name ? ` Student: ${data.student_name}.` : '';
+                        setAdmissionStatus('error', `Admission number is already used.${studentName}`);
+                    }
+                } catch (error) {
+                    if (error?.name === 'AbortError') return;
+
+                    isAdmissionAvailable = true;
+                    setAdmissionStatus('error', 'Could not validate admission number right now. You can still submit and server validation will check.');
+                }
+            };
+
+            if (admission) {
+                admission.addEventListener('input', () => {
+                    isAdmissionAvailable = true;
+                    if (admissionCheckTimer) {
+                        clearTimeout(admissionCheckTimer);
+                    }
+                    admissionCheckTimer = setTimeout(() => {
+                        checkAdmissionNumberAvailability();
+                    }, 300);
+                });
+
+                if ((admission.value || '').trim() !== '') {
+                    checkAdmissionNumberAvailability();
+                }
+            }
 
             if (form) {
-                form.addEventListener('submit', (e) => {
+                form.addEventListener('submit', async (e) => {
                     if (pendingSubmit) {
                         return true; // Allow submission
+                    }
+
+                    await checkAdmissionNumberAvailability();
+
+                    if (!isAdmissionAvailable) {
+                        e.preventDefault();
+                        admission?.focus();
+                        return false;
                     }
 
                     const missing = [];

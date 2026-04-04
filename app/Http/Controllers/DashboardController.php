@@ -245,7 +245,7 @@ class DashboardController extends Controller
 
         Revenue::query()
             ->where('payment_method', 'cheque')
-            ->where('payment_status', 'pending')
+            ->whereIn('payment_status', ['hold', 'pending'])
             ->whereNotNull('cheque_date')
             ->whereDate('cheque_date', '<=', $today->copy()->subDays($chequeAutoPassDays)->toDateString())
             ->update([
@@ -254,28 +254,76 @@ class DashboardController extends Controller
                 'paid_at' => now()->toDateString(),
             ]);
 
-        // Show dashboard alert ONLY when the cheque date has arrived.
-        // Keep showing until auto-pass day (same window as auto-pass).
-        $chequeAlertDays = $chequeAutoPassDays;
-        $chequeAlertStart = $today->copy()->subDays($chequeAlertDays)->startOfDay();
-        $chequeAlertEnd = $today->copy()->endOfDay();
+        // Dashboard cheque alerts:
+        // 1) Pending cheques with 1-7 days left => reminder.
+        // 2) Cheques due today/overdue => show status (passed / not passed / returned).
+        $chequeReminderDays = 7;
+        $chequeReminderStart = $today->copy()->addDay()->startOfDay();
+        $chequeReminderEnd = $today->copy()->addDays($chequeReminderDays)->endOfDay();
 
-        $pendingChequeQuery = Revenue::query()
+        $dashboardChequeQuery = Revenue::query()
             ->with(['student'])
             ->where('payment_method', 'cheque')
-            ->where('payment_status', 'pending')
             ->whereNotNull('cheque_date')
-            ->whereBetween('cheque_date', [$chequeAlertStart, $chequeAlertEnd]);
+            ->where(function ($q) use ($today, $chequeReminderStart, $chequeReminderEnd, $chequeReminderDays) {
+                $q->where(function ($upcoming) use ($chequeReminderStart, $chequeReminderEnd) {
+                    $upcoming->whereIn('payment_status', ['hold', 'pending'])
+                        ->whereBetween('cheque_date', [$chequeReminderStart, $chequeReminderEnd]);
+                })->orWhereBetween('cheque_date', [$today->copy()->subDays($chequeReminderDays)->startOfDay(), $today->copy()->endOfDay()]);
+            });
 
-        $pendingChequeCount = (int) $pendingChequeQuery->clone()->count();
-        $pendingChequeTotal = (float) $pendingChequeQuery->clone()->sum('amount');
-        $pendingChequeDueCount = $pendingChequeCount;
+        $pendingChequeCount = (int) $dashboardChequeQuery->clone()
+            ->whereIn('payment_status', ['hold', 'pending'])
+            ->count();
 
-        $pendingCheques = $pendingChequeQuery->clone()
+        $pendingChequeTotal = (float) $dashboardChequeQuery->clone()
+            ->whereIn('payment_status', ['hold', 'pending'])
+            ->sum('amount');
+
+        $pendingChequeDueCount = (int) $dashboardChequeQuery->clone()
+            ->whereIn('payment_status', ['hold', 'pending'])
+            ->whereDate('cheque_date', '<=', $today->toDateString())
+            ->count();
+
+        $pendingChequeReminderCount = (int) $dashboardChequeQuery->clone()
+            ->whereIn('payment_status', ['hold', 'pending'])
+            ->whereBetween('cheque_date', [$chequeReminderStart, $chequeReminderEnd])
+            ->count();
+
+        $pendingCheques = $dashboardChequeQuery->clone()
+            ->orderByRaw(
+                'case when payment_status in (?, ?) and cheque_date > ? then 0 when cheque_date <= ? then 1 else 2 end',
+                ['hold', 'pending', $today->toDateString(), $today->toDateString()]
+            )
             ->orderBy('cheque_date')
             ->orderByDesc('paid_at')
-            ->limit(5)
-            ->get();
+            ->limit(8)
+            ->get()
+            ->map(function (Revenue $item) use ($today) {
+                $chequeDate = $item->cheque_date ? Carbon::parse($item->cheque_date)->startOfDay() : null;
+                $daysLeft = $chequeDate ? $today->diffInDays($chequeDate, false) : null;
+                $isReminder = $daysLeft !== null && $daysLeft >= 1 && $daysLeft <= 7 && in_array((string) $item->payment_status, ['hold', 'pending'], true);
+                $isDueOrOverdue = $daysLeft !== null && $daysLeft <= 0;
+
+                $statusLabel = match ($item->payment_status) {
+                    'confirmed' => 'Passed',
+                    'rejected' => 'Returned',
+                    default => 'On Hold',
+                };
+                $statusTone = match ($item->payment_status) {
+                    'confirmed' => 'emerald',
+                    'rejected' => 'rose',
+                    default => 'amber',
+                };
+
+                $item->setAttribute('dashboard_days_left', $daysLeft);
+                $item->setAttribute('dashboard_is_reminder', $isReminder);
+                $item->setAttribute('dashboard_is_due_or_overdue', $isDueOrOverdue);
+                $item->setAttribute('dashboard_status_label', $statusLabel);
+                $item->setAttribute('dashboard_status_tone', $statusTone);
+
+                return $item;
+            });
 
         return view('dashboard', [
             'totalRevenue' => $totalRevenue,
@@ -283,6 +331,7 @@ class DashboardController extends Controller
             'netProfit' => $netProfit,
             'pendingChequeCount' => $pendingChequeCount,
             'pendingChequeDueCount' => $pendingChequeDueCount,
+            'pendingChequeReminderCount' => $pendingChequeReminderCount,
             'pendingChequeTotal' => $pendingChequeTotal,
             'pendingCheques' => $pendingCheques,
             'chequeAutoPassDays' => $chequeAutoPassDays,

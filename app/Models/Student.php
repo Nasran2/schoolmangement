@@ -168,8 +168,9 @@ class Student extends Model
         }
 
         $paidNet = max(0.0, $paidGross - $refunds);
+        $holdNet = (float) $this->monthlyFeeHoldAmount();
         $expectedNet = max(0.0, $expectedBase - $waivers);
-        return max(0.0, $expectedNet - $paidNet);
+        return max(0.0, $expectedNet - $paidNet - $holdNet);
     }
 
     public function getComputedDueAmountAttribute(): float
@@ -251,6 +252,28 @@ class Student extends Model
             })
             ->where('revenue_adjustments.type', 'waiver')
             ->sum('revenue_adjustments.amount');
+    }
+
+    public function monthlyFeeHoldAmount(): float
+    {
+        $catId = $this->monthlyFeeCategoryId();
+        if (! $catId) return 0.0;
+
+        $holdGross = (float) Revenue::query()
+            ->where('student_id', $this->id)
+            ->where('revenue_category_id', $catId)
+            ->whereIn('payment_status', ['hold', 'pending'])
+            ->sum('amount');
+
+        $refunds = (float) RevenueAdjustment::query()
+            ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
+            ->where('revenues.student_id', $this->id)
+            ->where('revenues.revenue_category_id', $catId)
+            ->whereIn('revenues.payment_status', ['hold', 'pending'])
+            ->where('revenue_adjustments.type', 'refund')
+            ->sum('revenue_adjustments.amount');
+
+        return max(0.0, $holdGross - $refunds);
     }
 
     public function monthlyFeePaidCyclesCount(): int

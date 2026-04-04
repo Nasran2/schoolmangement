@@ -53,7 +53,7 @@
                         <label class="text-sm font-medium text-gray-700">Status</label>
                         <select name="status" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                             <option value="">All</option>
-                            <option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option>
+                            <option value="hold" @selected(in_array(($filters['status'] ?? ''), ['hold','pending'], true))>On Hold</option>
                             <option value="confirmed" @selected(($filters['status'] ?? '') === 'confirmed')>Passed (Confirmed)</option>
                             <option value="rejected" @selected(($filters['status'] ?? '') === 'rejected')>Returned (Rejected)</option>
                         </select>
@@ -136,8 +136,8 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         @php($st = $item->payment_status ?? 'confirmed')
-                                        @if($st === 'pending')
-                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">Pending</span>
+                                        @if(in_array($st, ['hold', 'pending'], true))
+                                            <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">On Hold</span>
                                         @elseif($st === 'confirmed')
                                             <span class="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Passed</span>
                                         @else
@@ -148,7 +148,7 @@
                                     <td class="px-4 py-3 text-right">
                                         <div class="inline-flex items-center gap-2">
                                             @can('revenue.manage')
-                                                @if(($item->payment_status ?? 'confirmed') === 'pending')
+                                                @if(in_array((string)($item->payment_status ?? 'hold'), ['hold', 'pending'], true))
                                                     <button type="button"
                                                         class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700"
                                                         @click="passAction='{{ route('revenue.items.cheque.passed', $item) }}'; passMode='today'; passDate=today; passModal=true">

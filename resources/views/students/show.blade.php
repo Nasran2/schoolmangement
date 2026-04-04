@@ -431,6 +431,9 @@
                                 <div class="text-xs font-semibold text-rose-700 uppercase">Balance</div>
                                 <div class="mt-1 text-2xl font-bold text-rose-700">Rs {{ number_format((float)($dueBreakdown['netDue'] ?? 0), 2) }}</div>
                                 <div class="mt-1 text-xs text-rose-700/70">Paid: Rs {{ number_format((float)($dueBreakdown['paidMonthlyFee'] ?? 0), 2) }}</div>
+                                @if(((float)($dueBreakdown['holdMonthlyFee'] ?? 0)) > 0)
+                                    <div class="mt-1 text-xs text-amber-700/90">On Hold: Rs {{ number_format((float)($dueBreakdown['holdMonthlyFee'] ?? 0), 2) }}</div>
+                                @endif
                             </div>
                         </div>
 
@@ -481,6 +484,8 @@
                                 foreach ($ledger as $key => $data) {
                                     $s = \Carbon\Carbon::createFromDate($data['year'], $data['month'], 1)->startOfMonth();
                                     $e = $s->copy()->endOfMonth();
+                                    $holdByMonth = $dueBreakdown['holdByMonth'] ?? [];
+                                    $holdReserved = (float) ($holdByMonth[$key] ?? 0);
                                     $cycles[] = [
                                         'start' => $s,
                                         'end' => $e,
@@ -490,6 +495,8 @@
                                         'year' => $data['year'],
                                         'status' => $data['status'], // 'paid', 'partially_paid', 'unpaid'
                                         'remaining' => $data['remaining'],
+                                        'due' => $data['due'],
+                                        'hold_reserved' => $holdReserved,
                                     ];
                                 }
 
@@ -525,6 +532,10 @@
                                             $status = $cy['isFuture'] ? 'advance' : 'paid';
                                         } elseif ($cy['status'] === 'partially_paid') {
                                             $status = 'partial';
+                                        } elseif ((float) ($cy['hold_reserved'] ?? 0) > 0) {
+                                            $status = ((float)($cy['hold_reserved'] ?? 0) + 0.001) < (float)($cy['due'] ?? 0)
+                                                ? 'hold_partial'
+                                                : 'hold';
                                         } elseif ($cy['inProgress']) {
                                             $status = 'current';
                                         } elseif (($cy['status'] ?? '') === 'unpaid' && !$cy['isFuture'] && $cy['start']->copy()->startOfMonth()->lt(now()->startOfMonth())) {
@@ -551,6 +562,18 @@
                                                 </svg>
                                                 <div class="text-xs font-bold text-orange-700 mt-1">Partial</div>
                                                 <div class="text-[10px] font-medium text-orange-800 mt-0.5">Bal: Rs {{ number_format((float)($cy['remaining'] ?? 0), 2) }}</div>
+                                            </div>
+                                        @elseif($status === 'hold' || $status === 'hold_partial')
+                                            <div class="border-2 border-amber-400 bg-amber-50 rounded-lg p-3 text-center hover:shadow-md transition-all" title="On Hold: cheque payment is reserved and waiting for pass/return confirmation.">
+                                                <div class="text-xs font-semibold text-amber-700 mb-1">{{ $label }}</div>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-amber-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                                                </svg>
+                                                <div class="text-xs font-bold text-amber-700 mt-1">On Hold</div>
+                                                <div class="text-[10px] font-medium text-amber-800 mt-0.5">Rs {{ number_format((float)($cy['hold_reserved'] ?? 0), 2) }}</div>
+                                                @if($status === 'hold_partial')
+                                                    <div class="text-[10px] font-medium text-amber-800/80 mt-0.5">Partially held</div>
+                                                @endif
                                             </div>
                                         @elseif($status === 'paid')
                                             <div class="border-2 border-green-500 bg-green-50 rounded-lg p-3 text-center hover:shadow-md transition-all">

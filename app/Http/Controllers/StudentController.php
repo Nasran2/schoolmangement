@@ -59,10 +59,11 @@ class StudentController extends Controller
             $expectedBase += (float) ($m['due'] ?? 0);
         }
         $paidMonthlyFeeNet = (float) $student->monthlyFeePaidAmount();
+        $holdMonthlyFee = (float) $student->monthlyFeeHoldAmount();
         $waivedMonthlyFee = (float) $student->monthlyFeeWaiverAmount();
         $expectedDueNet = max(0.0, $expectedBase - $waivedMonthlyFee);
 
-        return max(0.0, $expectedDueNet - $paidMonthlyFeeNet);
+        return max(0.0, $expectedDueNet - $paidMonthlyFeeNet - $holdMonthlyFee);
     }
 
     /**
@@ -350,6 +351,44 @@ class StudentController extends Controller
     }
 
     /**
+     * Realtime admission number availability check for create form.
+     */
+    public function checkAdmissionNumber(Request $request)
+    {
+        $admissionNumber = trim((string) $request->query('admission_number', ''));
+
+        if ($admissionNumber === '') {
+            return response()->json([
+                'available' => true,
+                'exists' => false,
+                'student_name' => null,
+                'message' => 'Enter an admission number.',
+            ]);
+        }
+
+        $existing = Student::query()
+            ->select(['id', 'name', 'admission_number'])
+            ->whereRaw('LOWER(admission_number) = ?', [mb_strtolower($admissionNumber)])
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'available' => false,
+                'exists' => true,
+                'student_name' => $existing->name,
+                'message' => 'Admission number already used by '.$existing->name.'.',
+            ]);
+        }
+
+        return response()->json([
+            'available' => true,
+            'exists' => false,
+            'student_name' => null,
+            'message' => 'Admission number is available.',
+        ]);
+    }
+
+    /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request): RedirectResponse
@@ -512,7 +551,11 @@ class StudentController extends Controller
             ->with(['category'])
             ->withSum('refunds as refunded_amount', 'amount')
             ->withSum('waivers as waived_amount', 'amount')
-            ->where('student_id', $student->id);
+            ->where('student_id', $student->id)
+            ->where(function ($q) {
+                $q->whereNull('payment_status')
+                    ->orWhereNotIn('payment_status', ['hold', 'pending']);
+            });
 
         // Optional type filter: monthly | other
         $monthlyCatId = $student->classRoom?->monthly_fee_revenue_category_id;
@@ -572,9 +615,12 @@ class StudentController extends Controller
         }
 
         $paidMonthlyFeeNet = (float) $student->monthlyFeePaidAmount();
+        $holdMonthlyFee = (float) $student->monthlyFeeHoldAmount();
         $waivedMonthlyFee = (float) $student->monthlyFeeWaiverAmount();
         $expectedDueNet = max(0.0, $expectedBase - $waivedMonthlyFee);
-        $netDue = max(0.0, $expectedDueNet - $paidMonthlyFeeNet);
+        $netDue = max(0.0, $expectedDueNet - $paidMonthlyFeeNet - $holdMonthlyFee);
+
+        $holdByMonth = $allocator->buildHoldCoverage($student, 12);
 
         $monthlyFee = (float) ($ledgerForDue[now()->format('Y-m')]['due'] ?? ($student->monthly_fee ?? 0));
 
@@ -713,9 +759,11 @@ class StudentController extends Controller
                 'monthsDue' => $monthsDue,
                 'expectedDue' => $expectedDueNet,
                 'paidMonthlyFee' => $paidMonthlyFeeNet,
+                'holdMonthlyFee' => $holdMonthlyFee,
                 'netDue' => $netDue,
                 'waivedMonthlyFee' => $waivedMonthlyFee,
                 'cycles' => $cycles,
+                'holdByMonth' => $holdByMonth,
             ],
             'feeChoice' => $feeChoice,
             'history' => $history,
@@ -782,7 +830,13 @@ class StudentController extends Controller
     public function statement(Request $request, Student $student)
     {
         // Reuse the show() computation in a minimal way
-        $payments = Revenue::query()->with(['category'])->where('student_id', $student->id);
+        $payments = Revenue::query()
+            ->with(['category'])
+            ->where('student_id', $student->id)
+            ->where(function ($q) {
+                $q->whereNull('payment_status')
+                    ->orWhereNotIn('payment_status', ['hold', 'pending']);
+            });
         if ($request->filled('from')) $payments->whereDate('paid_at', '>=', $request->string('from'));
         if ($request->filled('to')) $payments->whereDate('paid_at', '<=', $request->string('to'));
         $rows = $payments->orderByDesc('paid_at')->get();
@@ -807,17 +861,29 @@ class StudentController extends Controller
         }
         $monthlyCatId = $student->classRoom?->monthly_fee_revenue_category_id;
         $paidMonthlyFee = 0.0;
+        $holdMonthlyFee = 0.0;
         if ($monthlyCatId) {
             $paidMonthlyFee = (float) Revenue::query()
                 ->where('student_id', $student->id)
                 ->where('revenue_category_id', $monthlyCatId)
+                ->where(function ($q) {
+                    $q->whereNull('payment_status')
+                        ->orWhere('payment_status', 'confirmed');
+                })
+                ->sum('amount');
+
+            $holdMonthlyFee = (float) Revenue::query()
+                ->where('student_id', $student->id)
+                ->where('revenue_category_id', $monthlyCatId)
+                ->whereIn('payment_status', ['hold', 'pending'])
                 ->sum('amount');
         }
 
         $summary = [
             'expectedDue' => $expectedDue,
             'paidMonthlyFee' => $paidMonthlyFee,
-            'netDue' => max(0.0, $expectedDue - $paidMonthlyFee),
+            'holdMonthlyFee' => $holdMonthlyFee,
+            'netDue' => max(0.0, $expectedDue - $paidMonthlyFee - $holdMonthlyFee),
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('students.statement', [
@@ -1080,6 +1146,23 @@ class StudentController extends Controller
                 ];
             }
 
+            $monthlyCategoryId = (int) ($s->classRoom?->monthly_fee_revenue_category_id ?? 0);
+            $holdChequeNumbers = Revenue::query()
+                ->where('student_id', $s->id)
+                ->where('payment_method', 'cheque')
+                ->whereIn('payment_status', ['hold', 'pending'])
+                ->when($monthlyCategoryId > 0, function ($q) use ($monthlyCategoryId) {
+                    $q->where('revenue_category_id', $monthlyCategoryId);
+                })
+                ->whereNotNull('cheque_number')
+                ->orderByDesc('paid_at')
+                ->pluck('cheque_number')
+                ->map(fn ($n) => trim((string) $n))
+                ->filter(fn ($n) => $n !== '')
+                ->unique()
+                ->values()
+                ->all();
+
             $detail = [
                 'id' => $s->id,
                 'name' => $s->name,
@@ -1090,6 +1173,8 @@ class StudentController extends Controller
                 'due_amount' => (float) ($s->computed_due_amount ?? $s->due_amount ?? 0),
                 'monthly_category_id' => $s->classRoom?->monthly_fee_revenue_category_id,
                 'due_months' => $dueMonths,
+                'hold_amount' => round((float) $s->monthlyFeeHoldAmount(), 2),
+                'hold_cheque_numbers' => $holdChequeNumbers,
                 'advance_months' => $advanceMonths,
             ];
 

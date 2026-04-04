@@ -13,7 +13,7 @@ Schedule::command('school:backup')
     ->withoutOverlapping()
     ->runInBackground();
 
-// Auto-confirm (pass) cheques after N days from cheque date (default: 14)
+// Auto-confirm (pass) hold cheques after N days from cheque date (default: 14)
 Schedule::command('cheques:auto-pass')
     ->dailyAt('03:00')
     ->withoutOverlapping()

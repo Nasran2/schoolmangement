@@ -15,10 +15,13 @@ use App\Http\Controllers\StorageController;
 use App\Http\Controllers\Settings\BackupSettingsController;
 use App\Http\Controllers\Settings\GeneralSettingsController;
 use App\Http\Controllers\Settings\SalaryComponentSettingsController;
+use App\Http\Controllers\Developer\DeveloperDashboardController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\TeacherSalaryPaymentController;
 use App\Http\Controllers\OnlyAdminController;
+use App\Http\Middleware\RedirectDeveloperFromDashboard;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 // Route::get('/', function () {
@@ -38,16 +41,24 @@ Route::prefix('onlyadmin')->name('onlyadmin.')->group(function () {
 });
 
 Route::get('/', function () {
+    if (Auth::check() && Auth::user()?->hasRole('Developer')) {
+        return redirect()->route('developer.dashboard');
+    }
+
     return redirect()->route('dashboard');
 });
 
 // Some deployments expose the app through /public/ so treat that path as the root.
 Route::get('/public', function () {
+    if (Auth::check() && Auth::user()?->hasRole('Developer')) {
+        return redirect()->route('developer.dashboard');
+    }
+
     return redirect()->route('dashboard');
 });
 
 Route::get('/dashboard', DashboardController::class)
-    ->middleware(['auth', 'permission:dashboard.view'])
+    ->middleware(['auth', RedirectDeveloperFromDashboard::class, 'permission:dashboard.view'])
     ->name('dashboard');
 
 // Public storage fallback: serve /storage/* without needing symlink
@@ -61,6 +72,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    Route::prefix('developer')->name('developer.')->middleware('role:Developer')->group(function () {
+        Route::get('/dashboard', [DeveloperDashboardController::class, 'index'])->name('dashboard');
+        Route::post('/commands/run', [DeveloperDashboardController::class, 'runCommand'])->name('commands.run');
+        Route::post('/maintenance/enable', [DeveloperDashboardController::class, 'enableMaintenance'])->name('maintenance.enable');
+        Route::post('/maintenance/disable', [DeveloperDashboardController::class, 'disableMaintenance'])->name('maintenance.disable');
+        Route::post('/upgrade', [DeveloperDashboardController::class, 'upgrade'])->name('upgrade');
+    });
 
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/general', [GeneralSettingsController::class, 'edit'])
@@ -141,6 +160,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/opening-balance/reset', [\App\Http\Controllers\Settings\OpeningBalanceSettingsController::class, 'reset'])
             ->middleware('permission:settings.manage|settings.opening_balance.reset')
             ->name('opening-balance.reset');
+
     });
 
     Route::prefix('rbac')->name('rbac.')->middleware('permission:roles.manage')->group(function () {
@@ -382,6 +402,9 @@ Route::middleware('auth')->group(function () {
         Route::post('students/{student}/monthly-fee/current', [StudentController::class, 'setCurrentMonthFee'])
             ->middleware('permission:revenue.add')
             ->name('students.monthly_fee.current');
+        Route::get('students/check-admission', [StudentController::class, 'checkAdmissionNumber'])
+            ->middleware('permission:students.add')
+            ->name('students.check_admission');
     Route::get('students/create', [StudentController::class, 'create'])->middleware('permission:students.add')->name('students.create');
     Route::post('students', [StudentController::class, 'store'])->middleware('permission:students.add')->name('students.store');
     Route::get('students/{student}', [StudentController::class, 'show'])->middleware('permission:students.manage')->name('students.show');

@@ -169,7 +169,7 @@ class RevenueCategoryCollectionController extends Controller
         }
 
         if ($paymentMethod === 'cheque') {
-            $paymentStatus = 'pending';
+            $paymentStatus = 'hold';
             $confirmedAt = null;
             $chequeDate = $validated['cheque_date'] ?? null;
             $paymentMeta = [

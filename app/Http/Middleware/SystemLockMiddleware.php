@@ -27,6 +27,26 @@ class SystemLockMiddleware
             return $next($request);
         }
 
+        // Allow developer console to manage maintenance while lock is active.
+        if ($path === 'developer' || Str::startsWith($path, 'developer/')) {
+            return $next($request);
+        }
+
+        // Allow auth pages so developer can still sign in to disable lock mode.
+        $authPaths = [
+            'login',
+            'logout',
+            'forgot-password',
+            'reset-password',
+            'password',
+        ];
+
+        foreach ($authPaths as $authPath) {
+            if ($path === $authPath || Str::startsWith($path, $authPath.'/')) {
+                return $next($request);
+            }
+        }
+
         // Allow health check.
         if ($path === 'up') {
             return $next($request);

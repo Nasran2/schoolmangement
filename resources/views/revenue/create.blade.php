@@ -1,9 +1,32 @@
+@php
+    $isEdit = isset($item);
+    $pageTitle = $isEdit ? 'Edit Revenue' : 'Add Revenue';
+    $pageSubtitle = $isEdit ? 'Update payment transaction details' : 'Complete your payment transaction';
+    $formAction = $isEdit ? route('revenue.items.update', $item) : route('revenue.items.store');
+    $selectedCategoryId = old('revenue_category_id', $preselectedCategoryId ?? ($isEdit ? $item->revenue_category_id : null));
+    $defaultAmount = old('amount', $isEdit ? (string) $item->amount : '');
+    $defaultPaidAt = old('paid_at', $isEdit ? optional($item->paid_at)->format('d-m-Y') : date('d-m-Y'));
+    $paymentMeta = $isEdit && is_array($item->payment_meta ?? null) ? $item->payment_meta : [];
+    $defaultPaymentMethod = old('payment_method', $isEdit ? ($item->payment_method ?: 'cash') : 'cash');
+    $defaultBankName = old('bank_name', (string) ($paymentMeta['bank'] ?? ''));
+    $defaultBankRefNo = old('bank_ref_no', (string) ($paymentMeta['ref_no'] ?? ''));
+    $defaultChequeDate = old('cheque_date', $isEdit ? optional($item->cheque_date)->format('Y-m-d') : '');
+    $defaultChequeNumber = old('cheque_number', (string) ($paymentMeta['cheque_number'] ?? ''));
+    $defaultChequeBank = old('cheque_bank', $defaultPaymentMethod === 'cheque' ? (string) ($paymentMeta['bank'] ?? '') : '');
+    $defaultChequeStudentName = old('cheque_student_name', (string) ($paymentMeta['student_name'] ?? ''));
+    $defaultBillNo = old('bill_no', $isEdit ? ($item->bill_no ?? '') : ($nextBillNumberPreview ?? ''));
+    $billNoDisplay = $isEdit ? ($item->bill_no ?: 'Auto-generated') : ($nextBillNumberPreview ?: 'Auto-generated');
+    $defaultNotes = old('notes', $isEdit ? ($item->notes ?? '') : '');
+    $submitLabel = $isEdit ? 'Update Payment' : 'Save Payment';
+    $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $item->student_id : ''));
+@endphp
+
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div>
-                <h2 class="font-semibold text-2xl text-gray-900 leading-tight">Add Revenue</h2>
-                <p class="mt-1 text-sm text-gray-600">Complete your payment transaction</p>
+                <h2 class="font-semibold text-2xl text-gray-900 leading-tight">{{ $pageTitle }}</h2>
+                <p class="mt-1 text-sm text-gray-600">{{ $pageSubtitle }}</p>
             </div>
             <a href="{{ route('revenue.items.index') }}"
                 class="inline-flex items-center gap-2 px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
@@ -25,9 +48,12 @@
                         <div class="px-6 py-8 sm:px-8">
                             <h3 class="text-2xl font-bold text-gray-900 mb-8">Payment Details</h3>
 
-                            <form id="revenue-form" method="POST" action="{{ route('revenue.items.store') }}"
+                            <form id="revenue-form" method="POST" action="{{ $formAction }}"
                                 class="space-y-7">
                                 @csrf
+                                @if ($isEdit)
+                                    @method('PUT')
+                                @endif
 
                                 {{-- Category with Add Button --}}
                                 <div>
@@ -41,7 +67,7 @@
                                                 <option value="">Select Category</option>
                                                 @foreach ($categories as $cat)
                                                     <option value="{{ $cat->id }}" data-name="{{ $cat->name }}"
-                                                        data-type="{{ $cat->payment_type }}" {{ ($preselectedCategoryId && $preselectedCategoryId === $cat->id) ? 'selected' : '' }}>
+                                                        data-type="{{ $cat->payment_type }}" @selected((string) $selectedCategoryId === (string) $cat->id)>
                                                         {{ $cat->name }}
                                                     </option>
                                                 @endforeach
@@ -81,7 +107,7 @@
 
                                 {{-- Student Picker --}}
                                 <div x-data="studentPicker()" x-init="init()"
-                                    data-student-id="{{ $selectedStudentId ?? '' }}">
+                                    data-student-id="{{ $initialSelectedStudentId }}">
                                     <label class="block text-sm font-semibold text-gray-800 mb-3">Student <span
                                             class="font-normal text-gray-500">(optional)</span></label>
 
@@ -187,6 +213,14 @@
                                             <h4 class="text-sm font-bold text-amber-900">Payment Status</h4>
                                             <div class="mt-1 text-sm text-amber-800">
                                                 <p>Total Due: <span class="font-bold">Rs <span x-text="Number(studentDueAmount).toLocaleString('en', {minimumFractionDigits: 2})"></span></span></p>
+                                                <div x-show="Number(studentHoldAmount) > 0" class="mt-2 rounded-lg border border-amber-300 bg-amber-100/70 px-3 py-2 text-xs text-amber-900">
+                                                    <p class="font-semibold">On Hold: Rs <span x-text="formatMoney(studentHoldAmount)"></span></p>
+                                                    <p class="mt-1">This amount is on hold until cheque is passed.</p>
+                                                    <p x-show="Array.isArray(studentHoldChequeNumbers) && studentHoldChequeNumbers.length > 0" class="mt-1">
+                                                        Cheque No:
+                                                        <span class="font-semibold" x-text="studentHoldChequeNumbers.join(', ')"></span>
+                                                    </p>
+                                                </div>
                                                 
                                                 {{-- Due Months (auto allocated oldest-first) --}}
                                                 <div x-show="studentDueMonths.length > 0" class="mt-3">
@@ -296,7 +330,7 @@
                                                 class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-600 font-semibold">Rs</span>
                                             <input type="number" id="amount_input" name="amount" step="0.01" min="0.01"
                                                 class="block w-full pl-12 pr-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                placeholder="0.00" value="{{ old('amount') }}"
+                                                placeholder="0.00" value="{{ $defaultAmount }}"
                                                 x-model="formData.amount"
                                                 x-on:input="updateAllocationPreview()" required>
                                         </div>
@@ -313,7 +347,7 @@
                                             Date</label>
                                         <input type="text" id="paid_at_input" name="paid_at" placeholder="DD-MM-YYYY"
                                             class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                            value="{{ old('paid_at', date('d-m-Y')) }}"
+                                            value="{{ $defaultPaidAt }}"
                                             x-model="formData.date"
                                             x-on:input="formData.date = $event.target.value" required>
                                         @error('paid_at')
@@ -366,7 +400,7 @@
                                             <label class="block text-sm font-semibold text-gray-800 mb-3">Bank <span class="font-normal text-gray-500">(optional)</span></label>
                                             <input type="text" name="bank_name"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                placeholder="Bank name" value="{{ old('bank_name') }}">
+                                                placeholder="Bank name" value="{{ $defaultBankName }}">
                                             @error('bank_name')
                                                 <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
@@ -375,7 +409,7 @@
                                             <label class="block text-sm font-semibold text-gray-800 mb-3">Reference No <span class="font-normal text-gray-500">(optional)</span></label>
                                             <input type="text" name="bank_ref_no"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                placeholder="Transaction reference" value="{{ old('bank_ref_no') }}">
+                                                placeholder="Transaction reference" value="{{ $defaultBankRefNo }}">
                                             @error('bank_ref_no')
                                                 <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
@@ -388,7 +422,7 @@
                                             <label class="block text-sm font-semibold text-gray-800 mb-3">Cheque Date</label>
                                             <input type="date" name="cheque_date"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                value="{{ old('cheque_date') }}">
+                                                value="{{ $defaultChequeDate }}">
                                             @error('cheque_date')
                                                 <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
@@ -397,7 +431,7 @@
                                             <label class="block text-sm font-semibold text-gray-800 mb-3">Cheque Number</label>
                                             <input type="text" name="cheque_number"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                placeholder="Cheque number" value="{{ old('cheque_number') }}">
+                                                placeholder="Cheque number" value="{{ $defaultChequeNumber }}">
                                             @error('cheque_number')
                                                 <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
@@ -406,7 +440,7 @@
                                             <label class="block text-sm font-semibold text-gray-800 mb-3">Bank</label>
                                             <input type="text" name="cheque_bank"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                placeholder="Bank name" value="{{ old('cheque_bank') }}">
+                                                placeholder="Bank name" value="{{ $defaultChequeBank }}">
                                             @error('cheque_bank')
                                                 <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
@@ -415,7 +449,7 @@
                                             <label class="block text-sm font-semibold text-gray-800 mb-3">Student Name <span class="font-normal text-gray-500">(optional)</span></label>
                                             <input type="text" name="cheque_student_name"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                placeholder="Student name (as on cheque)" value="{{ old('cheque_student_name') }}">
+                                                placeholder="Student name (as on cheque)" value="{{ $defaultChequeStudentName }}">
                                             @error('cheque_student_name')
                                                 <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
@@ -473,16 +507,16 @@
                                     @if($autogenerate)
                                         <input type="text"
                                             class="block w-full px-4 py-2.5 rounded-lg border-gray-300 bg-gray-100 text-gray-600 shadow-sm"
-                                            value="{{ $nextBillNumberPreview ?: 'Auto-generated' }}" disabled readonly>
+                                            value="{{ $billNoDisplay }}" disabled readonly>
                                         <p class="mt-2 text-xs text-gray-500">
-                                            Next bill number preview. Final value is assigned when you save.
+                                            {{ $isEdit ? 'This bill number is managed automatically from Settings.' : 'Next bill number preview. Final value is assigned when you save.' }}
                                             To enter/edit it manually, disable
                                             <span class="font-semibold">Auto-generate bill number</span> in Settings.
                                         </p>
                                     @else
                                         <input type="text" name="bill_no"
                                             class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                            placeholder="Enter bill number" value="{{ old('bill_no', $nextBillNumberPreview) }}"
+                                            placeholder="Enter bill number" value="{{ $defaultBillNo }}"
                                             x-model="formData.bill_no">
                                         <p class="mt-2 text-xs text-gray-500">
                                             Suggested next bill: <span class="font-semibold">{{ $nextBillNumberPreview }}</span> (you can change it).
@@ -499,7 +533,7 @@
                                             class="font-normal text-gray-500">(optional)</span></label>
                                     <textarea name="notes" rows="3"
                                         class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                        placeholder="Add any additional notes...">{{ old('notes') }}</textarea>
+                                        placeholder="Add any additional notes...">{{ $defaultNotes }}</textarea>
                                     @error('notes')
                                         <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                     @enderror
@@ -514,7 +548,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                 d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
-                                        <span>Save Payment</span>
+                                        <span>{{ $submitLabel }}</span>
                                     </button>
                                     <a href="{{ route('revenue.items.index') }}"
                                         class="px-6 py-3 bg-gray-100 border border-gray-200 rounded-xl font-semibold text-gray-700 shadow-sm hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors">
@@ -719,11 +753,11 @@
             document.addEventListener('alpine:init', () => {
                 Alpine.data('revenueForm', () => ({
                     formData: {
-                        category_id: '{{ old('revenue_category_id', $preselectedCategoryId) }}',
-                        amount: '{{ old('amount') }}',
-                        date: '{{ old('paid_at', date('d-m-Y')) }}',
-                        bill_no: '{{ old('bill_no', $autogenerate ? '' : ($nextBillNumberPreview ?? '')) }}',
-                        payment_method: '{{ old('payment_method', 'cash') }}',
+                        category_id: '{{ $selectedCategoryId }}',
+                        amount: '{{ $defaultAmount }}',
+                        date: '{{ $defaultPaidAt }}',
+                        bill_no: '{{ $autogenerate ? '' : $defaultBillNo }}',
+                        payment_method: '{{ $defaultPaymentMethod }}',
                     },
                     categories: @json($categories),
                     categoryName: '',
@@ -733,8 +767,10 @@
                     studentDueAmount: 0,
                     studentMonthlyFee: 0,
                     studentDueMonths: [],
+                    studentHoldAmount: 0,
+                    studentHoldChequeNumbers: [],
                     showCategoryModal: false,
-                    selectedStudentId: '{{ $selectedStudentId ?? '' }}',
+                    selectedStudentId: '{{ $initialSelectedStudentId }}',
                     monthlyCatId: '{{ $monthlyCatId ?? '' }}',
                     advanceEnabled: false,
                     advanceMode: false,
@@ -773,6 +809,8 @@
                                             this.studentDueAmount = e.detail.due_amount || 0;
                                             this.studentDueMonths = e.detail.due_months || [];
                                             this.studentMonthlyFee = e.detail.monthly_fee || 0;
+                                            this.studentHoldAmount = e.detail.hold_amount || 0;
+                                            this.studentHoldChequeNumbers = Array.isArray(e.detail.hold_cheque_numbers) ? e.detail.hold_cheque_numbers : [];
                                             this.selectedStudentId = e.detail.id || '';
                                             this.monthlyCatId = e.detail.monthly_category_id || '';
 
@@ -798,6 +836,8 @@
                                             this.studentName = '';
                                             this.studentDueAmount = 0;
                                             this.studentDueMonths = [];
+                                            this.studentHoldAmount = 0;
+                                            this.studentHoldChequeNumbers = [];
                                             this.selectedStudentId = '';
                                             this.monthlyCatId = '';
                                             this.advanceMode = false;
@@ -854,7 +894,8 @@
                                 const rawType = (cat.payment_type || '').toString();
                                 const monthlyLike = ['monthly','2_months','3_months','6_months','yearly','custom_months'].includes(rawType);
                                 this.categoryType = monthlyLike ? 'monthly' : rawType;
-                                this.selectedCategoryIsMonthlyFee = !!(this.monthlyCatId && String(this.monthlyCatId) === String(cat.id));
+                                // If class-wise monthly category is not configured, allow selected monthly category.
+                                this.selectedCategoryIsMonthlyFee = monthlyLike && (!this.monthlyCatId || String(this.monthlyCatId) === String(cat.id));
                             } else {
                                 this.categoryName = '';
                                 this.categoryType = '';

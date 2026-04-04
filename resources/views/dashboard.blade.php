@@ -126,11 +126,14 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
                             </span>
                             <div class="min-w-0">
-                                <div class="text-sm font-semibold text-amber-900">Pending Cheque Confirmation</div>
+                                <div class="text-sm font-semibold text-amber-900">Cheque Hold Alerts</div>
                                 <div class="mt-1 text-sm text-amber-900/80">
-                                    <span class="font-semibold">{{ $pendingChequeCount }}</span> pending cheque{{ ($pendingChequeCount ?? 0) > 1 ? 's' : '' }} (Total: <span class="font-semibold">Rs {{ number_format($pendingChequeTotal ?? 0, 2) }}</span>)
+                                    <span class="font-semibold">{{ $pendingChequeCount }}</span> on-hold cheque{{ ($pendingChequeCount ?? 0) > 1 ? 's' : '' }} (Total: <span class="font-semibold">Rs {{ number_format($pendingChequeTotal ?? 0, 2) }}</span>)
+                                    @if(($pendingChequeReminderCount ?? 0) > 0)
+                                        <span class="ml-2 inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">{{ $pendingChequeReminderCount }} reminder{{ ($pendingChequeReminderCount ?? 0) > 1 ? 's' : '' }} (1-7 days)</span>
+                                    @endif
                                     @if(($pendingChequeDueCount ?? 0) > 0)
-                                        <span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{{ $pendingChequeDueCount }} due now</span>
+                                        <span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">{{ $pendingChequeDueCount }} due/overdue on hold</span>
                                     @endif
                                 </div>
                             </div>
@@ -170,7 +173,19 @@
                                                     $cd = \Carbon\Carbon::parse($item->cheque_date)->startOfDay();
                                                     $autoOn = $cd->copy()->addDays((int)($chequeAutoPassDays ?? 14));
                                                     $daysToAuto = \Carbon\Carbon::today()->diffInDays($autoOn, false);
+                                                    $daysLeft = (int) ($item->dashboard_days_left ?? 0);
                                                 @endphp
+                                                <div class="mt-1 text-xs">
+                                                    @if(($item->dashboard_is_reminder ?? false) && $daysLeft >= 1)
+                                                        <span class="inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 font-semibold text-sky-800">Reminder: {{ $daysLeft }} day{{ $daysLeft > 1 ? 's' : '' }} left</span>
+                                                    @elseif($item->dashboard_is_due_or_overdue ?? false)
+                                                        @php $tone = $item->dashboard_status_tone ?? 'amber'; @endphp
+                                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold
+                                                            {{ $tone === 'emerald' ? 'bg-emerald-100 text-emerald-800' : ($tone === 'rose' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800') }}">
+                                                            {{ $daysLeft === 0 ? 'Due today' : 'Overdue by '.abs($daysLeft).' day'.(abs($daysLeft) > 1 ? 's' : '') }} - {{ $item->dashboard_status_label ?? 'On Hold' }}
+                                                        </span>
+                                                    @endif
+                                                </div>
                                                 <div class="mt-0.5 text-xs text-gray-700">
                                                     Auto-pass: 
                                                     @if($daysToAuto > 0)
@@ -191,15 +206,17 @@
                                         </div>
                                         <div class="flex items-center gap-2">
                                             @can('revenue.manage')
-                                                <button type="button"
-                                                    class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700"
-                                                    @click="passAction='{{ route('revenue.items.cheque.passed', $item) }}'; passMode='today'; passDate=today; passModal=true">
-                                                    Passed
-                                                </button>
-                                                <form method="POST" action="{{ route('revenue.items.cheque.returned', $item) }}" onsubmit="return confirm('Mark this cheque as RETURNED? It will be rejected and will NOT count as paid.');">
-                                                    @csrf
-                                                    <button type="submit" class="inline-flex items-center rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700">Returned</button>
-                                                </form>
+                                                @if(in_array((string)($item->payment_status ?? 'hold'), ['hold', 'pending'], true))
+                                                    <button type="button"
+                                                        class="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700"
+                                                        @click="passAction='{{ route('revenue.items.cheque.passed', $item) }}'; passMode='today'; passDate=today; passModal=true">
+                                                        Passed
+                                                    </button>
+                                                    <form method="POST" action="{{ route('revenue.items.cheque.returned', $item) }}" onsubmit="return confirm('Mark this cheque as RETURNED? It will be rejected and will NOT count as paid.');">
+                                                        @csrf
+                                                        <button type="submit" class="inline-flex items-center rounded-md bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-rose-700">Returned</button>
+                                                    </form>
+                                                @endif
                                                 <a class="inline-flex items-center rounded-md bg-gray-900 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-gray-700" href="{{ route('revenue.items.edit', $item) }}">Open</a>
                                             @endcan
                                         </div>

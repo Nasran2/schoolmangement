@@ -162,6 +162,91 @@ class MonthlyFeeAllocator
         return $ledger;
     }
 
+    /**
+     * Build month-wise reserved coverage from cheque payments on hold.
+     * Hold amounts are reserved against oldest remaining months but do not mark months as paid.
+     *
+     * @return array<string,float> keyed by Y-m with reserved amount
+     */
+    public function buildHoldCoverage(Student $student, int $horizonMonths = 12): array
+    {
+        $ledger = $this->buildLedger($student, $horizonMonths);
+        if (empty($ledger)) {
+            return [];
+        }
+
+        $monthlyCatId = $student->monthlyFeeCategoryId();
+        if (! $monthlyCatId) {
+            return [];
+        }
+
+        $holdByMonth = [];
+        $remainingByMonth = [];
+        foreach ($ledger as $key => $m) {
+            $holdByMonth[$key] = 0.0;
+            $remainingByMonth[$key] = (float) ($m['remaining'] ?? 0.0);
+        }
+
+        $holdRevenues = Revenue::query()
+            ->where('student_id', $student->id)
+            ->where('revenue_category_id', $monthlyCatId)
+            ->whereIn('payment_status', ['hold', 'pending'])
+            ->orderBy('paid_at')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($holdRevenues as $rev) {
+            $allocatedSum = 0.0;
+            $allocRows = StudentMonthFeeAllocation::query()
+                ->where('revenue_id', $rev->id)
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get();
+
+            foreach ($allocRows as $a) {
+                $key = sprintf('%04d-%02d', (int) $a->year, (int) $a->month);
+                if (! array_key_exists($key, $holdByMonth)) {
+                    continue;
+                }
+
+                $apply = min((float) $a->applied_amount, max(0.0, (float) ($remainingByMonth[$key] ?? 0.0)));
+                if ($apply <= 0) {
+                    continue;
+                }
+
+                $holdByMonth[$key] += $apply;
+                $remainingByMonth[$key] = max(0.0, (float) $remainingByMonth[$key] - $apply);
+                $allocatedSum += (float) $a->applied_amount;
+            }
+
+            $refunded = (float) RevenueAdjustment::query()
+                ->where('revenue_id', $rev->id)
+                ->where('type', 'refund')
+                ->sum('amount');
+
+            $left = max(0.0, (float) $rev->amount - $refunded - $allocatedSum);
+            if ($left <= 0) {
+                continue;
+            }
+
+            foreach ($remainingByMonth as $key => $remain) {
+                if ($left <= 0) {
+                    break;
+                }
+                if ($remain <= 0) {
+                    continue;
+                }
+
+                $apply = min($left, $remain);
+                $holdByMonth[$key] += $apply;
+                $remainingByMonth[$key] = max(0.0, $remain - $apply);
+                $left -= $apply;
+            }
+        }
+
+        return $holdByMonth;
+    }
+
     private function statusFromAmounts(float $due, float $paid): string
     {
         if ($paid <= 0.0) return 'unpaid';
