@@ -2,6 +2,11 @@
 
 use Illuminate\Support\Str;
 
+$sessionDriver = env('SESSION_DRIVER', 'database');
+if (env('APP_ENV') === 'production' && $sessionDriver === 'file') {
+    $sessionDriver = 'database';
+}
+
 return [
 
     /*
@@ -18,7 +23,7 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'database'),
+    'driver' => $sessionDriver,
 
     /*
     |--------------------------------------------------------------------------
@@ -169,7 +174,7 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

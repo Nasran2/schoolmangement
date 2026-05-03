@@ -94,15 +94,12 @@ class DashboardController extends Controller
             fn ($s, $e) => (int) Student::query()->whereBetween('created_at', [$s, $e])->count(),
         );
 
-        $dueCandidates = Student::query()
+        $dueStudents = Student::query()
             ->where('active', true)
+            ->where('due_amount', '>', 0)
+            ->orderByDesc('due_amount')
+            ->limit(5)
             ->get();
-        $dueStudents = $dueCandidates->filter(function ($s) {
-                return ($s->computed_due_amount ?? $s->due_amount) > 0;
-            })
-            ->sortByDesc(function ($s) { return $s->computed_due_amount ?? $s->due_amount; })
-            ->take(5)
-            ->values();
 
         $monthStart = $today->copy()->startOfMonth();
         $monthEnd = $today->copy()->endOfMonth();
@@ -113,6 +110,7 @@ class DashboardController extends Controller
             ->filter()
             ->values();
         $dueTeachers = Teacher::query()
+            ->where('active', true)
             ->when($paidTeacherIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $paidTeacherIds))
             ->orderBy('name')
             ->limit(5)

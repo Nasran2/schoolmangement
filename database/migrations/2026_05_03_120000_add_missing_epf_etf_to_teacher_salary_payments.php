@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('teacher_salary_payments')) {
+            return;
+        }
+
         Schema::table('teacher_salary_payments', function (Blueprint $table) {
             if (! Schema::hasColumn('teacher_salary_payments', 'employee_epf_amount')) {
                 $table->decimal('employee_epf_amount', 12, 2)->nullable()->after('total_deductions');
@@ -25,6 +29,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (! Schema::hasTable('teacher_salary_payments')) {
+            return;
+        }
+
         Schema::table('teacher_salary_payments', function (Blueprint $table) {
             if (Schema::hasColumn('teacher_salary_payments', 'employee_epf_amount')) {
                 $table->dropColumn('employee_epf_amount');

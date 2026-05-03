@@ -28,6 +28,7 @@ class RbacSeeder extends Seeder
             'dashboard.widget.enrollment_trend.view',
             'dashboard.widget.notifications.view',
             'dashboard.widget.recent_activity.view',
+            
             // Settings
             'settings.manage',
             'settings.general.manage',
@@ -78,6 +79,7 @@ class RbacSeeder extends Seeder
             'teachers.salary.pay',
             'teachers.salary.summary.view',
             'teachers.salary.amounts.view',
+            'teachers.salary.components',
             'teachers.reports.download',
 
             // SMS
@@ -115,6 +117,9 @@ class RbacSeeder extends Seeder
             'reports.seminars_collection.view',
             'reports.extra_classes_collection.view',
 
+            // Activity Logs
+            'audit_logs.view',
+
             // RBAC
             'roles.manage',
         ];
@@ -148,7 +153,7 @@ class RbacSeeder extends Seeder
         $developer = User::query()->updateOrCreate(
             ['username' => 'developer'],
             [
-                'name' => 'developer',
+                'name' => '',
                 'email' => 'developer@school.local',
                 'password' => Hash::make('password'),
             ]

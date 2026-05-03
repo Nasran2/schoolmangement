@@ -3,11 +3,17 @@
 namespace App\Http\Controllers\Developer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Student;
+use App\Models\Teacher;
+use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
@@ -117,12 +123,164 @@ class DeveloperDashboardController extends Controller
 
     public function index(Request $request): View
     {
+        $usersHaveActiveColumn = Schema::hasColumn('users', 'active');
+
+        $studentsTotal = Student::query()->count();
+        $studentsActive = Student::query()->where('active', true)->count();
+
+        $teachersTotal = Teacher::query()->count();
+        $teachersActive = Teacher::query()->where('active', true)->count();
+
+        $usersQuery = User::query()->with('roles')->orderBy('id');
+        $usersTotal = (clone $usersQuery)->count();
+        $usersActive = $usersHaveActiveColumn
+            ? (clone $usersQuery)->where('active', true)->count()
+            : $usersTotal;
+        $usersPreview = (clone $usersQuery)->limit(25)->get();
+
         return view('developer.dashboard', [
             'tools' => $this->commandMap(),
             'maintenanceSequence' => $this->maintenanceSequence(),
             'maintenanceEnabled' => (string) app('settings')->get('system.lock.enabled', '0') === '1',
             'results' => $request->session()->get('developer_dashboard.results', []),
+            'usersHaveActiveColumn' => $usersHaveActiveColumn,
+            'studentsTotal' => $studentsTotal,
+            'studentsActive' => $studentsActive,
+            'teachersTotal' => $teachersTotal,
+            'teachersActive' => $teachersActive,
+            'usersTotal' => $usersTotal,
+            'usersActive' => $usersActive,
+            'users' => $usersPreview,
         ]);
+    }
+
+    public function students(): View
+    {
+        $students = Student::query()
+            ->with('classRoom')
+            ->orderByDesc('id')
+            ->paginate(25);
+
+        $studentsTotal = Student::query()->count();
+        $studentsActive = Student::query()->where('active', true)->count();
+
+        return view('developer.students', [
+            'students' => $students,
+            'studentsTotal' => $studentsTotal,
+            'studentsActive' => $studentsActive,
+            'studentsInactive' => $studentsTotal - $studentsActive,
+        ]);
+    }
+
+    public function teachers(): View
+    {
+        $teachers = Teacher::query()
+            ->orderByDesc('id')
+            ->paginate(25);
+
+        $teachersTotal = Teacher::query()->count();
+        $teachersActive = Teacher::query()->where('active', true)->count();
+
+        return view('developer.teachers', [
+            'teachers' => $teachers,
+            'teachersTotal' => $teachersTotal,
+            'teachersActive' => $teachersActive,
+            'teachersInactive' => $teachersTotal - $teachersActive,
+        ]);
+    }
+
+    public function users(): View
+    {
+        $usersHaveActiveColumn = Schema::hasColumn('users', 'active');
+        $users = User::query()->with('roles')->orderBy('id')->paginate(25)->withQueryString();
+
+        $usersTotal = (int) User::query()->count();
+        $usersActive = $usersHaveActiveColumn
+            ? (int) User::query()->where('active', true)->count()
+            : $usersTotal;
+
+        return view('developer.users', [
+            'users' => $users,
+            'usersHaveActiveColumn' => $usersHaveActiveColumn,
+            'usersTotal' => $usersTotal,
+            'usersActive' => $usersActive,
+            'usersInactive' => $usersTotal - $usersActive,
+        ]);
+    }
+
+    public function updateUserStatus(Request $request, User $user): RedirectResponse
+    {
+        if (! Schema::hasColumn('users', 'active')) {
+            return redirect()->route('developer.users')->withErrors([
+                'user_status' => 'User status column is missing. Please run migrations.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'active' => ['required', 'in:0,1'],
+        ]);
+
+        $targetActive = $validated['active'] === '1';
+        $actor = $request->user();
+
+        if (! $targetActive && $actor && $user->id === $actor->id) {
+            return redirect()->route('developer.users')->withErrors([
+                'user_status' => 'You cannot deactivate your own account.',
+            ]);
+        }
+
+        if (! $targetActive && $user->hasRole('Developer') && (bool) $user->active) {
+            $activeDeveloperCount = User::role('Developer')
+                ->where('active', true)
+                ->count();
+
+            if ($activeDeveloperCount <= 1) {
+                return redirect()->route('developer.users')->withErrors([
+                    'user_status' => 'At least one active Developer account is required.',
+                ]);
+            }
+        }
+
+        $before = (bool) $user->active;
+        try {
+            DB::transaction(function () use ($user, $targetActive, $before) {
+                $user->forceFill([
+                    'active' => $targetActive,
+                ])->save();
+
+                if (! $targetActive && Schema::hasTable('sessions')) {
+                    DB::table('sessions')->where('user_id', $user->id)->delete();
+                }
+
+                app(AuditLogger::class)->log(
+                    'developer.dashboard.user.status.update',
+                    $user,
+                    'Developer updated user active status',
+                    [
+                        'user_id' => $user->id,
+                        'username' => $user->username,
+                        'before' => $before,
+                        'after' => $targetActive,
+                    ]
+                );
+            });
+        } catch (\Throwable $e) {
+            Log::error('Developer dashboard user status update failed.', [
+                'target_user_id' => $user->id,
+                'target_username' => $user->username,
+                'target_active' => $targetActive,
+                'actor_user_id' => $actor?->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()->route('developer.users')->withErrors([
+                'user_status' => 'Unable to update user status right now. Please try again.',
+            ]);
+        }
+
+        return redirect()
+            ->route('developer.users')
+            ->with('status', $targetActive ? 'User activated successfully.' : 'User deactivated successfully.');
     }
 
     public function runCommand(Request $request): RedirectResponse
@@ -228,16 +386,19 @@ class DeveloperDashboardController extends Controller
         $uploaded->move($stagingDir, basename($zipPath));
 
         try {
+            if (! class_exists(ZipArchive::class)) {
+                throw new RuntimeException('PHP ZipArchive extension is not available.');
+            }
+
             $zip = new ZipArchive();
             if ($zip->open($zipPath) !== true) {
                 throw new RuntimeException('Unable to open the uploaded ZIP file.');
             }
 
+            $this->assertZipArchiveSafety($zip);
+
             File::ensureDirectoryExists($extractDir);
-            if (! $zip->extractTo($extractDir)) {
-                $zip->close();
-                throw new RuntimeException('Unable to extract the ZIP file.');
-            }
+            $this->extractZipSafely($zip, $extractDir);
             $zip->close();
 
             $sourceRoot = $this->detectSourceRoot($extractDir);
@@ -351,6 +512,96 @@ class DeveloperDashboardController extends Controller
         }
 
         return $extractDir;
+    }
+
+    private function assertZipArchiveSafety(ZipArchive $zip): void
+    {
+        $maxEntries = 10000;
+        $maxUncompressedBytes = 500 * 1024 * 1024;
+
+        if ($zip->numFiles > $maxEntries) {
+            throw new RuntimeException('Upgrade archive contains too many files.');
+        }
+
+        $totalSize = 0;
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $stat = $zip->statIndex($index);
+            if (! is_array($stat)) {
+                throw new RuntimeException('Unable to read ZIP archive metadata.');
+            }
+
+            $size = (int) ($stat['size'] ?? 0);
+            if ($size < 0) {
+                throw new RuntimeException('Invalid file size detected in ZIP archive.');
+            }
+
+            $totalSize += $size;
+            if ($totalSize > $maxUncompressedBytes) {
+                throw new RuntimeException('Upgrade archive is too large after extraction.');
+            }
+        }
+    }
+
+    private function extractZipSafely(ZipArchive $zip, string $extractDir): void
+    {
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $entryName = $zip->getNameIndex($index);
+            if ($entryName === false) {
+                throw new RuntimeException('Unable to read ZIP entry name.');
+            }
+
+            $relative = $this->sanitizeZipEntryPath($entryName);
+            if ($relative === '') {
+                continue;
+            }
+
+            $targetPath = $extractDir.DIRECTORY_SEPARATOR.str_replace('/', DIRECTORY_SEPARATOR, $relative);
+
+            if (str_ends_with($relative, '/')) {
+                File::ensureDirectoryExists($targetPath);
+                continue;
+            }
+
+            File::ensureDirectoryExists(dirname($targetPath));
+
+            $stream = $zip->getStream($entryName);
+            if (! is_resource($stream)) {
+                throw new RuntimeException('Unable to extract ZIP entry: '.$relative);
+            }
+
+            $targetHandle = @fopen($targetPath, 'wb');
+            if (! is_resource($targetHandle)) {
+                fclose($stream);
+                throw new RuntimeException('Unable to write extracted file: '.$relative);
+            }
+
+            stream_copy_to_stream($stream, $targetHandle);
+
+            fclose($targetHandle);
+            fclose($stream);
+        }
+    }
+
+    private function sanitizeZipEntryPath(string $entryPath): string
+    {
+        $path = str_replace('\\', '/', $entryPath);
+        $path = ltrim($path, '/');
+
+        if ($path === '' || str_contains($path, "\0")) {
+            return '';
+        }
+
+        if (preg_match('/^[A-Za-z]:\//', $path) === 1) {
+            throw new RuntimeException('ZIP entry contains an invalid absolute path.');
+        }
+
+        foreach (explode('/', rtrim($path, '/')) as $segment) {
+            if ($segment === '..') {
+                throw new RuntimeException('ZIP entry contains invalid parent directory traversal.');
+            }
+        }
+
+        return $path;
     }
 
     private function isProtectedPath(string $relativePath): bool

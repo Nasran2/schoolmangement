@@ -10,6 +10,7 @@ use Carbon\Carbon;
 
 use App\Models\Revenue;
 use App\Models\RevenueAdjustment;
+use App\Models\RevenueCategory;
 
 class Student extends Model
 {
@@ -118,7 +119,8 @@ class Student extends Model
      */
     public function computeMonthlyDue(): float
     {
-        if (! $this->fee_start_date) return 0.0;
+        $startDate = $this->fee_start_date ?: $this->joining_date ?: optional($this->created_at)->toDateString();
+        if (! $startDate) return 0.0;
 
         $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
         $ledger = $allocator->buildLedger($this, 0);
@@ -129,7 +131,7 @@ class Student extends Model
             $expectedBase += (float) ($m['due'] ?? 0);
         }
 
-        $monthlyCatId = $this->classRoom?->monthly_fee_revenue_category_id;
+        $monthlyCatId = $this->monthlyFeeCategoryId();
         $paidGross = 0.0;
         $refunds = 0.0;
         $waivers = 0.0;
@@ -180,13 +182,34 @@ class Student extends Model
 
     public function monthlyFeeCategoryId(): ?int
     {
-        return $this->classRoom?->monthly_fee_revenue_category_id;
+        $classCategoryId = $this->classRoom?->monthly_fee_revenue_category_id;
+        if ($classCategoryId) {
+            return (int) $classCategoryId;
+        }
+
+        static $resolved = false;
+        static $defaultCategoryId = null;
+
+        if (! $resolved) {
+            $defaultCategoryId = RevenueCategory::query()
+                ->where('active', true)
+                ->where(function ($q) {
+                    $q->where('name', 'Monthly Fee')
+                        ->orWhere('payment_type', 'monthly');
+                })
+                ->orderByRaw("CASE WHEN name = 'Monthly Fee' THEN 0 ELSE 1 END")
+                ->value('id');
+            $resolved = true;
+        }
+
+        return $defaultCategoryId ? (int) $defaultCategoryId : null;
     }
 
     public function monthlyCyclesCountToNow(): int
     {
-        if (! $this->fee_start_date) return 0;
-        $start = Carbon::parse($this->fee_start_date)->startOfDay();
+        $startDate = $this->fee_start_date ?: $this->joining_date ?: optional($this->created_at)->toDateString();
+        if (! $startDate) return 0;
+        $start = Carbon::parse($startDate)->startOfDay();
         $now = now();
         return $now->lt($start) ? 0 : (int) ($start->diffInMonths($now) + 1);
     }
@@ -196,7 +219,9 @@ class Student extends Model
         $cycles = [];
         $count = $this->monthlyCyclesCountToNow();
         if ($count <= 0) return $cycles;
-        $start = Carbon::parse($this->fee_start_date)->startOfDay();
+        $startDate = $this->fee_start_date ?: $this->joining_date ?: optional($this->created_at)->toDateString();
+        if (! $startDate) return $cycles;
+        $start = Carbon::parse($startDate)->startOfDay();
         $now = now();
         for ($i = 0; $i < $count; $i++) {
             $s = $start->copy()->addMonthsNoOverflow($i);

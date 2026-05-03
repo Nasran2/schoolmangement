@@ -5,7 +5,9 @@ namespace App\Http\Requests\Auth;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -43,17 +45,36 @@ class LoginRequest extends FormRequest
 
         $credentials = [
             'username' => (string) $this->string('username')->trim(),
-            'password' => (string) $this->string('password')->trim(),
+            'password' => (string) $this->input('password', ''),
         ];
 
         $remember = $this->boolean('remember');
+        $hasActiveColumn = Schema::hasTable('users') && Schema::hasColumn('users', 'active');
+
+        $usernameAttempt = [
+            'username' => $credentials['username'],
+            'password' => $credentials['password'],
+        ];
+
+        if ($hasActiveColumn) {
+            $usernameAttempt['active'] = true;
+        }
+
+        $emailAttempt = [
+            'email' => $credentials['username'],
+            'password' => $credentials['password'],
+        ];
+
+        if ($hasActiveColumn) {
+            $emailAttempt['active'] = true;
+        }
 
         // First, attempt with username
-        $ok = Auth::attempt(['username' => $credentials['username'], 'password' => $credentials['password']], $remember);
+        $ok = Auth::attempt($usernameAttempt, $remember);
 
         // Fallback: if user typed email in the username field, attempt with email
         if (! $ok) {
-            $ok = Auth::attempt(['email' => $credentials['username'], 'password' => $credentials['password']], $remember);
+            $ok = Auth::attempt($emailAttempt, $remember);
         }
 
         if (! $ok) {
@@ -63,14 +84,18 @@ class LoginRequest extends FormRequest
                         ->where('username', $credentials['username'])
                         ->orWhere('email', $credentials['username'])
                         ->first();
-                    \Log::warning('Login failed', [
-                        'provided_username' => $credentials['username'],
+                    Log::warning('Login failed', [
                         'user_found' => (bool) $user,
                         'using_email_fallback' => (bool) $user && $user->email === $credentials['username'],
-                        'db_connection' => config('database.connections.'.config('database.default').'.database'),
+                        'route' => $this->route()?->getName(),
+                        'action' => optional($this->route())->getActionName(),
                     ]);
                 } catch (\Throwable $e) {
-                    \Log::error('Login debug error: '.$e->getMessage());
+                    Log::error('Login debug telemetry failed.', [
+                        'route' => $this->route()?->getName(),
+                        'action' => optional($this->route())->getActionName(),
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
             RateLimiter::hit($this->throttleKey());

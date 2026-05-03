@@ -2,6 +2,11 @@
 
 use Illuminate\Support\Str;
 
+$cacheStore = env('CACHE_STORE', 'database');
+if (env('APP_ENV') === 'production' && $cacheStore === 'file') {
+    $cacheStore = 'database';
+}
+
 return [
 
     /*
@@ -15,7 +20,7 @@ return [
     |
     */
 
-    'default' => env('CACHE_STORE', 'database'),
+    'default' => $cacheStore,
 
     /*
     |--------------------------------------------------------------------------

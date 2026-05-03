@@ -111,8 +111,8 @@ class RevenueController extends Controller
         $item->forceFill([
             'payment_status' => 'rejected',
             'confirmed_at' => now(),
-            // Returned cheques must not count as paid
-            'paid_at' => null,
+            // Keep paid_at for the cheque record date; rejected status excludes it from paid/hold ledgers.
+            'paid_at' => $item->paid_at ?: now()->toDateString(),
         ])->save();
 
         return back()->with('success', 'Cheque marked as RETURNED. It will not count as paid.');
@@ -187,7 +187,7 @@ class RevenueController extends Controller
         }
 
         $categoriesQuery = RevenueCategory::query()->where('active', true);
-        $monthlyCatId = $selectedStudent?->classRoom?->monthly_fee_revenue_category_id;
+        $monthlyCatId = $selectedStudent?->monthlyFeeCategoryId();
         if ($selectedStudent?->class_room_id) {
             $classRoomId = (int) $selectedStudent->class_room_id;
             $categoriesQuery->where(function ($q) use ($classRoomId) {
@@ -681,4 +681,3 @@ class RevenueController extends Controller
         return response()->json($result);
     }
 }
-

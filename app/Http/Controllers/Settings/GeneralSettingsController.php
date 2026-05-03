@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class GeneralSettingsController extends Controller
@@ -60,37 +61,25 @@ class GeneralSettingsController extends Controller
             'revenue_bill_next_number' => ['required', 'integer', 'min:1'],
         ]);
 
-        // Handle logo remove
-        if (($validated['remove_logo'] ?? '0') === '1') {
-            $existing = app('settings')->get('school.logo');
-            if ($existing) {
-                Storage::disk('public')->delete($existing);
+        $disk = Storage::disk('public');
+        $removeLogo = ($validated['remove_logo'] ?? '0') === '1';
+        $removeBackground = ($validated['remove_login_background'] ?? '0') === '1';
+        $currentLogo = (string) app('settings')->get('school.logo', '');
+        $currentBackground = (string) app('settings')->get('ui.login.background', '');
+
+        $newLogoPath = null;
+        $newBackgroundPath = null;
+
+        try {
+            if ($request->hasFile('school_logo')) {
+                $newLogoPath = $request->file('school_logo')->store('logos', 'public');
             }
-            app('settings')->set('school.logo', '', 'general');
-        }
 
-        // Handle logo upload
-        if ($request->hasFile('school_logo')) {
-            $path = $request->file('school_logo')->store('logos', 'public');
-            app('settings')->set('school.logo', $path, 'general');
-        }
-
-        // Handle login background remove
-        if (($validated['remove_login_background'] ?? '0') === '1') {
-            $existingBg = app('settings')->get('ui.login.background');
-            if ($existingBg) {
-                Storage::disk('public')->delete($existingBg);
+            if ($request->hasFile('login_background')) {
+                $newBackgroundPath = $request->file('login_background')->store('branding', 'public');
             }
-            app('settings')->set('ui.login.background', '', 'general');
-        }
 
-        // Handle login background upload
-        if ($request->hasFile('login_background')) {
-            $bgPath = $request->file('login_background')->store('branding', 'public');
-            app('settings')->set('ui.login.background', $bgPath, 'general');
-        }
-
-        app('settings')->setMany([
+            $settingsPayload = [
             'school.name' => $validated['school_name'],
             'school.academic_year' => $validated['academic_year'] ?? '',
             'school.address' => $validated['school_address'] ?? '',
@@ -107,7 +96,46 @@ class GeneralSettingsController extends Controller
             'billing.revenue.prefix' => $validated['revenue_bill_prefix'] ?? '',
             'billing.revenue.start_number' => (string) $validated['revenue_bill_start_number'],
             'billing.revenue.next_number' => (string) $validated['revenue_bill_next_number'],
-        ], 'general');
+            ];
+
+            if ($removeLogo || $newLogoPath) {
+                $settingsPayload['school.logo'] = $newLogoPath ?? '';
+            }
+
+            if ($removeBackground || $newBackgroundPath) {
+                $settingsPayload['ui.login.background'] = $newBackgroundPath ?? '';
+            }
+
+            app('settings')->setMany($settingsPayload, 'general');
+
+            if (($removeLogo || $newLogoPath) && $currentLogo !== '' && $currentLogo !== $newLogoPath) {
+                $disk->delete($currentLogo);
+            }
+
+            if (($removeBackground || $newBackgroundPath) && $currentBackground !== '' && $currentBackground !== $newBackgroundPath) {
+                $disk->delete($currentBackground);
+            }
+        } catch (\Throwable $e) {
+            if ($newLogoPath) {
+                $disk->delete($newLogoPath);
+            }
+            if ($newBackgroundPath) {
+                $disk->delete($newBackgroundPath);
+            }
+
+            Log::error('General settings update failed.', [
+                'user_id' => $request->user()?->id,
+                'has_logo_upload' => $request->hasFile('school_logo'),
+                'has_background_upload' => $request->hasFile('login_background'),
+                'route' => $request->route()?->getName(),
+                'action' => optional($request->route())->getActionName(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withInput()->withErrors([
+                'general_settings' => 'Settings update failed. Please try again.',
+            ]);
+        }
 
         return back()->with('status', 'Settings updated.');
     }

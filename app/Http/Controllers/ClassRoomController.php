@@ -61,7 +61,7 @@ class ClassRoomController extends Controller
             ->orderBy('name')
             ->get()
             ->map(function ($student) {
-                $student->computed_due_amount = $student->computeMonthlyDue();
+                $student->setAttribute('computed_due_amount', (float) ($student->due_amount ?? 0));
                 return $student;
             });
 
@@ -96,6 +96,16 @@ class ClassRoomController extends Controller
 
         $data['active'] = (bool) ($data['active'] ?? false);
         $data['monthly_fee'] = $data['monthly_fee'] ?? 0;
+        if (empty($data['monthly_fee_revenue_category_id'])) {
+            $data['monthly_fee_revenue_category_id'] = RevenueCategory::query()
+                ->where('active', true)
+                ->where(function ($q) {
+                    $q->where('name', 'Monthly Fee')
+                        ->orWhere('payment_type', 'monthly');
+                })
+                ->orderByRaw("CASE WHEN name = 'Monthly Fee' THEN 0 ELSE 1 END")
+                ->value('id');
+        }
 
         if (! array_key_exists('level', $data) || $data['level'] === null) {
             $data['level'] = $this->nextAvailableLevel();
@@ -131,6 +141,16 @@ class ClassRoomController extends Controller
 
         $data['active'] = (bool) ($data['active'] ?? false);
         $data['monthly_fee'] = $data['monthly_fee'] ?? 0;
+        if (empty($data['monthly_fee_revenue_category_id'])) {
+            $data['monthly_fee_revenue_category_id'] = RevenueCategory::query()
+                ->where('active', true)
+                ->where(function ($q) {
+                    $q->where('name', 'Monthly Fee')
+                        ->orWhere('payment_type', 'monthly');
+                })
+                ->orderByRaw("CASE WHEN name = 'Monthly Fee' THEN 0 ELSE 1 END")
+                ->value('id');
+        }
 
         $classroom->update($data);
 

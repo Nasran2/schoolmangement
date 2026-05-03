@@ -7,17 +7,19 @@ use App\Models\Revenue;
 use App\Models\RevenueAdjustment;
 use App\Models\RevenueCategory;
 use App\Models\Student;
+use App\Models\StudentMonthFeeAllocation;
 use App\Models\StudentPromotionHistory;
 use App\Services\Billing\MonthlyFeeAllocator;
 use Carbon\Carbon;
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class MonthlyFeeAllocatorTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function allocates_oldest_dues_first_and_handles_partial_due()
     {
         $class = ClassRoom::create(['name' => 'Grade 1', 'monthly_fee' => 5000]);
@@ -49,7 +51,7 @@ class MonthlyFeeAllocatorTest extends TestCase
         $this->assertFalse($res2['allocations'][1]['is_partial']);
     }
 
-    /** @test */
+    #[Test]
     public function allocates_advance_months_when_no_dues()
     {
         $class = ClassRoom::create(['name' => 'Grade 2', 'monthly_fee' => 5000]);
@@ -81,7 +83,7 @@ class MonthlyFeeAllocatorTest extends TestCase
         $this->assertTrue($res['summary']['unallocated_balance'] >= 0);
     }
 
-    /** @test */
+    #[Test]
     public function resolves_monthly_fee_across_multiple_promotions_and_demotions_effective_next_month()
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 13, 10, 0, 0));
@@ -132,7 +134,7 @@ class MonthlyFeeAllocatorTest extends TestCase
         $this->assertEquals(6000.0, (float) ($ledger['2026-01']['due'] ?? 0)); // demote effective from Jan
     }
 
-    /** @test */
+    #[Test]
     public function legacy_revenue_refund_reduces_applied_amount_in_ledger()
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 13, 10, 0, 0));
@@ -171,5 +173,55 @@ class MonthlyFeeAllocatorTest extends TestCase
         $this->assertEquals(3000.0, (float) ($ledger['2025-12']['paid'] ?? 0));
         $this->assertEquals(2000.0, (float) ($ledger['2025-12']['remaining'] ?? 0));
         $this->assertSame('partially_paid', (string) ($ledger['2025-12']['status'] ?? ''));
+    }
+
+    #[Test]
+    public function rejected_cheque_allocation_does_not_count_as_paid_or_on_hold()
+    {
+        Carbon::setTestNow(Carbon::create(2026, 1, 13, 10, 0, 0));
+
+        $cat = RevenueCategory::create(['name' => 'Monthly Fee', 'payment_type' => 'monthly', 'active' => true]);
+        $class = ClassRoom::create(['name' => 'Grade 4', 'monthly_fee' => 5000, 'monthly_fee_revenue_category_id' => $cat->id]);
+        $student = Student::create([
+            'admission_number' => 'A300',
+            'name' => 'Returned Cheque',
+            'class_room_id' => $class->id,
+            'class' => $class->name,
+            'monthly_fee' => 5000,
+            'fee_start_date' => Carbon::create(2026, 1, 1)->format('Y-m-d'),
+            'active' => true,
+        ]);
+
+        $rev = Revenue::create([
+            'student_id' => $student->id,
+            'revenue_category_id' => $cat->id,
+            'amount' => 5000,
+            'paid_at' => Carbon::create(2026, 1, 5)->format('Y-m-d'),
+            'bill_no' => 'R-CHEQUE-1',
+            'payment_method' => 'cheque',
+            'payment_status' => 'rejected',
+            'cheque_date' => Carbon::create(2026, 1, 20)->format('Y-m-d'),
+            'confirmed_at' => Carbon::create(2026, 1, 13, 10, 0, 0),
+        ]);
+
+        StudentMonthFeeAllocation::create([
+            'revenue_id' => $rev->id,
+            'student_id' => $student->id,
+            'month' => 1,
+            'year' => 2026,
+            'type' => 'due',
+            'applied_amount' => 5000,
+            'is_partial' => false,
+            'remaining_for_month' => 0,
+        ]);
+
+        $svc = new MonthlyFeeAllocator();
+        $ledger = $svc->buildLedger($student, 0);
+        $holdCoverage = $svc->buildHoldCoverage($student, 0);
+
+        $this->assertEquals(0.0, (float) ($ledger['2026-01']['paid'] ?? 0));
+        $this->assertEquals(5000.0, (float) ($ledger['2026-01']['remaining'] ?? 0));
+        $this->assertSame('unpaid', (string) ($ledger['2026-01']['status'] ?? ''));
+        $this->assertEquals(0.0, (float) ($holdCoverage['2026-01'] ?? 0));
     }
 }

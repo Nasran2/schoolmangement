@@ -7,6 +7,7 @@ use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -71,22 +72,36 @@ class BackupSettingsController extends Controller
     {
         $retentionDays = (int) (app('settings')->get('backups.retention_days', '30') ?: 30);
 
-        Artisan::call('school:backup', [
-            '--retentionDays' => $retentionDays,
-        ]);
+        try {
+            Artisan::call('school:backup', [
+                '--retentionDays' => $retentionDays,
+            ]);
 
-        app(AuditLogger::class)->log(
-            'system.backup.run_manual',
-            null,
-            'Backup triggered manually',
-            [
+            app(AuditLogger::class)->log(
+                'system.backup.run_manual',
+                null,
+                'Backup triggered manually',
+                [
+                    'retention_days' => $retentionDays,
+                ]
+            );
+
+            $output = trim((string) Artisan::output());
+
+            return back()->with('status', $output !== '' ? $output : 'Backup started.');
+        } catch (\Throwable $e) {
+            Log::error('Manual backup trigger failed.', [
                 'retention_days' => $retentionDays,
-            ]
-        );
+                'user_id' => $request->user()?->id,
+                'route' => $request->route()?->getName(),
+                'action' => optional($request->route())->getActionName(),
+                'error' => $e->getMessage(),
+            ]);
 
-        $output = trim((string) Artisan::output());
-
-        return back()->with('status', $output !== '' ? $output : 'Backup started.');
+            return back()->withErrors([
+                'backup_run' => 'Backup failed to start. Please check logs and try again.',
+            ]);
+        }
     }
 
     public function download(string $file)

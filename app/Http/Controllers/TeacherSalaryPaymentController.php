@@ -306,6 +306,9 @@ class TeacherSalaryPaymentController extends Controller
                 Log::warning('Auto email payslip failed', [
                     'teacher_id' => (int) $validated['teacher_id'],
                     'payment_id' => $payment->id,
+                    'user_id' => $request->user()?->id,
+                    'route' => $request->route()?->getName(),
+                    'action' => optional($request->route())->getActionName(),
                     'error' => $e->getMessage(),
                 ]);
                 $status .= ' Payslip email failed (see logs).';
@@ -386,21 +389,36 @@ class TeacherSalaryPaymentController extends Controller
             return back()->withErrors(['email' => 'SMTP is not configured. Please set Email (SMTP) settings first.']);
         }
 
-        $html = view('teacher-salary-payments.payslip', [
-            'payment' => $teacherSalaryPayment,
-        ])->render();
+        try {
+            $html = view('teacher-salary-payments.payslip', [
+                'payment' => $teacherSalaryPayment,
+            ])->render();
 
-        $pdf = Pdf::loadHTML($html)
-            ->setPaper('a5')
-            ->setOption('margin-top', 5)
-            ->setOption('margin-bottom', 5)
-            ->setOption('margin-left', 5)
-            ->setOption('margin-right', 5);
+            $pdf = Pdf::loadHTML($html)
+                ->setPaper('a5')
+                ->setOption('margin-top', 5)
+                ->setOption('margin-bottom', 5)
+                ->setOption('margin-left', 5)
+                ->setOption('margin-right', 5);
 
-        $binary = $pdf->output();
-        $filename = 'payslip-' . $teacherSalaryPayment->receipt_number . '.pdf';
+            $binary = $pdf->output();
+            $filename = 'payslip-' . $teacherSalaryPayment->receipt_number . '.pdf';
 
-        Mail::to($teacher->email)->send(new TeacherPayslipMail($teacherSalaryPayment, $binary, $filename));
+            Mail::to($teacher->email)->send(new TeacherPayslipMail($teacherSalaryPayment, $binary, $filename));
+        } catch (\Throwable $e) {
+            Log::error('Manual payslip email failed.', [
+                'payment_id' => $teacherSalaryPayment->id,
+                'teacher_id' => $teacher->id,
+                'user_id' => $request->user()?->id,
+                'route' => $request->route()?->getName(),
+                'action' => optional($request->route())->getActionName(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'email' => 'Unable to send payslip right now. Please try again.',
+            ]);
+        }
 
         return back()->with('status', 'Payslip emailed to '.$teacher->email.'.');
     }

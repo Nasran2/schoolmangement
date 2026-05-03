@@ -39,7 +39,8 @@ return [
     |
     */
 
-    'debug' => (bool) env('APP_DEBUG', false),
+    // Never expose debug pages in production.
+    'debug' => env('APP_ENV') === 'production' ? false : (bool) env('APP_DEBUG', false),
 
     /*
     |--------------------------------------------------------------------------

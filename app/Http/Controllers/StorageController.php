@@ -52,6 +52,7 @@ class StorageController extends Controller
             'Last-Modified' => gmdate('D, d M Y H:i:s', $lastModified).' GMT',
             // Cache public assets; ETag supports revalidation
             'Cache-Control' => 'public, max-age=86400',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 }

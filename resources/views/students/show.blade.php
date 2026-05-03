@@ -450,7 +450,23 @@
 
                     <!-- Monthly Payment Tracker -->
                     <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6" x-data="{ feeModalOpen: false }">
-                        <div class="flex items-center justify-between mb-6">
+                        @php
+                            $trackerYearParam = request()->query('tracker_year');
+                            $selectedTrackerYear = null;
+                            if (is_numeric($trackerYearParam)) {
+                                $candidateYear = (int) $trackerYearParam;
+                                if ($candidateYear >= 2000 && $candidateYear <= 2100) {
+                                    $selectedTrackerYear = $candidateYear;
+                                }
+                            }
+                            $trackerBaseYear = $selectedTrackerYear ?: (int) now()->format('Y');
+                            $trackerQuery = request()->except(['tracker_year']);
+                            $trackerPrevUrl = request()->fullUrlWithQuery($trackerQuery + ['tracker_year' => $trackerBaseYear - 1]);
+                            $trackerNextUrl = request()->fullUrlWithQuery($trackerQuery + ['tracker_year' => $trackerBaseYear + 1]);
+                            $trackerCurrentUrl = url()->current().(empty($trackerQuery) ? '' : '?'.http_build_query($trackerQuery));
+                        @endphp
+
+                        <div class="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h3 class="text-lg font-bold text-gray-900">Paid Month Tracker</h3>
@@ -461,6 +477,26 @@
                                     @endif
                                 </div>
                                 <p class="text-sm text-gray-600 mt-1">Shows paid/unpaid months based on monthly fee</p>
+                            </div>
+                            <div class="flex items-center gap-2 self-start sm:self-center">
+                                <a href="{{ $trackerPrevUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900" title="Previous year" aria-label="Previous year">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </a>
+                                <div class="min-w-[104px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-center text-sm font-semibold text-gray-800">
+                                    {{ $selectedTrackerYear ? $selectedTrackerYear : 'Recent' }}
+                                </div>
+                                <a href="{{ $trackerNextUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900" title="Next year" aria-label="Next year">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </a>
+                                @if($selectedTrackerYear)
+                                    <a href="{{ $trackerCurrentUrl }}" class="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900">
+                                        Current
+                                    </a>
+                                @endif
                             </div>
                         </div>
 
@@ -476,7 +512,14 @@
                             if ($canShowTracker) {
                                 // Use MonthlyFeeAllocator to get accurate ledger
                                 $allocator = app(\App\Services\Billing\MonthlyFeeAllocator::class);
-                                $ledger = $allocator->buildLedger($student, 12);
+                                $futureHorizon = 12;
+                                if ($selectedTrackerYear) {
+                                    $selectedYearEnd = \Carbon\Carbon::createFromDate($selectedTrackerYear, 12, 1)->endOfMonth();
+                                    if ($selectedYearEnd->gt(now())) {
+                                        $futureHorizon = max(12, (int) now()->startOfMonth()->diffInMonths($selectedYearEnd) + 1);
+                                    }
+                                }
+                                $ledger = $allocator->buildLedger($student, $futureHorizon);
                                 
                                 // Convert ledger to cycles format for display
                                 $cycles = [];
@@ -500,29 +543,39 @@
                                     ];
                                 }
 
-                                // Slice logic: Show last 12 months relative to NOW, plus all future months
-                                // Find index of "current" month
-                                $currentIndex = -1;
-                                foreach ($cycles as $idx => $c) {
-                                    if ($c['inProgress']) {
-                                        $currentIndex = $idx;
-                                        break;
+                                if ($selectedTrackerYear) {
+                                    $cycles = array_values(array_filter($cycles, function ($c) use ($selectedTrackerYear) {
+                                        return (int) ($c['year'] ?? 0) === $selectedTrackerYear;
+                                    }));
+                                } else {
+                                    // Slice logic: Show last 12 months relative to NOW, plus all future months
+                                    // Find index of "current" month
+                                    $currentIndex = -1;
+                                    foreach ($cycles as $idx => $c) {
+                                        if ($c['inProgress']) {
+                                            $currentIndex = $idx;
+                                            break;
+                                        }
                                     }
-                                }
-                                // If no current month (e.g. start date in future), current is effectively 0 or -1
-                                if ($currentIndex === -1) {
-                                    $start = \Carbon\Carbon::parse($feeStartDateValue)->startOfMonth();
-                                    if ($start->gt($now)) $currentIndex = 0; // Start is future
-                                    else $currentIndex = count($cycles) - 1; // End is past
-                                }
+                                    // If no current month (e.g. start date in future), current is effectively 0 or -1
+                                    if ($currentIndex === -1) {
+                                        $start = \Carbon\Carbon::parse($feeStartDateValue)->startOfMonth();
+                                        if ($start->gt($now)) $currentIndex = 0; // Start is future
+                                        else $currentIndex = count($cycles) - 1; // End is past
+                                    }
 
-                                $sliceStart = max(0, $currentIndex - 11);
-                                $cycles = array_slice($cycles, $sliceStart);
+                                    $sliceStart = max(0, $currentIndex - 11);
+                                    $cycles = array_slice($cycles, $sliceStart);
+                                }
                             }
                         @endphp
 
                         @if(!$canShowTracker)
                             <div class="text-sm text-gray-600">Set Fee Start Date and Monthly Fee to see the tracker.</div>
+                        @elseif(empty($cycles))
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                                No monthly fee records to show for {{ $selectedTrackerYear }}.
+                            </div>
                         @else
                             <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                                 @foreach($cycles as $i => $cy)
@@ -724,6 +777,7 @@
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Bill</th>
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
                                         <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Category</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Payment</th>
                                         <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
                                         <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Refunded</th>
                                         <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Waived</th>
@@ -736,16 +790,51 @@
                                         @php
                                             $refunded = (float) ($p->refunded_amount ?? 0);
                                             $waived = (float) ($p->waived_amount ?? 0);
-                                            $net = max(0.0, (float) $p->amount - $refunded);
+                                            $isReturnedCheque = ($p->payment_method ?? null) === 'cheque' && ($p->payment_status ?? null) === 'rejected';
+                                            $isHoldCheque = ($p->payment_method ?? null) === 'cheque' && in_array((string) ($p->payment_status ?? ''), ['hold', 'pending'], true);
+                                            $isPassedCheque = ($p->payment_method ?? null) === 'cheque' && ($p->payment_status ?? null) === 'confirmed';
+                                            $net = $isReturnedCheque ? 0.0 : max(0.0, (float) $p->amount - $refunded);
                                         @endphp
-                                        <tr class="hover:bg-gray-50 transition-colors">
-                                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ $p->bill_no ?? '-' }}</td>
+                                        <tr class="{{ $isReturnedCheque ? 'bg-rose-50/40 hover:bg-rose-50' : 'hover:bg-gray-50' }} transition-colors">
+                                            <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                                <div>{{ $p->bill_no ?? '-' }}</div>
+                                                @if($isReturnedCheque)
+                                                    <span class="mt-1 inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">Returned</span>
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-3 text-sm text-gray-700">{{ optional($p->paid_at)->format('d-m-Y') }}</td>
                                             <td class="px-4 py-3 text-sm text-gray-700">{{ $p->category?->name ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                @if(($p->payment_method ?? null) === 'cheque')
+                                                    <div class="font-semibold {{ $isReturnedCheque ? 'text-rose-700' : ($isPassedCheque ? 'text-emerald-700' : 'text-amber-700') }}">
+                                                        Cheque
+                                                        @if($isReturnedCheque)
+                                                            returned
+                                                        @elseif($isPassedCheque)
+                                                            passed
+                                                        @elseif($isHoldCheque)
+                                                            on hold
+                                                        @endif
+                                                    </div>
+                                                    <div class="mt-1 text-xs text-gray-500">Date: {{ optional($p->cheque_date)->format('d-m-Y') ?: '-' }}</div>
+                                                    <div class="text-xs text-gray-500">No: {{ data_get($p->payment_meta, 'cheque_number') ?: '-' }}</div>
+                                                    <div class="text-xs text-gray-500">Bank: {{ data_get($p->payment_meta, 'bank') ?: '-' }}</div>
+                                                    @if($isReturnedCheque)
+                                                        <div class="text-xs text-rose-700">Returned: {{ optional($p->confirmed_at)->format('d-m-Y') ?: '-' }}</div>
+                                                    @endif
+                                                @else
+                                                    {{ ucfirst(str_replace('_', ' ', (string) ($p->payment_method ?: 'cash'))) }}
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ number_format((float) $p->amount, 2) }}</td>
                                             <td class="px-4 py-3 text-sm text-right font-semibold {{ $refunded > 0 ? 'text-rose-700' : 'text-gray-500' }}">{{ number_format($refunded, 2) }}</td>
                                             <td class="px-4 py-3 text-sm text-right font-semibold {{ $waived > 0 ? 'text-indigo-700' : 'text-gray-500' }}">{{ number_format($waived, 2) }}</td>
-                                            <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">{{ number_format($net, 2) }}</td>
+                                            <td class="px-4 py-3 text-sm text-right font-semibold {{ $isReturnedCheque ? 'text-rose-700' : 'text-gray-900' }}">
+                                                {{ number_format($net, 2) }}
+                                                @if($isReturnedCheque)
+                                                    <div class="text-[11px] font-medium text-rose-600">Not counted</div>
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-3 text-sm text-right">
                                                 <div class="inline-flex items-center gap-3 text-gray-500">
                                                     <a href="{{ route('revenue.items.receipt', $p) }}" class="hover:text-indigo-600" title="Print / View Receipt">
@@ -772,7 +861,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="8">No payments found.</td>
+                                            <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="9">No payments found.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

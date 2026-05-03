@@ -11,6 +11,9 @@
     $isClassrooms = request()->routeIs('classrooms.*');
     $isSettings = request()->routeIs('settings.*') || request()->routeIs('rbac.*');
     $isDeveloper = request()->routeIs('developer.*');
+    $isDeveloperStudents = request()->routeIs('developer.students');
+    $isDeveloperTeachers = request()->routeIs('developer.teachers');
+    $isDeveloperUsers = request()->routeIs('developer.users');
 @endphp
 
 <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 hidden lg:flex lg:flex-col">
@@ -46,6 +49,12 @@
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 3.75h4.5v3h-4.5z"/><path d="M4.5 9.75h15v10.5h-15z"/><path d="M9 14.25h6"/><path d="M12 11.25v6"/></svg>
                 <span>Developer Console</span>
             </a>
+
+            <div class="mt-1 space-y-1 pl-8">
+                <a href="{{ route('developer.students') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperStudents ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Students</a>
+                <a href="{{ route('developer.teachers') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Teachers</a>
+                <a href="{{ route('developer.users') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperUsers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Users</a>
+            </div>
         @endif
 
         @canany(['revenue.add','revenue.manage','revenue.categories.manage'])
@@ -409,6 +418,12 @@
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 3.75h4.5v3h-4.5z"/><path d="M4.5 9.75h15v10.5h-15z"/><path d="M9 14.25h6"/><path d="M12 11.25v6"/></svg>
                 <span>Developer Console</span>
             </a>
+
+            <div class="mt-1 space-y-1 pl-8">
+                <a href="{{ route('developer.students') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperStudents ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Students</a>
+                <a href="{{ route('developer.teachers') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Teachers</a>
+                <a href="{{ route('developer.users') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperUsers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Users</a>
+            </div>
         @endif
 
         @canany(['revenue.add','revenue.manage','revenue.categories.manage'])

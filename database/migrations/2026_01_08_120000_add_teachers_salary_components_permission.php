@@ -12,9 +12,7 @@ return new class extends Migration {
         }
 
         $name = 'teachers.salary.components';
-        if (! Permission::query()->where('name', $name)->exists()) {
-            Permission::create(['name' => $name]);
-        }
+        Permission::findOrCreate($name, 'web');
     }
 
     public function down(): void
@@ -23,7 +21,10 @@ return new class extends Migration {
             return;
         }
         $name = 'teachers.salary.components';
-        $perm = Permission::query()->where('name', $name)->first();
+        $perm = Permission::query()
+            ->where('name', $name)
+            ->where('guard_name', 'web')
+            ->first();
         if ($perm) {
             $perm->delete();
         }

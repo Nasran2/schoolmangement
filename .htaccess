@@ -1,6 +1,9 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Make the domain root resolve through Laravel instead of stopping at the project directory.
+    RewriteRule ^$ public/index.php [L]
+
     # Leave requests that already target /public alone to avoid rewrite loops.
     RewriteCond %{REQUEST_URI} !^/public/
     RewriteCond %{REQUEST_FILENAME} !-f

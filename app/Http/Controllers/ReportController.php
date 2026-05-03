@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -403,10 +404,14 @@ class ReportController extends Controller
         }
         // ZipArchive requires a .zip file extension in some environments
         $finalZipPath = $zipPath . '.zip';
-        @rename($zipPath, $finalZipPath);
+        if (! @rename($zipPath, $finalZipPath)) {
+            @unlink($zipPath);
+            abort(500, 'Unable to initialize ZIP archive file.');
+        }
 
         $zip = new ZipArchive();
         if ($zip->open($finalZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            @unlink($finalZipPath);
             abort(500, 'Unable to create ZIP archive.');
         }
 
@@ -428,7 +433,14 @@ class ReportController extends Controller
                 $zip->addFromString($rep['file'], $content);
                 $added++;
             } catch (\Throwable $e) {
-                // Skip failed report
+                Log::warning('Failed adding report to PDF bundle; continuing with remaining reports.', [
+                    'report' => $rep['name'] ?? $rep['file'],
+                    'file' => $rep['file'] ?? null,
+                    'user_id' => $request->user()?->id,
+                    'route' => $request->route()?->getName(),
+                    'action' => optional($request->route())->getActionName(),
+                    'error' => $e->getMessage(),
+                ]);
                 continue;
             }
         }
@@ -2784,7 +2796,7 @@ class ReportController extends Controller
 
         $studentIds = $students->pluck('id')->all();
         $categoryIds = $students
-            ->map(fn (Student $s) => $s->classRoom?->monthly_fee_revenue_category_id)
+            ->map(fn (Student $s) => $s->monthlyFeeCategoryId())
             ->filter(fn ($id) => $id !== null)
             ->unique()
             ->values()
@@ -2853,7 +2865,7 @@ class ReportController extends Controller
             }
 
             $expectedBase = $monthlyFee * max(0, $monthsDue);
-            $catId = $student->classRoom?->monthly_fee_revenue_category_id;
+            $catId = $student->monthlyFeeCategoryId();
             $paid = 0.0;
             $refunds = 0.0;
             $waivers = 0.0;
@@ -3329,14 +3341,15 @@ class ReportController extends Controller
         $rows = [];
         foreach ($students as $s) {
             /** @var \App\Models\Student $s */
-            $due = (float) $s->computeMonthlyDue();
+            $due = (float) ($s->due_amount ?? 0);
             if ($due <= 0) {
                 continue;
             }
 
-            $monthsDue = $s->monthlyCyclesCountToNow();
-            $paidMonths = $s->monthlyFeePaidCyclesCount();
-            $unpaidMonths = max(0, (int) $monthsDue - (int) $paidMonths);
+            $monthlyFee = (float) ($s->monthly_fee ?? 0);
+            $unpaidMonths = $monthlyFee > 0
+                ? (int) ceil($due / $monthlyFee)
+                : 0;
 
             if ($unpaidMonths <= 1) {
                 $bucket = '0-30';
@@ -3442,7 +3455,7 @@ class ReportController extends Controller
         $computed = [];
         foreach ($students as $student) {
             /** @var \App\Models\Student $student */
-            $due = (float) $student->computeMonthlyDue();
+            $due = (float) ($student->due_amount ?? 0);
             if ($due <= 0) {
                 continue;
             }

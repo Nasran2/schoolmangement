@@ -1,5 +1,9 @@
 <?php
 
+$defaultMailer = env('MAIL_MAILER', 'log');
+if (env('APP_ENV') === 'production' && in_array($defaultMailer, ['log', 'array'], true)) {
+    $defaultMailer = 'failover';
+}
 return [
 
     /*
@@ -14,7 +18,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    'default' => $defaultMailer,
 
     /*
     |--------------------------------------------------------------------------

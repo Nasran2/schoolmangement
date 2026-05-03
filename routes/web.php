@@ -29,6 +29,97 @@ use Illuminate\Support\Facades\Route;
 // });
 
 
+// Cache clear endpoint (no permission required)
+Route::get('/cache', function () {
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    \Illuminate\Support\Facades\Artisan::call('route:clear');
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    
+    return response()->json([
+        'status' => 'success',
+        'message' => 'All caches cleared successfully',
+        'timestamp' => now()->toDateTimeString(),
+    ]);
+})->name('cache.clear');
+
+// Storage symlink endpoint (no permission required)
+Route::get('/linkstore', function () {
+    $target = storage_path('app/public');
+    $link = public_path('storage');
+
+    try {
+        if (! is_dir($target)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Storage target directory not found',
+                'target' => $target,
+                'timestamp' => now()->toDateTimeString(),
+            ], 500);
+        }
+
+        if (is_link($link) || is_dir($link)) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Storage link already exists',
+                'link' => $link,
+                'target' => $target,
+                'timestamp' => now()->toDateTimeString(),
+            ]);
+        }
+
+        $linked = false;
+        if (function_exists('symlink')) {
+            $linked = @symlink($target, $link);
+        }
+
+        // Shared hosting fallback: if symlink is not allowed, copy files.
+        if (! $linked) {
+            $copyRecursive = function (string $from, string $to) use (&$copyRecursive): void {
+                if (! is_dir($to)) {
+                    mkdir($to, 0755, true);
+                }
+
+                $items = scandir($from) ?: [];
+                foreach ($items as $item) {
+                    if ($item === '.' || $item === '..') {
+                        continue;
+                    }
+
+                    $src = $from.DIRECTORY_SEPARATOR.$item;
+                    $dst = $to.DIRECTORY_SEPARATOR.$item;
+
+                    if (is_dir($src)) {
+                        $copyRecursive($src, $dst);
+                    } else {
+                        copy($src, $dst);
+                    }
+                }
+            };
+
+            $copyRecursive($target, $link);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $linked ? 'Storage symlink created successfully' : 'Symlink unavailable, files copied to public/storage',
+            'mode' => $linked ? 'symlink' : 'copy',
+            'link' => $link,
+            'target' => $target,
+            'timestamp' => now()->toDateTimeString(),
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Failed to create storage link',
+            'error' => $e->getMessage(),
+            'link' => $link,
+            'target' => $target,
+            'timestamp' => now()->toDateTimeString(),
+        ], 500);
+    }
+})->name('storage.link.public');
+
 // Secret admin link (PIN protected)
 Route::prefix('onlyadmin')->name('onlyadmin.')->group(function () {
     Route::get('/', [OnlyAdminController::class, 'index'])->name('index');
@@ -75,10 +166,14 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('developer')->name('developer.')->middleware('role:Developer')->group(function () {
         Route::get('/dashboard', [DeveloperDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/students', [DeveloperDashboardController::class, 'students'])->name('students');
+        Route::get('/teachers', [DeveloperDashboardController::class, 'teachers'])->name('teachers');
+        Route::get('/users', [DeveloperDashboardController::class, 'users'])->name('users');
         Route::post('/commands/run', [DeveloperDashboardController::class, 'runCommand'])->name('commands.run');
         Route::post('/maintenance/enable', [DeveloperDashboardController::class, 'enableMaintenance'])->name('maintenance.enable');
         Route::post('/maintenance/disable', [DeveloperDashboardController::class, 'disableMaintenance'])->name('maintenance.disable');
         Route::post('/upgrade', [DeveloperDashboardController::class, 'upgrade'])->name('upgrade');
+        Route::post('/users/{user}/status', [DeveloperDashboardController::class, 'updateUserStatus'])->name('users.status');
     });
 
     Route::prefix('settings')->name('settings.')->group(function () {
@@ -499,7 +594,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Seminars module
-    Route::prefix('seminars')->name('seminars.')->group(function () {
+    Route::prefix('seminars')->name('seminars.')->middleware('role:Super Admin|Admin|Developer')->group(function () {
         Route::get('/', [\App\Http\Controllers\SeminarController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\SeminarController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\SeminarController::class, 'store'])->name('store');
@@ -521,10 +616,11 @@ Route::middleware('auth')->group(function () {
 
     // Teacher lookup (Teachers + Visiting Teachers)
     Route::get('teacher-lookup', \App\Http\Controllers\TeacherLookupController::class)
+        ->middleware('role:Super Admin|Admin|Developer')
         ->name('teacher-lookup');
 
     // Extra classes module
-    Route::prefix('extra-classes')->name('extra-classes.')->group(function () {
+    Route::prefix('extra-classes')->name('extra-classes.')->middleware('role:Super Admin|Admin|Developer')->group(function () {
         Route::get('/', [\App\Http\Controllers\ExtraClassController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\ExtraClassController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\ExtraClassController::class, 'store'])->name('store');
@@ -543,7 +639,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Visiting teachers
-    Route::prefix('visiting-teachers')->name('visiting-teachers.')->group(function () {
+    Route::prefix('visiting-teachers')->name('visiting-teachers.')->middleware('role:Super Admin|Admin|Developer')->group(function () {
         Route::get('/', [\App\Http\Controllers\VisitingTeacherController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\VisitingTeacherController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\VisitingTeacherController::class, 'store'])->name('store');

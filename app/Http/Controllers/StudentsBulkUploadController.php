@@ -6,6 +6,7 @@ use App\Models\ClassRoom;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -316,32 +317,46 @@ class StudentsBulkUploadController extends Controller
         $path = $validated['csv']->store('tmp');
         $full = Storage::path($path);
 
-        $created = 0;
-        $skipped = 0;
-        $errors = [];
+        try {
+            $created = 0;
+            $skipped = 0;
+            $errors = [];
 
-        $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
-        if (in_array($ext, ['xlsx', 'xls'], true)) {
-            [$created, $skipped, $errors] = $this->importXlsx($full);
-        } else {
-            [$created, $skipped, $errors] = $this->importCsv($full);
+            $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
+            if (in_array($ext, ['xlsx', 'xls'], true)) {
+                [$created, $skipped, $errors] = $this->importXlsx($full);
+            } else {
+                [$created, $skipped, $errors] = $this->importCsv($full);
+            }
+
+            $msg = "Imported {$created} students.";
+            if ($skipped > 0) {
+                $msg .= " Skipped {$skipped} rows.";
+            }
+            if (!empty($errors)) {
+                $msg .= ' First errors: ' . implode(' | ', array_slice($errors, 0, 3));
+            }
+
+            $type = ($created > 0 && $skipped === 0 && empty($errors)) ? 'success' : 'warning';
+
+            return redirect()->route('students.index')
+                ->with('status', $msg)
+                ->with('status_type', $type);
+        } catch (\Throwable $e) {
+            Log::error('Student bulk upload failed.', [
+                'user_id' => $request->user()?->id,
+                'file' => $validated['csv']->getClientOriginalName(),
+                'route' => $request->route()?->getName(),
+                'action' => optional($request->route())->getActionName(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'csv' => 'Import failed. Please validate the file format and try again.',
+            ]);
+        } finally {
+            Storage::delete($path);
         }
-
-        Storage::delete($path);
-
-        $msg = "Imported {$created} students.";
-        if ($skipped > 0) {
-            $msg .= " Skipped {$skipped} rows.";
-        }
-        if (!empty($errors)) {
-            $msg .= ' First errors: ' . implode(' | ', array_slice($errors, 0, 3));
-        }
-
-        $type = ($created > 0 && $skipped === 0 && empty($errors)) ? 'success' : 'warning';
-
-        return redirect()->route('students.index')
-            ->with('status', $msg)
-            ->with('status_type', $type);
     }
 
     private function normalizeText(?string $value): string
@@ -585,62 +600,76 @@ class StudentsBulkUploadController extends Controller
             return [false, 'Missing required Yes/No fields'];
         }
 
-        Student::query()->updateOrCreate(
-            ['admission_number' => $admissionNumber],
-            [
-                'name' => $name,
-                'first_name' => $firstName,
-                'other_names' => $data['other_names'] ?? null,
-                'name_with_initial' => $nameWithInitial,
-                'address' => $data['address'] ?? null,
-                'parent_address' => $parentAddress,
-                'phone' => $data['phone'] ?? null,
-                'whatsapp_number' => $data['whatsapp_number'] ?? null,
-                'gender' => $gender,
-                'date_of_birth' => $dob,
-                'use_guardian' => $useGuardian,
-                'guardian_name' => $data['guardian_name'] ?? null,
-                'guardian_relationship' => $data['guardian_relationship'] ?? null,
-                'guardian_phone' => $data['guardian_phone'] ?? null,
-                'joining_date' => $joiningDate,
-                'fee_start_date' => $feeStartDate,
-                'year' => $academicYear,
-                'class_room_id' => $classRoom->id,
-                'class' => $classRoom->name,
-                'religion' => $religion,
-                'nationality' => $nationality,
-                'desired_class' => $data['desired_class'] ?? null,
-                'medical_history' => $data['medical_history'] ?? null,
-                'long_term_medication' => (bool) $longTermMedication,
-                'learning_disabilities' => (bool) $learningDisabilities,
-                'previous_school' => $data['previous_school'] ?? null,
-                'previous_grade' => $data['previous_grade'] ?? null,
-                'siblings' => $data['siblings'] ?? null,
-                'has_siblings_in_college' => (bool) $hasSiblingsInCollege,
-                'father_name_with_initial' => $data['father_name_with_initial'] ?? null,
-                'father_nic_passport' => $data['father_nic_passport'] ?? null,
-                'father_religion' => $data['father_religion'] ?? null,
-                'father_nationality' => $data['father_nationality'] ?? null,
-                'father_occupation' => $data['father_occupation'] ?? null,
-                'father_phone' => $data['father_phone'] ?? null,
-                'father_whatsapp' => $data['father_whatsapp'] ?? null,
-                'father_office_phone' => $data['father_office_phone'] ?? null,
-                'father_emergency_number' => $data['father_emergency_number'] ?? null,
-                'mother_name_with_initial' => $data['mother_name_with_initial'] ?? null,
-                'mother_nic_passport' => $data['mother_nic_passport'] ?? null,
-                'mother_religion' => $data['mother_religion'] ?? null,
-                'mother_nationality' => $data['mother_nationality'] ?? null,
-                'mother_occupation' => $data['mother_occupation'] ?? null,
-                'mother_phone' => $data['mother_phone'] ?? null,
-                'mother_whatsapp' => $data['mother_whatsapp'] ?? null,
-                'mother_office_phone' => $data['mother_office_phone'] ?? null,
-                'mother_emergency_number' => $data['mother_emergency_number'] ?? null,
-                'hear_about_us' => $data['hear_about_us'] ?? null,
-                'monthly_fee' => (float) $monthlyFee,
-                'due_amount' => (float) $dueAmount,
-                'active' => true,
-            ]
-        );
+        $attributes = [
+            'name' => $name,
+            'first_name' => $firstName,
+            'other_names' => $data['other_names'] ?? null,
+            'name_with_initial' => $nameWithInitial,
+            'address' => $data['address'] ?? null,
+            'parent_address' => $parentAddress,
+            'phone' => $data['phone'] ?? null,
+            'whatsapp_number' => $data['whatsapp_number'] ?? null,
+            'gender' => $gender,
+            'date_of_birth' => $dob,
+            'use_guardian' => $useGuardian,
+            'guardian_name' => $data['guardian_name'] ?? null,
+            'guardian_relationship' => $data['guardian_relationship'] ?? null,
+            'guardian_phone' => $data['guardian_phone'] ?? null,
+            'joining_date' => $joiningDate,
+            'fee_start_date' => $feeStartDate,
+            'year' => $academicYear,
+            'class_room_id' => $classRoom->id,
+            'class' => $classRoom->name,
+            'religion' => $religion,
+            'nationality' => $nationality,
+            'desired_class' => $data['desired_class'] ?? null,
+            'medical_history' => $data['medical_history'] ?? null,
+            'long_term_medication' => (bool) $longTermMedication,
+            'learning_disabilities' => (bool) $learningDisabilities,
+            'previous_school' => $data['previous_school'] ?? null,
+            'previous_grade' => $data['previous_grade'] ?? null,
+            'siblings' => $data['siblings'] ?? null,
+            'has_siblings_in_college' => (bool) $hasSiblingsInCollege,
+            'father_name_with_initial' => $data['father_name_with_initial'] ?? null,
+            'father_nic_passport' => $data['father_nic_passport'] ?? null,
+            'father_religion' => $data['father_religion'] ?? null,
+            'father_nationality' => $data['father_nationality'] ?? null,
+            'father_occupation' => $data['father_occupation'] ?? null,
+            'father_phone' => $data['father_phone'] ?? null,
+            'father_whatsapp' => $data['father_whatsapp'] ?? null,
+            'father_office_phone' => $data['father_office_phone'] ?? null,
+            'father_emergency_number' => $data['father_emergency_number'] ?? null,
+            'mother_name_with_initial' => $data['mother_name_with_initial'] ?? null,
+            'mother_nic_passport' => $data['mother_nic_passport'] ?? null,
+            'mother_religion' => $data['mother_religion'] ?? null,
+            'mother_nationality' => $data['mother_nationality'] ?? null,
+            'mother_occupation' => $data['mother_occupation'] ?? null,
+            'mother_phone' => $data['mother_phone'] ?? null,
+            'mother_whatsapp' => $data['mother_whatsapp'] ?? null,
+            'mother_office_phone' => $data['mother_office_phone'] ?? null,
+            'mother_emergency_number' => $data['mother_emergency_number'] ?? null,
+            'hear_about_us' => $data['hear_about_us'] ?? null,
+            'monthly_fee' => (float) $monthlyFee,
+            'due_amount' => (float) $dueAmount,
+            'active' => true,
+        ];
+
+        if ($admissionNumber !== null && $admissionNumber !== '') {
+            Student::query()->updateOrCreate(
+                ['admission_number' => $admissionNumber],
+                $attributes
+            );
+        } else {
+            Student::query()->updateOrCreate(
+                [
+                    'admission_number' => null,
+                    'name' => $name,
+                    'date_of_birth' => $dob,
+                    'class_room_id' => $classRoom->id,
+                ],
+                $attributes
+            );
+        }
 
         return [true, null];
     }

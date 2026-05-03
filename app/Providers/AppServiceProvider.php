@@ -3,9 +3,13 @@
 namespace App\Providers;
 
 use App\Services\SettingsService;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Permission;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,14 +35,28 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Schema::defaultStringLength(191);
+
+        $this->forceCanonicalRootUrl();
         $this->applyMailSettings();
+        $this->attachRequestLogContext();
+
+        Gate::before(function ($user) {
+            if ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['Super Admin', 'Admin'])) {
+                return true;
+            }
+
+            return null;
+        });
+
         View::share('schoolName', app('settings')->get('school.name', config('app.name')));
 
         // Ensure permissions for new modules exist
         if (Schema::hasTable('permissions')) {
             try {
-                \Spatie\Permission\Models\Permission::findOrCreate('audit_logs.view');
-                \Spatie\Permission\Models\Permission::findOrCreate('dashboard.widget.recent_activity.view');
+                Permission::findOrCreate('audit_logs.view');
+                Permission::findOrCreate('dashboard.widget.recent_activity.view');
+                Permission::findOrCreate('reports.daily_ledger.view');
             } catch (\Throwable $e) {
                 // ignore creation failures
             }
@@ -60,6 +78,33 @@ class AppServiceProvider extends ServiceProvider
 
         View::share('selectedAcademicYear', $selectedYear);
         View::share('availableAcademicYears', $years);
+    }
+
+    private function forceCanonicalRootUrl(): void
+    {
+        if (app()->runningInConsole()) {
+            return;
+        }
+
+        $request = request();
+        $appUrl = (string) config('app.url', '');
+        $requestUri = (string) $request->server('REQUEST_URI', '');
+
+        $needsCanonicalRoot = str_contains($appUrl, '/public')
+            || $requestUri === '/public'
+            || str_starts_with($requestUri, '/public/');
+
+        if (! $needsCanonicalRoot) {
+            return;
+        }
+
+        $root = rtrim($request->getSchemeAndHttpHost(), '/');
+
+        if ($appUrl !== '' && preg_match('/^https?:\/\//i', $appUrl) === 1) {
+            $root = rtrim(preg_replace('#/public/?$#', '', $appUrl) ?? $root, '/');
+        }
+
+        URL::forceRootUrl($root);
     }
 
     private function applyMailSettings(): void
@@ -109,5 +154,22 @@ class AppServiceProvider extends ServiceProvider
                 'mail.from.name' => $fromName,
             ]);
         }
+    }
+
+    private function attachRequestLogContext(): void
+    {
+        if (app()->runningInConsole()) {
+            return;
+        }
+
+        $request = request();
+
+        Log::withContext([
+            'user_id' => $request->user()?->id,
+            'route' => $request->route()?->getName(),
+            'method' => $request->method(),
+            'path' => '/'.ltrim($request->path(), '/'),
+            'action' => optional($request->route())->getActionName(),
+        ]);
     }
 }

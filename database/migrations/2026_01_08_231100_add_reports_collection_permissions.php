@@ -11,9 +11,7 @@ return new class extends Migration {
             return;
         }
         foreach (['reports.seminars_collection.view', 'reports.extra_classes_collection.view'] as $name) {
-            if (! Permission::query()->where('name', $name)->exists()) {
-                Permission::create(['name' => $name]);
-            }
+            Permission::findOrCreate($name, 'web');
         }
     }
 

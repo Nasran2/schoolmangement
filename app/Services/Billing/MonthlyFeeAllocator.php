@@ -58,7 +58,8 @@ class MonthlyFeeAllocator
      */
     public function buildLedger(Student $student, int $horizonMonths = 12): array
     {
-        $start = $student->fee_start_date ? Carbon::parse($student->fee_start_date)->startOfDay() : null;
+        $startDate = $student->fee_start_date ?: $student->joining_date ?: optional($student->created_at)->toDateString();
+        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : null;
         if (! $start) return [];
 
         $histories = StudentPromotionHistory::query()

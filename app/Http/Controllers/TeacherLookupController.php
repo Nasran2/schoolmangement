@@ -72,12 +72,12 @@ class TeacherLookupController extends Controller
 
         $teachers = Teacher::query()
             ->where('active', true)
-            ->where(function ($sub) use ($like) {
+            ->where(function ($sub) use ($like, $digitLike, $qDigits, $normalizedPhoneExpr) {
                 $sub->where('name', 'like', $like)
                     ->orWhere('phone', 'like', $like);
-            })
-            ->when($digitLike !== null && strlen($qDigits) >= 3, function ($query) use ($normalizedPhoneExpr, $digitLike) {
-                $query->orWhereRaw($normalizedPhoneExpr." like ?", [$digitLike]);
+                if ($digitLike !== null && strlen($qDigits) >= 3) {
+                    $sub->orWhereRaw($normalizedPhoneExpr." like ?", [$digitLike]);
+                }
             })
             ->orderBy('name')
             ->limit(15)
@@ -85,12 +85,12 @@ class TeacherLookupController extends Controller
 
         $visitingTeachers = VisitingTeacher::query()
             ->where('active', true)
-            ->where(function ($sub) use ($like) {
+            ->where(function ($sub) use ($like, $digitLike, $qDigits, $normalizedPhoneExpr) {
                 $sub->where('name', 'like', $like)
                     ->orWhere('phone', 'like', $like);
-            })
-            ->when($digitLike !== null && strlen($qDigits) >= 3, function ($query) use ($normalizedPhoneExpr, $digitLike) {
-                $query->orWhereRaw($normalizedPhoneExpr." like ?", [$digitLike]);
+                if ($digitLike !== null && strlen($qDigits) >= 3) {
+                    $sub->orWhereRaw($normalizedPhoneExpr." like ?", [$digitLike]);
+                }
             })
             ->orderBy('name')
             ->limit(15)

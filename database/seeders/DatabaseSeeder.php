@@ -17,12 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RbacSeeder::class,
             DefaultRevenueCategoriesSeeder::class,
+            DefaultExpenseCategoriesSeeder::class,
         ]);
-
-        if (env('SEED_SAMPLE_DATA', false)) {
-            $this->call([
-                SampleTeachersAndStudentsSeeder::class,
-            ]);
-        }
     }
 }

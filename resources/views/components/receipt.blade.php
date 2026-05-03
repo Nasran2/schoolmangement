@@ -51,6 +51,9 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
 
 $refundedAmount = 0.0;
 $waivedAmount = 0.0;
+$isReturnedCheque = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
+$isCancelledPayment = $isReturnedCheque;
+$cancelledLabel = $isReturnedCheque ? 'CHEQUE RETURNED' : 'PAYMENT CANCELLED';
 try {
     $refundedAmount = (float) \App\Models\RevenueAdjustment::query()
         ->where('revenue_id', $revenue->id)
@@ -64,7 +67,7 @@ try {
     $refundedAmount = 0.0;
     $waivedAmount = 0.0;
 }
-$netCollected = max(0.0, $amount - $refundedAmount);
+$netCollected = $isCancelledPayment ? 0.0 : max(0.0, $amount - $refundedAmount);
 // Months covered by this receipt via allocations
 $coveredMonths = [];
 if (method_exists($revenue, 'allocations')) {
@@ -166,6 +169,17 @@ if (empty($studentAddress) && $student) {
 @endphp
 
 <div id="receipt-print" class="bg-white p-6 mx-auto receipt-page" style="font-family: 'Courier New', monospace;">
+    @if($isCancelledPayment)
+        <div class="receipt-watermark">{{ $cancelledLabel }}</div>
+        <div class="relative z-10 mb-3 border-2 border-rose-700 bg-rose-50 px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wide text-rose-800">
+            Payment cancelled. This receipt is not valid for collection.
+            @if($isReturnedCheque)
+                Cheque returned on {{ optional($revenue->confirmed_at)->format('d/m/Y') ?: '-' }}.
+            @endif
+        </div>
+    @endif
+
+    <div class="relative z-10">
     <div class="flex justify-between items-center border-b-2 border-black pb-2 mb-2">
     
     {{-- 1. LEFT: Logo --}}
@@ -203,7 +217,7 @@ if (empty($studentAddress) && $student) {
         </div>
     </div>
 
-</div>
+    </div>
 
     <div class="mt-4 space-y-2 text-sm">
         <div>
@@ -222,8 +236,11 @@ if (empty($studentAddress) && $student) {
             <span class="mx-2">of</span>
             <span class="inline-block border-b border-gray-800 min-w-[360px]">{{ $amountWords }}</span>
         </div>
-        @if($refundedAmount > 0 || $waivedAmount > 0)
+        @if($isCancelledPayment || $refundedAmount > 0 || $waivedAmount > 0)
             <div class="text-xs">
+                @if($isCancelledPayment)
+                    <div><span class="font-semibold">Cancelled:</span> This payment is not counted. &nbsp; <span class="font-semibold">Net Collected:</span> Rs {{ number_format($netCollected,2) }}</div>
+                @endif
                 @if($refundedAmount > 0)
                     <div><span class="font-semibold">Refunded:</span> Rs {{ number_format($refundedAmount,2) }} &nbsp; <span class="font-semibold">Net Collected:</span> Rs {{ number_format($netCollected,2) }}</div>
                 @endif
@@ -294,6 +311,10 @@ if (empty($studentAddress) && $student) {
                     <div class="flex justify-between"><span>{{ $category->name }} :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                 @endif
                 <div class="flex justify-between font-semibold"><span>Total :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                @if($isCancelledPayment)
+                    <div class="flex justify-between text-rose-700"><span>Cancelled :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                    <div class="flex justify-between font-semibold text-rose-700"><span>Net Collected :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($netCollected,2) }}</span></div>
+                @endif
                 @if($refundedAmount > 0)
                     <div class="flex justify-between"><span>Refunded :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($refundedAmount,2) }}</span></div>
                     <div class="flex justify-between font-semibold"><span>Net Collected :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($netCollected,2) }}</span></div>
@@ -349,15 +370,36 @@ if (empty($studentAddress) && $student) {
     </div>
 
     <div class="text-center mt-6 text-xs"><b>This is a computer-generated receipt</b></div>
+    </div>
 </div>
 
 <style>
     .receipt-page {
-    width: 9.8in;
-    min-width: 9.8in;
-    max-width: 9.8in;
-    height: 5.5in;
-}
+        position: relative;
+        overflow: hidden;
+        width: 9.8in;
+        min-width: 9.8in;
+        max-width: 9.8in;
+        height: 5.5in;
+    }
+
+    .receipt-watermark {
+        position: absolute;
+        left: 50%;
+        top: 52%;
+        z-index: 0;
+        width: 120%;
+        transform: translate(-50%, -50%) rotate(-18deg);
+        color: rgba(190, 18, 60, 0.16);
+        font-family: Arial, sans-serif;
+        font-size: 82px;
+        font-weight: 900;
+        letter-spacing: 8px;
+        line-height: 1;
+        text-align: center;
+        pointer-events: none;
+        white-space: nowrap;
+    }
 
 </style>
 
@@ -388,4 +430,3 @@ if (empty($studentAddress) && $student) {
         height: 5.5in;
     }
 </style>
-

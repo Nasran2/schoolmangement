@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class StudentController extends Controller
 {
@@ -105,17 +107,12 @@ class StudentController extends Controller
         $totalStudents = (clone $query)->count();
         $activeStudents = (clone $query)->where('active', true)->count();
 
-        // Accurate due totals (computed when available). For larger datasets this can be slower.
-        $dueCandidates = (clone $query)->get();
-        $studentsWithDueCount = 0;
-        $totalReceivableDue = 0.0;
-        foreach ($dueCandidates as $s) {
-            $due = (float) ($s->computed_due_amount ?? $s->due_amount);
-            if ($due > 0) {
-                $studentsWithDueCount++;
-                $totalReceivableDue += $due;
-            }
-        }
+        $studentsWithDueCount = (clone $query)
+            ->where('due_amount', '>', 0)
+            ->count();
+        $totalReceivableDue = (float) (clone $query)
+            ->where('due_amount', '>', 0)
+            ->sum('due_amount');
 
         return view('students.index', [
             'students' => $students,
@@ -222,19 +219,21 @@ class StudentController extends Controller
             return back()->withErrors(['allow_due' => 'Student has a pending due amount. Confirm to proceed with due.']);
         }
 
-        $student->update([
-            'leaving_docs_issued' => $val,
-        ]);
+        DB::transaction(function () use ($student, $val, $reason, $netDue, $allowDue) {
+            $student->update([
+                'leaving_docs_issued' => $val,
+            ]);
 
-        app(AuditLogger::class)->log(
-            $val ? 'students.leaving_docs_issued' : 'students.leaving_docs_unmarked',
-            $student,
-            $reason !== '' ? $reason : null,
-            [
-                'net_due' => $netDue,
-                'allow_due' => $allowDue,
-            ]
-        );
+            app(AuditLogger::class)->log(
+                $val ? 'students.leaving_docs_issued' : 'students.leaving_docs_unmarked',
+                $student,
+                $reason !== '' ? $reason : null,
+                [
+                    'net_due' => $netDue,
+                    'allow_due' => $allowDue,
+                ]
+            );
+        });
 
         return back()->with('status', $val ? 'Leaving documents marked as issued.' : 'Leaving documents marked as not issued.');
     }
@@ -252,29 +251,31 @@ class StudentController extends Controller
         $fromClassRoomId = $student->class_room_id;
         $academicYear = session('academic_year') ?? $student->year;
 
-        $student->update([
-            'alumni' => true,
-            'active' => false,
-        ]);
+        DB::transaction(function () use ($student, $fromClassRoomId, $academicYear, $reason, $netDue) {
+            $student->update([
+                'alumni' => true,
+                'active' => false,
+            ]);
 
-        StudentPromotionHistory::create([
-            'student_id' => $student->id,
-            'from_class_room_id' => $fromClassRoomId,
-            'to_class_room_id' => null,
-            'action' => 'leave',
-            'academic_year' => $academicYear,
-            'performed_by' => Auth::id(),
-            'notes' => $reason,
-        ]);
+            StudentPromotionHistory::create([
+                'student_id' => $student->id,
+                'from_class_room_id' => $fromClassRoomId,
+                'to_class_room_id' => null,
+                'action' => 'leave',
+                'academic_year' => $academicYear,
+                'performed_by' => Auth::id(),
+                'notes' => $reason,
+            ]);
 
-        app(AuditLogger::class)->log(
-            'students.marked_alumni',
-            $student,
-            $reason,
-            [
-                'net_due' => $netDue,
-            ]
-        );
+            app(AuditLogger::class)->log(
+                'students.marked_alumni',
+                $student,
+                $reason,
+                [
+                    'net_due' => $netDue,
+                ]
+            );
+        });
 
         return back()->with('status', 'Student marked as alumni.');
     }
@@ -299,39 +300,41 @@ class StudentController extends Controller
             ? \Carbon\Carbon::parse($validated['re_admit_date'])->toDateString()
             : now()->toDateString();
 
-        $student->update([
-            'alumni' => false,
-            'active' => true,
-            'leaving_docs_issued' => false,
-            'class_room_id' => $classRoom?->id,
-            'class' => $classRoom?->name,
-            'monthly_fee' => (float) ($classRoom?->monthly_fee ?? $student->monthly_fee ?? 0),
-            // On re-admission, restart fee cycle from the re-admit date.
-            'fee_start_date' => $reAdmitDate,
-            'joining_date' => $reAdmitDate,
-            'year' => $academicYear,
-        ]);
+        DB::transaction(function () use ($student, $classRoom, $reAdmitDate, $academicYear, $fromClassRoomId, $reason) {
+            $student->update([
+                'alumni' => false,
+                'active' => true,
+                'leaving_docs_issued' => false,
+                'class_room_id' => $classRoom?->id,
+                'class' => $classRoom?->name,
+                'monthly_fee' => (float) ($classRoom?->monthly_fee ?? $student->monthly_fee ?? 0),
+                // On re-admission, restart fee cycle from the re-admit date.
+                'fee_start_date' => $reAdmitDate,
+                'joining_date' => $reAdmitDate,
+                'year' => $academicYear,
+            ]);
 
-        StudentPromotionHistory::create([
-            'student_id' => $student->id,
-            'from_class_room_id' => $fromClassRoomId,
-            'to_class_room_id' => $classRoom?->id,
-            'action' => 'readmit',
-            'academic_year' => $academicYear,
-            'performed_by' => Auth::id(),
-            'notes' => $reason,
-        ]);
-
-        app(AuditLogger::class)->log(
-            'students.readmitted',
-            $student,
-            $reason,
-            [
+            StudentPromotionHistory::create([
+                'student_id' => $student->id,
                 'from_class_room_id' => $fromClassRoomId,
                 'to_class_room_id' => $classRoom?->id,
+                'action' => 'readmit',
                 'academic_year' => $academicYear,
-            ]
-        );
+                'performed_by' => Auth::id(),
+                'notes' => $reason,
+            ]);
+
+            app(AuditLogger::class)->log(
+                'students.readmitted',
+                $student,
+                $reason,
+                [
+                    'from_class_room_id' => $fromClassRoomId,
+                    'to_class_room_id' => $classRoom?->id,
+                    'academic_year' => $academicYear,
+                ]
+            );
+        });
 
         return back()->with('status', 'Student re-admitted and grade assigned.');
     }
@@ -468,6 +471,7 @@ class StudentController extends Controller
 
         // Parse fee start date (UI uses DD-MM-YYYY) and calculate due amount
         $feeStartDate = $this->parseFlexibleDate($request->input('fee_start_date'));
+        $feeStartDateToStore = $feeStartDate?->toDateString() ?? $joiningDate;
 
         $dueAmount = $monthlyFee;
         if ($feeStartDate) {
@@ -497,7 +501,7 @@ class StudentController extends Controller
             'guardian_relationship' => $validated['guardian_relationship'] ?? null,
             'guardian_phone' => $validated['guardian_phone'] ?? null,
             'joining_date' => $validated['joining_date'] ?? null,
-            'fee_start_date' => $feeStartDate?->toDateString(),
+            'fee_start_date' => $feeStartDateToStore,
             'year' => $academicYear,
             'class_room_id' => $validated['class_room_id'],
             'class' => $classRoom?->name,
@@ -547,6 +551,11 @@ class StudentController extends Controller
      */
     public function show(Request $request, Student $student)
     {
+        $effectiveStartDate = $student->fee_start_date ?: $student->joining_date ?: optional($student->created_at)->toDateString();
+        if ($effectiveStartDate) {
+            $student->setAttribute('fee_start_date', $effectiveStartDate);
+        }
+
         $payments = Revenue::query()
             ->with(['category'])
             ->withSum('refunds as refunded_amount', 'amount')
@@ -558,7 +567,7 @@ class StudentController extends Controller
             });
 
         // Optional type filter: monthly | other
-        $monthlyCatId = $student->classRoom?->monthly_fee_revenue_category_id;
+        $monthlyCatId = $student->monthlyFeeCategoryId();
         $type = $request->string('type');
         if ($type === 'monthly' && $monthlyCatId) {
             $payments->where('revenue_category_id', $monthlyCatId);
@@ -582,15 +591,21 @@ class StudentController extends Controller
 
             return response()->streamDownload(function () use ($rows) {
                 $out = fopen('php://output', 'w');
-                fputcsv($out, ['Bill No', 'Date', 'Category', 'Amount', 'Refunded', 'Waived', 'Net Collected', 'Notes']);
+                fputcsv($out, ['Bill No', 'Date', 'Category', 'Payment Method', 'Status', 'Cheque Date', 'Cheque No', 'Bank', 'Amount', 'Refunded', 'Waived', 'Net Collected', 'Notes']);
                 foreach ($rows as $row) {
                     $refunded = (float) ($row->refunded_amount ?? 0);
                     $waived = (float) ($row->waived_amount ?? 0);
-                    $net = max(0.0, (float) $row->amount - $refunded);
+                    $isReturned = ($row->payment_method ?? null) === 'cheque' && ($row->payment_status ?? null) === 'rejected';
+                    $net = $isReturned ? 0.0 : max(0.0, (float) $row->amount - $refunded);
                     fputcsv($out, [
                         $row->bill_no,
                         optional($row->paid_at)->format('Y-m-d'),
                         $row->category?->name,
+                        $row->payment_method,
+                        $row->payment_status,
+                        optional($row->cheque_date)->format('Y-m-d'),
+                        data_get($row->payment_meta, 'cheque_number'),
+                        data_get($row->payment_meta, 'bank'),
                         $row->amount,
                         $refunded,
                         $waived,
@@ -859,7 +874,7 @@ class StudentController extends Controller
                 $cycles[] = ['start' => $s->format('Y-m-d'), 'end' => $e->format('Y-m-d')];
             }
         }
-        $monthlyCatId = $student->classRoom?->monthly_fee_revenue_category_id;
+        $monthlyCatId = $student->monthlyFeeCategoryId();
         $paidMonthlyFee = 0.0;
         $holdMonthlyFee = 0.0;
         if ($monthlyCatId) {
@@ -1003,7 +1018,9 @@ class StudentController extends Controller
         $monthlyFee = (float) ($validated['monthly_fee'] ?? ($classRoom?->monthly_fee ?? 0));
 
         $feeStartDate = $this->parseFlexibleDate($request->input('fee_start_date'));
-        $feeStartDateToStore = $request->filled('fee_start_date') ? ($feeStartDate?->toDateString()) : ($student->fee_start_date?->toDateString());
+        $feeStartDateToStore = $request->filled('fee_start_date')
+            ? ($feeStartDate?->toDateString())
+            : ($student->fee_start_date?->toDateString() ?? $validated['joining_date'] ?? $student->joining_date?->toDateString());
 
         // Recompute due based on fee_start_date
         $dueAmount = $monthlyFee;
@@ -1146,22 +1163,25 @@ class StudentController extends Controller
                 ];
             }
 
-            $monthlyCategoryId = (int) ($s->classRoom?->monthly_fee_revenue_category_id ?? 0);
-            $holdChequeNumbers = Revenue::query()
-                ->where('student_id', $s->id)
-                ->where('payment_method', 'cheque')
-                ->whereIn('payment_status', ['hold', 'pending'])
-                ->when($monthlyCategoryId > 0, function ($q) use ($monthlyCategoryId) {
-                    $q->where('revenue_category_id', $monthlyCategoryId);
-                })
-                ->whereNotNull('cheque_number')
-                ->orderByDesc('paid_at')
-                ->pluck('cheque_number')
-                ->map(fn ($n) => trim((string) $n))
-                ->filter(fn ($n) => $n !== '')
-                ->unique()
-                ->values()
-                ->all();
+            $monthlyCategoryId = (int) ($s->monthlyFeeCategoryId() ?? 0);
+            $holdChequeNumbers = [];
+            if (Schema::hasColumn('revenues', 'cheque_number')) {
+                $holdChequeNumbers = Revenue::query()
+                    ->where('student_id', $s->id)
+                    ->where('payment_method', 'cheque')
+                    ->whereIn('payment_status', ['hold', 'pending'])
+                    ->when($monthlyCategoryId > 0, function ($q) use ($monthlyCategoryId) {
+                        $q->where('revenue_category_id', $monthlyCategoryId);
+                    })
+                    ->whereNotNull('cheque_number')
+                    ->orderByDesc('paid_at')
+                    ->pluck('cheque_number')
+                    ->map(fn ($n) => trim((string) $n))
+                    ->filter(fn ($n) => $n !== '')
+                    ->unique()
+                    ->values()
+                    ->all();
+            }
 
             $detail = [
                 'id' => $s->id,
@@ -1170,8 +1190,8 @@ class StudentController extends Controller
                 'phone' => $s->phone,
                 'class' => $s->classRoom?->name ?? $s->class,
                 'monthly_fee' => (float) ($s->monthly_fee ?? 0),
-                'due_amount' => (float) ($s->computed_due_amount ?? $s->due_amount ?? 0),
-                'monthly_category_id' => $s->classRoom?->monthly_fee_revenue_category_id,
+                'due_amount' => round(collect($dueMonths)->sum('amount'), 2),
+                'monthly_category_id' => $s->monthlyFeeCategoryId(),
                 'due_months' => $dueMonths,
                 'hold_amount' => round((float) $s->monthlyFeeHoldAmount(), 2),
                 'hold_cheque_numbers' => $holdChequeNumbers,
