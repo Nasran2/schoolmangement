@@ -160,18 +160,48 @@ class RevenueController extends Controller
             });
         }
 
-        if ($request->filled('from')) {
-            $query->whereDate('paid_at', '>=', $request->string('from'));
-        }
+        $range = $request->input('range', 'today');
+        
+        if ($range !== 'all') {
+            $start = null;
+            $end = null;
+            
+            if ($range === 'today') {
+                $start = now()->startOfDay();
+                $end = now()->endOfDay();
+            } elseif ($range === 'yesterday') {
+                $start = now()->subDay()->startOfDay();
+                $end = now()->subDay()->endOfDay();
+            } elseif ($range === 'this_week') {
+                $start = now()->startOfWeek();
+                $end = now()->endOfWeek();
+            } elseif ($range === 'last_week') {
+                $start = now()->subWeek()->startOfWeek();
+                $end = now()->subWeek()->endOfWeek();
+            } elseif ($range === 'this_month') {
+                $start = now()->startOfMonth();
+                $end = now()->endOfMonth();
+            } elseif ($range === 'last_month') {
+                $start = now()->subMonth()->startOfMonth();
+                $end = now()->subMonth()->endOfMonth();
+            } elseif ($range === 'custom') {
+                $start = $request->filled('from') ? \Carbon\Carbon::parse($request->input('from')) : null;
+                $end = $request->filled('to') ? \Carbon\Carbon::parse($request->input('to')) : null;
+            }
 
-        if ($request->filled('to')) {
-            $query->whereDate('paid_at', '<=', $request->string('to'));
+            if ($start) {
+                $query->whereDate('paid_at', '>=', $start->toDateString());
+            }
+            if ($end) {
+                $query->whereDate('paid_at', '<=', $end->toDateString());
+            }
         }
 
         return view('revenue.index', [
             'items' => $query->orderByDesc('paid_at')->paginate(15)->withQueryString(),
             'categories' => RevenueCategory::query()->orderBy('name')->get(),
-            'filters' => $request->only(['category_id', 'from', 'to', 'q', 'payment_method', 'payment_status']),
+            'filters' => $request->only(['category_id', 'from', 'to', 'q', 'payment_method', 'payment_status', 'range']),
+            'range' => $range,
         ]);
     }
 

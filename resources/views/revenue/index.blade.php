@@ -31,7 +31,21 @@
                     </div>
                 </div>
 
-                <form id="revenue-filters" method="GET" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
+                <form id="revenue-filters" method="GET" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-5" x-data="{ range: '{{ $range ?? 'today' }}' }">
+                    <div>
+                        <label class="text-sm font-medium text-gray-700">Range</label>
+                        <select name="range" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" x-model="range" @change="if(range !== 'custom') $refs.filterFormBtn.click()">
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="this_week">This Week</option>
+                            <option value="last_week">Last Week</option>
+                            <option value="this_month">This Month</option>
+                            <option value="last_month">Last Month</option>
+                            <option value="custom">Custom Date</option>
+                            <option value="all">All Time</option>
+                        </select>
+                        <button x-ref="filterFormBtn" type="submit" class="hidden"></button>
+                    </div>
                     <div>
                         <label class="text-sm font-medium text-gray-700">Category</label>
                         <select id="category_id" name="category_id" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
@@ -45,13 +59,13 @@
                         <label class="text-sm font-medium text-gray-700">Search</label>
                         <input id="q" name="q" type="text" placeholder="Bill / Student / Category" value="{{ $filters['q'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
-                    <div>
+                    <div x-show="range === 'custom'" x-cloak>
                         <label class="text-sm font-medium text-gray-700">From</label>
-                        <input id="from" name="from" type="text" placeholder="DD-MM-YYYY" value="{{ $filters['from'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <input id="from" name="from" type="date" value="{{ $filters['from'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
-                    <div>
+                    <div x-show="range === 'custom'" x-cloak>
                         <label class="text-sm font-medium text-gray-700">To</label>
-                        <input id="to" name="to" type="text" placeholder="DD-MM-YYYY" value="{{ $filters['to'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <input id="to" name="to" type="date" value="{{ $filters['to'] ?? '' }}" class="mt-2 block w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                     </div>
                     <div class="flex items-end">
                         <div class="flex w-full items-center gap-3 rounded-xl border border-dashed border-gray-200 px-4 py-3 text-sm text-gray-600">
@@ -88,6 +102,7 @@
                                 <th class="px-4 py-3 text-left">Date</th>
                                 <th class="px-4 py-3 text-left">Category</th>
                                 <th class="px-4 py-3 text-left">Student</th>
+                                <th class="px-4 py-3 text-left">Method</th>
                                 <th class="px-4 py-3 text-right">Amount</th>
                                 <th class="px-4 py-3 text-right">Actions</th>
                             </tr>
@@ -105,6 +120,7 @@
                                             –
                                         @endif
                                     </td>
+                                    <td class="px-4 py-3 text-sm text-gray-600 capitalize">{{ $item->payment_method ?? '-' }}</td>
                                     <td class="px-4 py-3 text-right font-semibold text-gray-900">{{ number_format($item->amount, 2) }}</td>
                                     <td class="px-4 py-3 text-right">
                                         <div class="inline-flex items-center gap-3 text-gray-500">
@@ -153,7 +169,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="6">No revenue records found.</td>
+                                    <td class="px-4 py-6 text-center text-sm text-gray-600" colspan="7">No revenue records found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

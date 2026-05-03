@@ -146,12 +146,15 @@
         </div>
         <div class="rowline">
             <div><span class="k">Expense:</span> Rs {{ number_format((float) $totalOut, 2) }}</div>
-            <div class="num closing"><span class="k">Closing:</span> Rs {{ number_format((float) $closingBalance, 2) }}</div>
+            <div class="num closing"><span class="k">Closing Balance:</span> Rs {{ number_format((float) $closingBalance, 2) }}</div>
         </div>
-
-        <div class="rowline" style="margin-top: 6px;">
-            <div><span class="k">Closing Cash:</span> Rs {{ number_format((float) ($closingBalanceCash ?? 0), 2) }}</div>
+        <div class="rowline" style="margin-top: 4px;">
+            <div></div>
             <div class="num"><span class="k">Closing Bank:</span> Rs {{ number_format((float) ($closingBalanceBank ?? 0), 2) }}</div>
+        </div>
+        <div class="rowline" style="margin-top: 4px;">
+            <div></div>
+            <div class="num"><span class="k">Cash in Hand:</span> Rs {{ number_format((float) ($closingBalanceCash ?? 0), 2) }}</div>
         </div>
     </div>
 </div>

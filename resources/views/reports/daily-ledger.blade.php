@@ -181,10 +181,9 @@
                         <div class="text-sm text-gray-600">Expense: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalOut, 2) }}</span></div>
                         <div class="text-right">
                             <div class="text-lg font-extrabold">Closing Balance: Rs {{ number_format((float) $closingBalance, 2) }}</div>
-                            <div class="mt-1 text-sm text-gray-600">
-                                Cash: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($closingBalanceCash ?? 0), 2) }}</span>
-                                <span class="mx-2">|</span>
-                                Bank: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($closingBalanceBank ?? 0), 2) }}</span>
+                            <div class="mt-1 text-sm text-gray-600 space-y-1">
+                                <div>Closing Bank: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($closingBalanceBank ?? 0), 2) }}</span></div>
+                                <div>Cash in Hand: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($closingBalanceCash ?? 0), 2) }}</span></div>
                             </div>
                         </div>
                     </div>

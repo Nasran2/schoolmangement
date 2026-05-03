@@ -326,6 +326,12 @@ class ReportController extends Controller
                 'file' => '11-epf-etf-totals.pdf',
             ],
             [
+                'name' => 'Students Report',
+                'perm' => ['reports.view'],
+                'call' => fn () => $this->students($this->internalRequest($request, ['pdf' => 1, 'class_room_id' => $request->query('class_room_id')])),
+                'file' => '11b-students.pdf',
+            ],
+            [
                 'name' => 'Student Due',
                 'perm' => ['reports.student_due.view'],
                 'call' => fn () => $this->studentDue($this->internalRequest($request, ['pdf' => 1])),
@@ -1379,119 +1385,12 @@ class ReportController extends Controller
         // Opening balance as of day before $start
         $bbfDate = $start->copy()->subDay();
 
-        $computeNetUpTo = function (Carbon $cutoff) use ($revenueEffectiveDateSql, $methodFilter, $includePendingCheques): array {
-            $cutoffStr = $cutoff->toDateString();
+        $obRecord = \App\Models\OpeningBalance::where('date', $bbfDate->toDateString())->first();
+        $baseAmount = $obRecord ? (float) $obRecord->amount : 0.0;
 
-            $grossQ = Revenue::query()->whereRaw("{$revenueEffectiveDateSql} <= ?", [$cutoffStr]);
-            $grossQ = $this->applyPaymentMethodFilter($grossQ, 'payment_method', $methodFilter);
-            $grossQ = $this->applyPendingChequeFilter($grossQ, 'payment_method', 'payment_status', $includePendingCheques);
-            $gross = (float) $grossQ->sum('amount');
-
-            $refundQ = DB::table('revenue_adjustments')
-                ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
-                ->where('revenue_adjustments.type', 'refund')
-                ->whereDate('revenue_adjustments.created_at', '<=', $cutoffStr);
-            $refundQ = $this->applyPaymentMethodFilter($refundQ, 'revenues.payment_method', $methodFilter);
-            $refundQ = $this->applyPendingChequeFilter($refundQ, 'revenues.payment_method', 'revenues.payment_status', $includePendingCheques);
-            $refund = (float) $refundQ->sum('revenue_adjustments.amount');
-
-            $expQ = Expense::query()->whereRaw("DATE(CASE WHEN payment_method = 'cheque' THEN COALESCE(cheque_date, expense_date) ELSE expense_date END) <= ?", [$cutoffStr]);
-            $expQ = $this->applyPaymentMethodFilter($expQ, 'payment_method', $methodFilter);
-            $expense = (float) $expQ->sum('amount');
-
-            $salQ = TeacherSalaryPayment::query()->whereDate('paid_at', '<=', $cutoffStr);
-            $salQ = $this->applyPaymentMethodFilter($salQ, 'payment_method', $methodFilter);
-            $salary = (float) $salQ->sum('amount');
-
-            $total = ($gross - $refund) - ($expense + $salary);
-
-            $grossCashQ = Revenue::query()->whereRaw("{$revenueEffectiveDateSql} <= ?", [$cutoffStr]);
-            $grossCashQ = $this->applyPaymentMethodFilter($grossCashQ, 'payment_method', $methodFilter);
-            $grossCashQ = $this->applyPendingChequeFilter($grossCashQ, 'payment_method', 'payment_status', $includePendingCheques);
-            $grossCashQ = $this->applyAccountFilter($grossCashQ, 'payment_method', 'cash');
-            $grossCash = (float) $grossCashQ->sum('amount');
-
-            $refundCashQ = DB::table('revenue_adjustments')
-                ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
-                ->where('revenue_adjustments.type', 'refund')
-                ->whereDate('revenue_adjustments.created_at', '<=', $cutoffStr);
-            $refundCashQ = $this->applyPaymentMethodFilter($refundCashQ, 'revenues.payment_method', $methodFilter);
-            $refundCashQ = $this->applyPendingChequeFilter($refundCashQ, 'revenues.payment_method', 'revenues.payment_status', $includePendingCheques);
-            $refundCashQ = $this->applyAccountFilter($refundCashQ, 'revenues.payment_method', 'cash');
-            $refundCash = (float) $refundCashQ->sum('revenue_adjustments.amount');
-
-            $expCashQ = Expense::query()->whereRaw("DATE(CASE WHEN payment_method = 'cheque' THEN COALESCE(cheque_date, expense_date) ELSE expense_date END) <= ?", [$cutoffStr]);
-            $expCashQ = $this->applyPaymentMethodFilter($expCashQ, 'payment_method', $methodFilter);
-            $expCashQ = $this->applyAccountFilter($expCashQ, 'payment_method', 'cash');
-            $expenseCash = (float) $expCashQ->sum('amount');
-
-            $salCashQ = TeacherSalaryPayment::query()->whereDate('paid_at', '<=', $cutoffStr);
-            $salCashQ = $this->applyPaymentMethodFilter($salCashQ, 'payment_method', $methodFilter);
-            $salCashQ = $this->applyAccountFilter($salCashQ, 'payment_method', 'cash');
-            $salaryCash = (float) $salCashQ->sum('amount');
-
-            $cash = ($grossCash - $refundCash) - ($expenseCash + $salaryCash);
-
-            $grossBankQ = Revenue::query()->whereRaw("{$revenueEffectiveDateSql} <= ?", [$cutoffStr]);
-            $grossBankQ = $this->applyPaymentMethodFilter($grossBankQ, 'payment_method', $methodFilter);
-            $grossBankQ = $this->applyPendingChequeFilter($grossBankQ, 'payment_method', 'payment_status', $includePendingCheques);
-            $grossBankQ = $this->applyAccountFilter($grossBankQ, 'payment_method', 'bank');
-            $grossBank = (float) $grossBankQ->sum('amount');
-
-            $refundBankQ = DB::table('revenue_adjustments')
-                ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
-                ->where('revenue_adjustments.type', 'refund')
-                ->whereDate('revenue_adjustments.created_at', '<=', $cutoffStr);
-            $refundBankQ = $this->applyPaymentMethodFilter($refundBankQ, 'revenues.payment_method', $methodFilter);
-            $refundBankQ = $this->applyPendingChequeFilter($refundBankQ, 'revenues.payment_method', 'revenues.payment_status', $includePendingCheques);
-            $refundBankQ = $this->applyAccountFilter($refundBankQ, 'revenues.payment_method', 'bank');
-            $refundBank = (float) $refundBankQ->sum('revenue_adjustments.amount');
-
-            $expBankQ = Expense::query()->whereRaw("DATE(CASE WHEN payment_method = 'cheque' THEN COALESCE(cheque_date, expense_date) ELSE expense_date END) <= ?", [$cutoffStr]);
-            $expBankQ = $this->applyPaymentMethodFilter($expBankQ, 'payment_method', $methodFilter);
-            $expBankQ = $this->applyAccountFilter($expBankQ, 'payment_method', 'bank');
-            $expenseBank = (float) $expBankQ->sum('amount');
-
-            $salBankQ = TeacherSalaryPayment::query()->whereDate('paid_at', '<=', $cutoffStr);
-            $salBankQ = $this->applyPaymentMethodFilter($salBankQ, 'payment_method', $methodFilter);
-            $salBankQ = $this->applyAccountFilter($salBankQ, 'payment_method', 'bank');
-            $salaryBank = (float) $salBankQ->sum('amount');
-
-            $bank = ($grossBank - $refundBank) - ($expenseBank + $salaryBank);
-
-            return ['total' => $total, 'cash' => $cash, 'bank' => $bank];
-        };
-
-        $netUpToBbf = $computeNetUpTo($bbfDate);
-        $openingBalance = (float) $netUpToBbf['total'];
-        $openingBalanceCash = (float) $netUpToBbf['cash'];
-        $openingBalanceBank = (float) $netUpToBbf['bank'];
-
-        // Apply one-time Opening Balance baseline if configured
-        $obLocked = (string) $settings->get('opening_balance.locked', '0');
-        $obAsOfRaw = (string) $settings->get('opening_balance.as_of', '');
-        if ($obLocked === '1' && $obAsOfRaw !== '') {
-            try {
-                $obAsOf = Carbon::parse($obAsOfRaw)->startOfDay();
-            } catch (\Throwable $e) {
-                $obAsOf = null;
-            }
-
-            if ($obAsOf && $start->gte($obAsOf)) {
-                $obCash = (float) $settings->get('opening_balance.cash', 0);
-                $obBank = (float) $settings->get('opening_balance.bank', 0);
-
-                $baselineCash = in_array($methodFilter, ['all', 'cash'], true) ? $obCash : 0.0;
-                $baselineBank = in_array($methodFilter, ['all', 'bank', 'cheque', 'bank_transfer'], true) ? $obBank : 0.0;
-
-                $prevCutoff = $obAsOf->copy()->subDay();
-                $netUpToPrev = $computeNetUpTo($prevCutoff);
-
-                $openingBalanceCash = $baselineCash + ((float) $openingBalanceCash - (float) $netUpToPrev['cash']);
-                $openingBalanceBank = $baselineBank + ((float) $openingBalanceBank - (float) $netUpToPrev['bank']);
-                $openingBalance = $openingBalanceCash + $openingBalanceBank;
-            }
-        }
+        $openingBalanceCash = in_array($methodFilter, ['all', 'cash'], true) ? $baseAmount : 0.0;
+        $openingBalanceBank = 0.0;
+        $openingBalance = $openingBalanceCash + $openingBalanceBank;
 
         // Revenues in range
         $revQ = Revenue::query()
@@ -2765,6 +2664,69 @@ class ReportController extends Controller
             'filters' => $request->only(['from','to','class_room_id','visiting_teacher_id','type','q']),
             'classRooms' => \App\Models\ClassRoom::query()->orderBy('name')->get(),
             'visitingTeachers' => \App\Models\VisitingTeacher::query()->orderBy('name')->get(),
+        ]);
+    }
+
+    public function students(Request $request)
+    {
+        $query = Student::query()->with(['classRoom']);
+
+        if ($request->filled('class_room_id')) {
+            $query->where('class_room_id', $request->input('class_room_id'));
+        }
+
+        // Handle PDF Download
+        if ($request->boolean('pdf')) {
+            $this->authorizeDownload($request);
+            $rows = $query->orderBy('name')->get();
+            
+            $html = view('reports.students-pdf', [
+                'items' => $rows,
+                'filters' => [
+                    'class_room_id' => $request->input('class_room_id'),
+                ],
+                'classRooms' => ClassRoom::query()->orderBy('name')->get(),
+            ])->render();
+
+            $pdf = Pdf::loadHTML($html)
+                ->setPaper('a4', 'landscape')
+                ->setOption('margin-top', 10)
+                ->setOption('margin-bottom', 10)
+                ->setOption('margin-left', 10)
+                ->setOption('margin-right', 10);
+
+            return $pdf->download('students-report-' . now()->format('Y-m-d') . '.pdf');
+        }
+
+        // Handle CSV/XLSX Download
+        if ($request->boolean('download') || $request->boolean('excel') || strtolower((string) $request->query('format')) === 'xlsx') {
+            $this->authorizeDownload($request);
+            $rows = $query->orderBy('name')->get();
+
+            return $this->downloadTable(
+                $request,
+                'students-report',
+                ['Admission No', 'Name', 'Phone', 'Grade/Class', 'Joined Date', 'Status'],
+                $rows,
+                function ($row) {
+                    return [
+                        $row->admission_number ?? $row->id,
+                        $row->name,
+                        $row->phone,
+                        $row->classRoom?->name,
+                        optional($row->joining_date)->format('Y-m-d'),
+                        $row->active ? 'Active' : 'Inactive',
+                    ];
+                }
+            );
+        }
+
+        return view('reports.students', [
+            'items' => $query->orderBy('name')->paginate(20)->withQueryString(),
+            'classRooms' => ClassRoom::query()->orderBy('name')->get(),
+            'filters' => [
+                'class_room_id' => $request->input('class_room_id'),
+            ],
         ]);
     }
 

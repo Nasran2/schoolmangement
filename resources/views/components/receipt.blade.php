@@ -40,7 +40,7 @@ $amount = (float) ($revenue->amount ?? 0);
 $amountWords = ucwords(numberToWords($amount)) . ' Rupees Only';
 // Fee type helpers based on category.payment_type
 $paymentType = strtolower($category->payment_type ?? '');
-$isMonthly = !empty($category?->interval_months);
+$isMonthly = !empty($category?->interval_months) || $paymentType === 'monthly';
 $isAdmission = $paymentType === 'admission';
 $isFacilities = $paymentType === 'facilities';
 $isTerm = in_array($paymentType, ['term','semester','term_fee']);
@@ -251,37 +251,31 @@ if (empty($studentAddress) && $student) {
         @endif
         <div>
             <span class="mr-2">As payment for</span>
-            <span class="inline-block border-b border-gray-800 min-w-[360px]">{{ $category->name ?? 'Fees' }}</span>
+            <span class="inline-block border-b border-gray-800 min-w-[360px]">
+                @if($isMonthly && !empty($coveredMonths))
+                    @foreach($coveredMonths as $cm){{ \Carbon\Carbon::createFromDate($cm['year'], $cm['month'], 1)->format('F') }}@if(!empty($cm['partial'])) (partial)@endif{{ !$loop->last ? ', ' : '' }}@endforeach
+                @else
+                    {{ $category->name ?? 'Fees' }}
+                @endif
+            </span>
         </div>
-    </div>
-
-    @if($isMonthly)
-        <div class="mt-4">
-            <div class="flex items-center gap-2 text-xs">
-                @foreach($months as $idx => $m)
-                    @php
-                        $monthNum = $idx + 1;
-                        $active = !empty($boxed[$monthNum]);
-                        $mark = !empty($boxedMark[$monthNum]);
-                    @endphp
-                    @if($active)
-                        <div class="flex items-center">
-                            @if($mark)
-                                <div class="w-5 h-5 border border-gray-800 text-center leading-5 bg-gray-900 text-white">X</div>
-                            @else
-                                <div class="w-5 h-5 border border-gray-800 text-center leading-5 bg-white">&nbsp;</div>
-                            @endif
-                            <div class="ml-1 mr-3">{{ $m }}</div>
-                        </div>
-                    @endif
-                @endforeach
+        
+        @if($revenue->payment_method === 'bank_transfer')
+            <div class="mt-2 text-sm">
+                <span class="mr-2 font-semibold">Note:</span>
+                <span class="inline-block border-b border-gray-800 min-w-[360px]">
+                    Bank Transfer - Bank: {{ $revenue->payment_meta['bank'] ?? '-' }}, Ref No: {{ $revenue->payment_meta['ref_no'] ?? '-' }}
+                </span>
             </div>
-            @php $hasPartial = collect($coveredMonths)->contains(fn($cm) => $cm['partial']); @endphp
-            @if($hasPartial)
-                <div class="mt-1 text-xs text-gray-700">Note: Partial payments included.</div>
-            @endif
-        </div>
-    @endif
+        @elseif($revenue->payment_method === 'cheque')
+            <div class="mt-2 text-sm">
+                <span class="mr-2 font-semibold">Note:</span>
+                <span class="inline-block border-b border-gray-800 min-w-[360px]">
+                    Cheque - Date: {{ optional($revenue->cheque_date)->format('d/m/Y') ?? '-' }}, No: {{ $revenue->payment_meta['cheque_number'] ?? '-' }}, Bank: {{ $revenue->payment_meta['bank'] ?? '-' }}
+                </span>
+            </div>
+        @endif
+    </div>
 
     @if($isTerm)
         <div class="mt-4">
@@ -342,7 +336,7 @@ if (empty($studentAddress) && $student) {
                     @foreach($coveredMonths as $cm)
                         <li>
                             {{ \Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y') }} – Rs {{ number_format($cm['amount'],2) }} 
-                            ({{ ucfirst($cm['type']) }}
+                            ({{ strtolower($cm['type']) === 'due' ? 'Paid' : ucfirst($cm['type']) }}
                             @if(!empty($cm['partial']))
                                 , partial
                             @endif
@@ -350,13 +344,7 @@ if (empty($studentAddress) && $student) {
                         </li>
                     @endforeach
                 </ul>
-                @php
-                    $dueList = collect($coveredMonths)->where('type','due')->map(fn($cm)=>\Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y'))->all();
-                    $advList = collect($coveredMonths)->where('type','advance')->map(fn($cm)=>\Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y'))->all();
-                @endphp
-                @if(!empty($dueList) || !empty($advList))
-                    <p class="mt-2 text-xs"><b>Includes settlement of outstanding fees for {{ empty($dueList) ? '—' : implode(', ', $dueList) }}@if(!empty($advList)) and advance payment for {{ implode(', ', $advList) }}@endif.</b></p>
-                @endif
+
             </div>
         @endif
     </div>

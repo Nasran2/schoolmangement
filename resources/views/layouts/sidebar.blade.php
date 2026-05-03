@@ -43,6 +43,14 @@
             </a>
         @endcan
 
+        @can('revenue.manage')
+            <a href="{{ route('opening-balance.create') }}"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('opening-balance.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                <span>Opening Balance</span>
+            </a>
+        @endcan
+
         @if(auth()->user()?->hasRole('Developer'))
             <a href="{{ route('developer.dashboard') }}"
                class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDeveloper ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -229,6 +237,7 @@
                 </button>
                 <div x-show="open.reports" class="mt-1 space-y-1 pl-8" x-cloak>
                     <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.index') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.index') }}">All Reports</a>
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.students') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.students') }}">Students Report</a>
                     @can('reports.download')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.exports') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.exports') }}">Advanced Exports</a>
                     @endcan
@@ -602,6 +611,7 @@
                 </button>
                 <div x-show="menus.reports" class="mt-1 space-y-1 pl-8" x-cloak>
                     <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.index') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.index') }}">All Reports</a>
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.students') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.students') }}">Students Report</a>
                     @can('reports.download')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.exports') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.exports') }}">Advanced Exports</a>
                     @endcan

@@ -152,6 +152,18 @@ Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', RedirectDeveloperFromDashboard::class, 'permission:dashboard.view'])
     ->name('dashboard');
 
+Route::get('/opening-balances', [\App\Http\Controllers\OpeningBalanceController::class, 'create'])
+    ->middleware('auth')
+    ->name('opening-balance.create');
+
+Route::post('/opening-balances', [\App\Http\Controllers\OpeningBalanceController::class, 'store'])
+    ->middleware('auth')
+    ->name('opening-balance.store');
+
+Route::delete('/opening-balances/{openingBalance}', [\App\Http\Controllers\OpeningBalanceController::class, 'destroy'])
+    ->middleware('auth')
+    ->name('opening-balance.destroy');
+
 // Public storage fallback: serve /storage/* without needing symlink
 Route::get('/storage/{path}', [StorageController::class, 'show'])
     ->where('path', '.*')
@@ -315,6 +327,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/teacher/epf-etf-totals', [ReportController::class, 'epfEtfTotals'])
             ->middleware('permission:reports.epf_etf_totals.view')
             ->name('epf_etf_totals');
+        Route::get('/students/all', [ReportController::class, 'students'])
+            ->middleware('permission:reports.view')
+            ->name('students');
         Route::get('/students/due', [ReportController::class, 'studentDue'])
             ->middleware('permission:reports.student_due.view')
             ->name('student_due');
