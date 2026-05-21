@@ -140,6 +140,20 @@
                         </div>
 
                         <div class="border-t pt-6">
+                            <h3 class="text-base font-semibold text-gray-900">Student List Settings</h3>
+                            <p class="mt-1 text-sm text-gray-600">Control quick actions shown on the student manage page.</p>
+                            <div class="mt-4">
+                                <label class="inline-flex items-center gap-2">
+                                    <input type="hidden" name="show_student_payment_start_quick_edit" value="0" />
+                                    <input type="checkbox" name="show_student_payment_start_quick_edit" value="1" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" {{ old('show_student_payment_start_quick_edit', $show_student_payment_start_quick_edit ?? '1') == '1' ? 'checked' : '' }} />
+                                    <span class="text-sm text-gray-800">Show Payment Start quick edit on Students list</span>
+                                </label>
+                                <p class="mt-1 text-xs text-gray-500">Turn this off after corrections are completed to hide the Payment Start column and Change buttons.</p>
+                                <x-input-error class="mt-2" :messages="$errors->get('show_student_payment_start_quick_edit')" />
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-6">
                             <h3 class="text-base font-semibold text-gray-900">Bill Numbering (Revenue)</h3>
                             <p class="mt-1 text-sm text-gray-600">Configure automatic bill number generation for revenues.</p>
 

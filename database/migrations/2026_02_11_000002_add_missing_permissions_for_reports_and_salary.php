@@ -24,6 +24,9 @@ return new class extends Migration {
 
             // Teachers
             'teachers.salary.amounts.view',
+
+            // Users
+            'users.manage',
         ];
 
         foreach ($names as $name) {
@@ -48,6 +51,7 @@ return new class extends Migration {
             'reports.epf_etf_totals.view',
             'dashboard.widget.upcoming_teacher_payments.view',
             'teachers.salary.amounts.view',
+            'users.manage',
         ];
 
         Permission::query()->whereIn('name', $names)->delete();

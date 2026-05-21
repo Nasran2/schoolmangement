@@ -269,23 +269,24 @@
                         </div>
 
                         @php
-                            // Get payments by month for the current and past year
+                            // Get payments by salary month for the current and past year.
                             $monthlyPayments = [];
                             $startMonth = now()->subMonths(11)->startOfMonth();
                             $endMonth = now()->endOfMonth();
-                            
-                            // Fetch all payments in this date range
+                            $startMonthKey = $startMonth->format('Y-m');
+                            $endMonthKey = $endMonth->format('Y-m');
+
+                            // Group by the stored salary month so late payments still appear in the intended period.
                             $paymentsCollection = \App\Models\TeacherSalaryPayment::where('teacher_id', $teacher->id)
-                                ->whereBetween('paid_at', [$startMonth, $endMonth])
+                                ->whereBetween('payment_month', [$startMonthKey, $endMonthKey])
                                 ->get()
-                                ->groupBy(function($payment) {
-                                    return $payment->paid_at->format('Y-m');
-                                });
-                            
-                            // Build 12-month array
+                                ->groupBy('payment_month');
+
+                            // Build 12-month array.
                             for($i = 0; $i < 12; $i++) {
-                                $month = now()->subMonths(11 - $i)->format('Y-m');
-                                $monthLabel = now()->subMonths(11 - $i)->format('M Y');
+                                $monthDate = now()->subMonths(11 - $i);
+                                $month = $monthDate->format('Y-m');
+                                $monthLabel = $monthDate->format('M Y');
                                 $monthlyPayments[] = [
                                     'month' => $month,
                                     'label' => $monthLabel,

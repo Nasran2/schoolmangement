@@ -68,13 +68,18 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse($items as $row)
-                                <tr>
+                                <tr class="{{ ($row['status'] ?? null) === 'cancelled' ? 'bg-red-50 text-red-800' : '' }}">
                                     <td class="px-6 py-3 whitespace-nowrap">{{ $row['date'] ? $row['date']->format('Y-m-d') : '—' }}</td>
                                     <td class="px-6 py-3 whitespace-nowrap">{{ $row['type'] }}</td>
-                                    <td class="px-6 py-3 whitespace-nowrap">{{ $row['ref'] }}</td>
+                                    <td class="px-6 py-3 whitespace-nowrap">
+                                        {{ $row['ref'] }}
+                                        @if(($row['status'] ?? null) === 'cancelled')
+                                            <span class="ml-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold uppercase text-red-700">Cancelled</span>
+                                        @endif
+                                    </td>
                                     <td class="px-6 py-3">{{ $row['description'] }}</td>
                                     <td class="px-6 py-3 whitespace-nowrap">{{ $row['method'] }}</td>
-                                    <td class="px-6 py-3 text-right font-mono">{{ $row['in'] ? number_format((float) $row['in'], 2) : '' }}</td>
+                                    <td class="px-6 py-3 text-right font-mono">{{ ($row['status'] ?? null) === 'cancelled' ? number_format(0, 2) : ($row['in'] ? number_format((float) $row['in'], 2) : '') }}</td>
                                     <td class="px-6 py-3 text-right font-mono">{{ $row['out'] ? number_format((float) $row['out'], 2) : '' }}</td>
                                 </tr>
                             @empty

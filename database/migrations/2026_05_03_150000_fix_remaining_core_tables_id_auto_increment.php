@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         foreach (['expenses', 'audit_logs'] as $tableName) {
             if (! Schema::hasTable($tableName)) {
                 continue;
@@ -27,6 +31,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         foreach (['expenses', 'audit_logs'] as $tableName) {
             if (! Schema::hasTable($tableName)) {
                 continue;

@@ -19,10 +19,15 @@ use App\Http\Controllers\Developer\DeveloperDashboardController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\TeacherController;
 use App\Http\Controllers\TeacherSalaryPaymentController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\OnlyAdminController;
 use App\Http\Middleware\RedirectDeveloperFromDashboard;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -277,6 +282,13 @@ Route::middleware('auth')->group(function () {
         Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
     });
 
+    Route::prefix('users')->name('users.')->middleware('permission:users.manage')->group(function () {
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('/create', [UserController::class, 'create'])->name('create');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::post('/{user}/status', [UserController::class, 'updateStatus'])->name('status');
+    });
+
     Route::prefix('reports')->name('reports.')->middleware('permission:reports.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
 
@@ -512,6 +524,15 @@ Route::middleware('auth')->group(function () {
         Route::post('students/{student}/monthly-fee/current', [StudentController::class, 'setCurrentMonthFee'])
             ->middleware('permission:revenue.add')
             ->name('students.monthly_fee.current');
+        Route::patch('students/{student}/fee-start-date', [StudentController::class, 'updateFeeStartDate'])
+            ->middleware('permission:students.manage')
+            ->name('students.fee_start_date.update');
+        Route::post('students/{student}/monthly-fee-credits', [StudentController::class, 'storeMonthlyFeeCredit'])
+            ->middleware('permission:students.manage')
+            ->name('students.monthly_fee.credits.store');
+        Route::delete('students/{student}/monthly-fee-credits/{credit}', [StudentController::class, 'deleteMonthlyFeeCredit'])
+            ->middleware('permission:students.manage')
+            ->name('students.monthly_fee.credits.delete');
         Route::get('students/check-admission', [StudentController::class, 'checkAdmissionNumber'])
             ->middleware('permission:students.add')
             ->name('students.check_admission');

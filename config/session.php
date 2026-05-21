@@ -2,10 +2,7 @@
 
 use Illuminate\Support\Str;
 
-$sessionDriver = env('SESSION_DRIVER', 'database');
-if (env('APP_ENV') === 'production' && $sessionDriver === 'file') {
-    $sessionDriver = 'database';
-}
+$sessionDriver = env('SESSION_DRIVER', 'file');
 
 return [
 

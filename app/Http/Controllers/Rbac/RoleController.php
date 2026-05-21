@@ -27,6 +27,7 @@ class RoleController extends Controller
         $groups = [
             'Dashboard' => ['dashboard.'],
             'Settings' => ['settings.'],
+            'Users' => ['users.'],
             'RBAC' => ['roles.'],
             'Activity Logs' => ['audit_logs.'],
             'Students' => ['students.'],
@@ -83,6 +84,9 @@ class RoleController extends Controller
             'settings.backups.manage' => 'Manage Backups Settings',
             'settings.opening_balance.manage' => 'Set Opening Balance (One-time)',
             'settings.opening_balance.reset' => 'Reset Opening Balance',
+
+            // Users
+            'users.manage' => 'Manage Users',
 
             // Classrooms
             'classrooms.view' => 'View Classrooms',

@@ -20,6 +20,9 @@ class Revenue extends Model
         'payment_meta',
         'cheque_date',
         'confirmed_at',
+        'cancelled_at',
+        'cancelled_by',
+        'cancel_reason',
         'paid_at',
         'notes',
         'created_by',
@@ -29,6 +32,7 @@ class Revenue extends Model
         'paid_at' => 'date',
         'cheque_date' => 'date',
         'confirmed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'payment_meta' => 'array',
         'amount' => 'decimal:2',
     ];
@@ -53,6 +57,16 @@ class Revenue extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function canceller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    public function isCancelled(): bool
+    {
+        return (string) ($this->payment_status ?? '') === 'cancelled' || $this->cancelled_at !== null;
     }
 
     /**

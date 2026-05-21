@@ -20,11 +20,13 @@
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             @php
                 $isReturnedChequeReceipt = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
+                $isCancelledReceipt = method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled');
+                $isInvalidReceipt = $isReturnedChequeReceipt || $isCancelledReceipt;
             @endphp
 
-            <div class="mb-6 {{ $isReturnedChequeReceipt ? 'bg-rose-50 border-rose-200' : 'bg-green-50 border-green-200' }} border rounded-lg p-4">
+            <div class="mb-6 {{ $isInvalidReceipt ? 'bg-rose-50 border-rose-200' : 'bg-green-50 border-green-200' }} border rounded-lg p-4">
                 <div class="flex items-center gap-3">
-                    @if($isReturnedChequeReceipt)
+                    @if($isInvalidReceipt)
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-rose-600">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
                         </svg>
@@ -34,11 +36,11 @@
                         </svg>
                     @endif
                     <div>
-                        <p class="font-semibold {{ $isReturnedChequeReceipt ? 'text-rose-900' : 'text-green-900' }}">
-                            {{ $isReturnedChequeReceipt ? 'Payment Cancelled' : 'Payment Successful!' }}
+                        <p class="font-semibold {{ $isInvalidReceipt ? 'text-rose-900' : 'text-green-900' }}">
+                            {{ $isInvalidReceipt ? 'Payment Cancelled' : 'Payment Successful!' }}
                         </p>
-                        <p class="text-sm {{ $isReturnedChequeReceipt ? 'text-rose-700' : 'text-green-700' }}">
-                            Receipt #{{ $revenue->bill_no }} {{ $isReturnedChequeReceipt ? 'belongs to a returned cheque and is not counted as paid.' : 'has been generated' }}
+                        <p class="text-sm {{ $isInvalidReceipt ? 'text-rose-700' : 'text-green-700' }}">
+                            Receipt #{{ $revenue->bill_no }} {{ $isCancelledReceipt ? 'has been cancelled and is not counted as paid.' : ($isReturnedChequeReceipt ? 'belongs to a returned cheque and is not counted as paid.' : 'has been generated') }}
                         </p>
                     </div>
                 </div>

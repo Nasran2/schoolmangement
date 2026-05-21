@@ -110,9 +110,14 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 @forelse($revenues as $r)
-                                    <tr>
+                                    <tr class="{{ ($r['status'] ?? null) === 'cancelled' ? 'bg-red-50 text-red-800' : '' }}">
                                         <td class="px-4 py-3 whitespace-nowrap">{{ $r['date'] ? $r['date']->format('Y-m-d') : '—' }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap">{{ $r['ref'] }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap">
+                                            {{ $r['ref'] }}
+                                            @if(($r['status'] ?? null) === 'cancelled')
+                                                <span class="ml-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold uppercase text-red-700">Cancelled</span>
+                                            @endif
+                                        </td>
                                         <td class="px-4 py-3">{{ $r['student'] }}</td>
                                         <td class="px-4 py-3">{{ $r['category'] }}</td>
                                         <td class="px-4 py-3">{{ $r['description'] }}</td>
@@ -138,29 +143,29 @@
                         <table class="min-w-full text-sm">
                             <thead class="bg-gray-50">
                                 <tr class="text-gray-500">
-                                    <th class="text-left px-4 py-3">Date</th>
-                                    <th class="text-left px-4 py-3">Type</th>
-                                    <th class="text-left px-4 py-3">Ref</th>
-                                    <th class="text-left px-4 py-3">Student</th>
-                                    <th class="text-left px-4 py-3">Category</th>
-                                    <th class="text-left px-4 py-3">Details</th>
-                                    <th class="text-left px-4 py-3">Method</th>
-                                    <th class="text-left px-4 py-3">Cheque Date</th>
-                                    <th class="text-right px-4 py-3">Amount (Rs)</th>
+                                    <th class="text-left px-4 py-3 w-20">Date</th>
+                                    <th class="text-left px-4 py-3 w-16">Type</th>
+                                    <th class="text-left px-4 py-3 w-12">Ref</th>
+                                    <th class="text-left px-4 py-3 w-20">Student</th>
+                                    <th class="text-left px-4 py-3 w-20">Category</th>
+                                    <th class="text-left px-4 py-3 flex-1">Details</th>
+                                    <th class="text-left px-4 py-3 w-14">Method</th>
+                                    <th class="text-left px-4 py-3 w-16">Cheque Date</th>
+                                    <th class="text-right px-4 py-3 w-20">Amount (Rs)</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100">
                                 @forelse($expenses as $e)
                                     <tr>
-                                        <td class="px-4 py-3 whitespace-nowrap">{{ $e['date'] ? $e['date']->format('Y-m-d') : '—' }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap">{{ $e['type'] }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap">{{ $e['ref'] }}</td>
-                                        <td class="px-4 py-3">{{ $e['student'] }}</td>
-                                        <td class="px-4 py-3">{{ $e['category'] }}</td>
-                                        <td class="px-4 py-3">{{ $e['description'] }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap">{{ $e['method'] }}</td>
-                                        <td class="px-4 py-3 whitespace-nowrap">{{ $e['cheque_date'] ?? '—' }}</td>
-                                        <td class="px-4 py-3 text-right font-mono">{{ number_format((float) $e['out'], 2) }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap w-20">{{ $e['date'] ? $e['date']->format('Y-m-d') : '—' }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap w-16 truncate">{{ $e['type'] }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap w-12 truncate">{{ $e['ref'] }}</td>
+                                        <td class="px-4 py-3 w-20 truncate">{{ $e['student'] }}</td>
+                                        <td class="px-4 py-3 w-20 truncate">{{ $e['category'] }}</td>
+                                        <td class="px-4 py-3 flex-1">{{ $e['description'] }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap w-14 truncate">{{ $e['method'] }}</td>
+                                        <td class="px-4 py-3 whitespace-nowrap w-16 truncate">{{ $e['cheque_date'] ?? '—' }}</td>
+                                        <td class="px-4 py-3 text-right font-mono w-20">{{ number_format((float) $e['out'], 2) }}</td>
                                     </tr>
                                 @empty
                                     <tr>

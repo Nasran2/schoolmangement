@@ -24,6 +24,11 @@
                     {{ session('status') }}
                 </div>
             @endif
+            @if ($errors->any())
+                <div class="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 shadow-sm">
+                    {{ $errors->first() }}
+                </div>
+            @endif
 
             {{-- Statistics Cards --}}
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -89,8 +94,8 @@
                 <div class="p-6">
                     {{-- Search and Actions Bar --}}
                     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-                        <form method="GET" class="flex-1 flex flex-col sm:flex-row gap-3">
-                            <div class="flex-1 relative">
+                        <form method="GET" class="flex-1 flex flex-col sm:flex-row sm:flex-wrap gap-3">
+                            <div class="flex-1 min-w-[260px] relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-gray-400">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
@@ -98,7 +103,7 @@
                                 </div>
                                 <input id="q" name="q" type="text" class="pl-10 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ $filters['q'] ?? '' }}" placeholder="Search by name, admission no, phone, or class..." />
                             </div>
-                            <div class="sm:w-64">
+                            <div class="sm:w-56">
                                 @php $status = $filters['status'] ?? 'all'; @endphp
                                 <select name="status" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                     <option value="all" {{ $status==='all' ? 'selected' : '' }}>All</option>
@@ -107,6 +112,11 @@
                                     <option value="alumni" {{ $status==='alumni' ? 'selected' : '' }}>Alumni</option>
                                 </select>
                             </div>
+                            @php $paymentFilter = $filters['payment_filter'] ?? 'all'; @endphp
+                            <label class="inline-flex min-h-[42px] items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50">
+                                <input type="checkbox" name="payment_filter" value="never_paid" @checked($paymentFilter === 'never_paid') class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                Never Paid
+                            </label>
                             <div class="flex gap-2">
                                 <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-sm text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                                     Search
@@ -146,6 +156,7 @@
                     </div>
 
                     {{-- Students Table --}}
+                    @php $showPaymentStartQuickEdit = $showPaymentStartQuickEdit ?? true; @endphp
                     <div class="overflow-x-auto rounded-lg border border-gray-200">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
@@ -154,6 +165,9 @@
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Contact</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Address</th>
                                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                                    @if($showPaymentStartQuickEdit)
+                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Payment Start</th>
+                                    @endif
                                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Due</th>
                                     <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                                 </tr>
@@ -190,6 +204,139 @@
                                                 {{ $label }}
                                             </span>
                                         </td>
+                                        @if($showPaymentStartQuickEdit)
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                @can('students.manage')
+                                                    <span x-data="{ open: false, feeStartDate: '{{ optional($s->fee_start_date)->format('Y-m-d') }}' }" class="inline-flex items-center gap-2">
+                                                        <span class="text-sm text-gray-700">{{ optional($s->fee_start_date)->format('d-m-Y') ?? 'Not set' }}</span>
+                                                        <button type="button" x-on:click="open=true" class="inline-flex items-center rounded-md border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
+                                                            Change
+                                                        </button>
+                                                        <template x-teleport="body">
+                                                            <div x-cloak x-show="open">
+                                                                <div class="fixed inset-0 z-[100] bg-black/40" x-on:click="open=false"></div>
+                                                                <div class="fixed inset-0 z-[101] flex items-center justify-center p-4">
+                                                                    <div class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+                                                                        <div class="text-base font-semibold text-gray-900">Change Payment Start Date</div>
+                                                                        <div class="mt-1 text-sm text-gray-600">{{ $s->name }} - ID: {{ $s->admission_number ?? '—' }}</div>
+                                                                        <form method="POST" action="{{ route('students.fee_start_date.update', $s) }}" class="mt-5">
+                                                                            @csrf
+                                                                            @method('PATCH')
+                                                                            <label class="block text-sm font-medium text-gray-700" for="fee_start_date_{{ $s->id }}">New start date</label>
+                                                                            <input id="fee_start_date_{{ $s->id }}" name="fee_start_date" type="date" x-model="feeStartDate" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                                            <p class="mt-2 text-xs text-gray-500">This recalculates monthly fee dues from the selected month.</p>
+                                                                            <div class="mt-5 flex justify-end gap-2">
+                                                                                <button type="button" class="rounded-md border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" x-on:click="open=false">Cancel</button>
+                                                                                <button type="submit" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">Save Date</button>
+                                                                            </div>
+                                                                        </form>
+
+                                                                        <div class="mt-5 border-t border-gray-200 pt-4">
+                                                                            <div class="text-sm font-semibold text-gray-800">Payment History</div>
+                                                                            @php
+                                                                                $payments = $recentPaymentsByStudent[$s->id] ?? collect();
+                                                                            @endphp
+                                                                            @if($payments->isEmpty())
+                                                                                <div class="mt-2 text-xs text-gray-500">No payments found.</div>
+                                                                            @else
+                                                                                <ul class="mt-2 space-y-1 text-xs">
+                                                                                    @foreach($payments as $p)
+                                                                                        <li class="flex items-center justify-between gap-3">
+                                                                                            <div class="text-gray-600">
+                                                                                                <div>
+                                                                                                    {{ optional($p->paid_at)->format('d-m-Y') ?? '-' }}
+                                                                                                    • {{ $p->category?->name ?? 'Payment' }}
+                                                                                                    @if($p->bill_no)
+                                                                                                        ({{ $p->bill_no }})
+                                                                                                    @endif
+                                                                                                </div>
+                                                                                                <div class="mt-1 flex items-center gap-2 text-[11px]">
+                                                                                                    @can('revenue.manage')
+                                                                                                        <a class="text-indigo-600 hover:text-indigo-700" href="{{ route('revenue.items.receipt', $p) }}">Receipt</a>
+                                                                                                        <span class="text-gray-300">|</span>
+                                                                                                        <a class="text-indigo-600 hover:text-indigo-700" href="{{ route('revenue.items.edit', $p) }}">Edit</a>
+                                                                                                    @endcan
+                                                                                                </div>
+                                                                                            </div>
+                                                                                            <span class="font-semibold text-gray-800">Rs {{ number_format((float) $p->amount, 2) }}</span>
+                                                                                        </li>
+                                                                                    @endforeach
+                                                                                </ul>
+                                                                            @endif
+                                                                            <div class="mt-3 text-xs text-gray-600">
+                                                                                Monthly fee: Rs {{ number_format((float) ($s->monthly_fee ?? $s->classRoom?->monthly_fee ?? 0), 2) }}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        @if(!empty($monthlyFeeCreditsEnabled))
+                                                                            @php
+                                                                                $credits = $historicalCreditsByStudent[$s->id] ?? collect();
+                                                                                $monthNames = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Aug', 9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dec'];
+                                                                            @endphp
+                                                                            <div class="mt-4 border-t border-gray-200 pt-4">
+                                                                                <div class="text-xs font-semibold text-gray-700">Historical Credits (not revenue)</div>
+                                                                                <form method="POST" action="{{ route('students.monthly_fee.credits.store', $s) }}" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                                                    @csrf
+                                                                                    <input type="hidden" name="fee_start_date" x-bind:value="feeStartDate" />
+                                                                                    <div>
+                                                                                        <label class="block text-[11px] font-medium text-gray-600">Month</label>
+                                                                                        <select name="credit_month" class="mt-1 block w-full rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                                                            @foreach($monthNames as $val => $label)
+                                                                                                <option value="{{ $val }}">{{ $label }}</option>
+                                                                                            @endforeach
+                                                                                        </select>
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <label class="block text-[11px] font-medium text-gray-600">Year</label>
+                                                                                        <input name="credit_year" type="number" min="2000" value="{{ now()->year }}" class="mt-1 block w-full rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <label class="block text-[11px] font-medium text-gray-600">Amount</label>
+                                                                                        <input name="credit_amount" type="number" step="0.01" min="0" class="mt-1 block w-full rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                                                    </div>
+                                                                                    <div>
+                                                                                        <label class="block text-[11px] font-medium text-gray-600">Date</label>
+                                                                                        <input name="credit_applied_at" type="date" value="{{ now()->format('Y-m-d') }}" class="mt-1 block w-full rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                                                    </div>
+                                                                                    <div class="sm:col-span-2">
+                                                                                        <button type="submit" class="mt-1 inline-flex items-center rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">Add Credit</button>
+                                                                                    </div>
+                                                                                </form>
+
+                                                                                @if($credits->isEmpty())
+                                                                                    <div class="mt-2 text-xs text-gray-500">No historical credits.</div>
+                                                                                @else
+                                                                                    <ul class="mt-3 space-y-1 text-xs">
+                                                                                        @foreach($credits as $c)
+                                                                                            @php
+                                                                                                $monthLabel = $monthNames[(int) $c->month] ?? $c->month;
+                                                                                            @endphp
+                                                                                            <li class="flex items-center justify-between gap-3">
+                                                                                                <span class="text-gray-600">{{ $monthLabel }} {{ $c->year }}</span>
+                                                                                                <div class="flex items-center gap-2">
+                                                                                                    <span class="font-semibold text-gray-800">Rs {{ number_format((float) $c->amount, 2) }}</span>
+                                                                                                    <form method="POST" action="{{ route('students.monthly_fee.credits.delete', [$s, $c]) }}" onsubmit="return confirm('Remove this credit?')">
+                                                                                                        @csrf
+                                                                                                        @method('DELETE')
+                                                                                                        <button type="submit" class="text-rose-600 hover:text-rose-700 text-[11px] font-semibold">Remove</button>
+                                                                                                    </form>
+                                                                                                </div>
+                                                                                            </li>
+                                                                                        @endforeach
+                                                                                    </ul>
+                                                                                @endif
+                                                                            </div>
+                                                                        @endif
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </span>
+                                                @else
+                                                    <span class="text-sm text-gray-700">{{ optional($s->fee_start_date)->format('d-m-Y') ?? 'Not set' }}</span>
+                                                @endcan
+                                            </td>
+                                        @endif
                                         <td class="px-6 py-4 whitespace-nowrap text-right">
                                             <div class="text-sm font-bold {{ ($s->computed_due_amount ?? $s->due_amount) > 0 ? 'text-rose-600' : 'text-gray-900' }}">
                                                 Rs {{ number_format($s->computed_due_amount ?? $s->due_amount, 2) }}
@@ -304,7 +451,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="px-6 py-12 text-center">
+                                        <td colspan="{{ $showPaymentStartQuickEdit ? 7 : 6 }}" class="px-6 py-12 text-center">
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="mx-auto h-12 w-12 text-gray-400">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
                                             </svg>

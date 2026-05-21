@@ -8,12 +8,14 @@ use App\Models\RevenueCategory;
 use App\Models\Setting;
 use App\Models\ClassRoom;
 use App\Models\Student;
+use App\Models\StudentMonthlyFeeOverride;
 use App\Services\AuditLogger;
 use App\Services\Billing\BillNumberService;
 use App\Services\Billing\MonthlyFeeAllocator;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class RevenueController extends Controller
@@ -160,7 +162,7 @@ class RevenueController extends Controller
             });
         }
 
-        $range = $request->input('range', 'today');
+        $range = $request->input('range', 'all');
         
         if ($range !== 'all') {
             $start = null;
@@ -197,11 +199,17 @@ class RevenueController extends Controller
             }
         }
 
+        $perPage = (int) $request->input('per_page', 15);
+        if (! in_array($perPage, [15, 25, 50, 100], true)) {
+            $perPage = 15;
+        }
+
         return view('revenue.index', [
-            'items' => $query->orderByDesc('paid_at')->paginate(15)->withQueryString(),
+            'items' => $query->orderByDesc('paid_at')->orderByDesc('id')->paginate($perPage)->withQueryString(),
             'categories' => RevenueCategory::query()->orderBy('name')->get(),
-            'filters' => $request->only(['category_id', 'from', 'to', 'q', 'payment_method', 'payment_status', 'range']),
+            'filters' => $request->only(['category_id', 'from', 'to', 'q', 'payment_method', 'payment_status', 'range', 'per_page']),
             'range' => $range,
+            'perPage' => $perPage,
         ]);
     }
 
@@ -278,6 +286,11 @@ class RevenueController extends Controller
             $parsed = json_decode($advRaw, true);
             if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
         }
+        $overrideRaw = $request->input('monthly_fee_overrides');
+        if (is_string($overrideRaw)) {
+            $parsed = json_decode($overrideRaw, true);
+            if (is_array($parsed)) { $request->merge(['monthly_fee_overrides' => $parsed]); }
+        }
         $validated = $request->validate([
             'revenue_category_id' => ['required', 'exists:revenue_categories,id'],
             'student_id' => ['nullable', 'exists:students,id'],
@@ -299,6 +312,10 @@ class RevenueController extends Controller
             'advance_months' => ['nullable', 'array'],
             'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
             'advance_months.*.year' => ['required_with:advance_months', 'integer', 'min:2000'],
+            'monthly_fee_overrides' => ['nullable', 'array'],
+            'monthly_fee_overrides.*.month' => ['required_with:monthly_fee_overrides', 'integer', 'min:1', 'max:12'],
+            'monthly_fee_overrides.*.year' => ['required_with:monthly_fee_overrides', 'integer', 'min:2000'],
+            'monthly_fee_overrides.*.fee_amount' => ['required_with:monthly_fee_overrides', 'numeric', 'min:0.01'],
         ]);
 
         // Validate category applicability and, if monthly, compute allocation BEFORE creating revenue
@@ -318,9 +335,12 @@ class RevenueController extends Controller
 
         $result = null;
         $monthlyCatId = $student?->monthlyFeeCategoryId();
+        $feeOverrides = $student
+            ? $this->normalizeMonthlyFeeOverrides($validated['monthly_fee_overrides'] ?? [])
+            : [];
         if ($student && $category && $monthlyCatId && (int) $category->id === (int) $monthlyCatId) {
             $adv = $validated['advance_months'] ?? [];
-            $result = $allocator->allocate($student, (float)$validated['amount'], $adv);
+            $result = $allocator->allocate($student, (float)$validated['amount'], $adv, $feeOverrides);
 
             $errors = $result['summary']['errors'] ?? [];
             if (! empty($errors)) {
@@ -376,21 +396,57 @@ class RevenueController extends Controller
             ];
         }
 
-        // Create revenue AFTER successful allocation preview to avoid double-counting in ledger
-        $revenue = Revenue::create([
-            'bill_no' => $billNo,
-            'revenue_category_id' => (int) $validated['revenue_category_id'],
-            'student_id' => $validated['student_id'] ? (int) $validated['student_id'] : null,
-            'amount' => $validated['amount'],
-            'payment_method' => $paymentMethod,
-            'payment_status' => $paymentStatus,
-            'payment_meta' => $paymentMeta,
-            'cheque_date' => $chequeDate,
-            'confirmed_at' => $confirmedAt,
-            'paid_at' => $validated['paid_at'],
-            'notes' => $notes,
-            'created_by' => $request->user()?->id,
-        ]);
+        $revenue = DB::transaction(function () use ($request, $validated, $billNo, $paymentMethod, $paymentStatus, $paymentMeta, $chequeDate, $confirmedAt, $notes, $student, $result, $feeOverrides) {
+            if ($student && !empty($feeOverrides)) {
+                foreach ($feeOverrides as $override) {
+                    StudentMonthlyFeeOverride::updateOrCreate(
+                        [
+                            'student_id' => $student->id,
+                            'year' => (int) $override['year'],
+                            'month' => (int) $override['month'],
+                        ],
+                        [
+                            'fee_amount' => (float) $override['fee_amount'],
+                            'set_by' => $request->user()?->id,
+                        ]
+                    );
+                }
+            }
+
+            // Create revenue AFTER successful allocation preview to avoid double-counting in ledger
+            $revenue = Revenue::create([
+                'bill_no' => $billNo,
+                'revenue_category_id' => (int) $validated['revenue_category_id'],
+                'student_id' => $validated['student_id'] ? (int) $validated['student_id'] : null,
+                'amount' => $validated['amount'],
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentStatus,
+                'payment_meta' => $paymentMeta,
+                'cheque_date' => $chequeDate,
+                'confirmed_at' => $confirmedAt,
+                'paid_at' => $validated['paid_at'],
+                'notes' => $notes,
+                'created_by' => $request->user()?->id,
+            ]);
+
+            // Persist allocations if monthly
+            if ($student && $result && !empty($result['allocations'])) {
+                foreach ($result['allocations'] as $a) {
+                    \App\Models\StudentMonthFeeAllocation::create([
+                        'revenue_id' => $revenue->id,
+                        'student_id' => $student->id,
+                        'month' => (int) $a['month'],
+                        'year' => (int) $a['year'],
+                        'type' => (string) $a['type'],
+                        'applied_amount' => (float) $a['applied_amount'],
+                        'is_partial' => (bool) $a['is_partial'],
+                        'remaining_for_month' => (float) $a['remaining_for_month'],
+                    ]);
+                }
+            }
+
+            return $revenue;
+        });
 
         app(AuditLogger::class)->log(
             'revenue.create',
@@ -403,22 +459,6 @@ class RevenueController extends Controller
                 'revenue_category_id' => $revenue->revenue_category_id,
             ]
         );
-
-        // Persist allocations if monthly
-        if ($student && $result && !empty($result['allocations'])) {
-            foreach ($result['allocations'] as $a) {
-                \App\Models\StudentMonthFeeAllocation::create([
-                    'revenue_id' => $revenue->id,
-                    'student_id' => $student->id,
-                    'month' => (int) $a['month'],
-                    'year' => (int) $a['year'],
-                    'type' => (string) $a['type'],
-                    'applied_amount' => (float) $a['applied_amount'],
-                    'is_partial' => (bool) $a['is_partial'],
-                    'remaining_for_month' => (float) $a['remaining_for_month'],
-                ]);
-            }
-        }
 
         return redirect()->route('revenue.items.receipt', $revenue->id)
             ->with('status', 'Revenue recorded successfully.');
@@ -437,6 +477,10 @@ class RevenueController extends Controller
      */
     public function edit(Revenue $item, BillNumberService $billNumbers): View
     {
+        if ($item->isCancelled()) {
+            abort(403, 'Cancelled revenue bills cannot be edited.');
+        }
+
         $selectedStudent = $item->student_id ? Student::query()->with('classRoom')->find($item->student_id) : null;
         $monthlyCatId = $selectedStudent?->monthlyFeeCategoryId();
 
@@ -473,9 +517,24 @@ class RevenueController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Revenue $item): RedirectResponse
+    public function update(Request $request, Revenue $item, MonthlyFeeAllocator $allocator): RedirectResponse
     {
+        if ($item->isCancelled()) {
+            abort(403, 'Cancelled revenue bills cannot be edited.');
+        }
+
         $autogenerate = app('settings')->get('billing.revenue.autogenerate', '1') === '1';
+
+        $advRaw = $request->input('advance_months');
+        if (is_string($advRaw)) {
+            $parsed = json_decode($advRaw, true);
+            if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
+        }
+        $overrideRaw = $request->input('monthly_fee_overrides');
+        if (is_string($overrideRaw)) {
+            $parsed = json_decode($overrideRaw, true);
+            if (is_array($parsed)) { $request->merge(['monthly_fee_overrides' => $parsed]); }
+        }
 
         $validated = $request->validate([
             'revenue_category_id' => ['required', 'exists:revenue_categories,id'],
@@ -494,11 +553,19 @@ class RevenueController extends Controller
                 ? ['nullable', 'string', 'max:50']
                 : ['nullable', 'string', 'max:50', 'unique:revenues,bill_no,'.$item->id],
             'notes' => ['nullable', 'string'],
+            'advance_months' => ['nullable', 'array'],
+            'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
+            'advance_months.*.year' => ['required_with:advance_months', 'integer', 'min:2000'],
+            'monthly_fee_overrides' => ['nullable', 'array'],
+            'monthly_fee_overrides.*.month' => ['required_with:monthly_fee_overrides', 'integer', 'min:1', 'max:12'],
+            'monthly_fee_overrides.*.year' => ['required_with:monthly_fee_overrides', 'integer', 'min:2000'],
+            'monthly_fee_overrides.*.fee_amount' => ['required_with:monthly_fee_overrides', 'numeric', 'min:0.01'],
         ]);
 
+        $student = null;
+        $category = RevenueCategory::query()->with('classRooms')->find((int) $validated['revenue_category_id']);
         if (! empty($validated['student_id'])) {
             $student = Student::query()->with('classRoom')->find((int) $validated['student_id']);
-            $category = RevenueCategory::query()->with('classRooms')->find((int) $validated['revenue_category_id']);
             if ($student && $student->class_room_id && $category) {
                 $allowed = $category->applies_to_all || $category->classRooms->contains('id', (int) $student->class_room_id);
                 if (! $allowed) {
@@ -506,6 +573,26 @@ class RevenueController extends Controller
                         'revenue_category_id' => 'This category is not applicable to the selected student class.',
                     ]);
                 }
+            }
+        }
+
+        $result = null;
+        $feeOverrides = $student
+            ? $this->normalizeMonthlyFeeOverrides($validated['monthly_fee_overrides'] ?? [])
+            : [];
+        $monthlyCatId = $student?->monthlyFeeCategoryId();
+        if ($student && $category && $monthlyCatId && (int) $category->id === (int) $monthlyCatId) {
+            $result = $allocator->allocate(
+                $student,
+                (float) $validated['amount'],
+                $validated['advance_months'] ?? [],
+                $feeOverrides,
+                [(int) $item->id]
+            );
+
+            $errors = $result['summary']['errors'] ?? [];
+            if (! empty($errors)) {
+                return back()->withInput()->withErrors(['amount' => implode(' ', $errors)]);
             }
         }
 
@@ -537,19 +624,56 @@ class RevenueController extends Controller
             ];
         }
 
-        $item->update([
-            'bill_no' => $autogenerate ? $item->bill_no : ($validated['bill_no'] ?? null),
-            'revenue_category_id' => (int) $validated['revenue_category_id'],
-            'student_id' => $validated['student_id'] ? (int) $validated['student_id'] : null,
-            'amount' => $validated['amount'],
-            'payment_method' => $paymentMethod,
-            'payment_status' => $paymentStatus,
-            'payment_meta' => $paymentMeta,
-            'cheque_date' => $chequeDate,
-            'confirmed_at' => $confirmedAt,
-            'paid_at' => $validated['paid_at'],
-            'notes' => $validated['notes'] ?? null,
-        ]);
+        DB::transaction(function () use ($request, $item, $validated, $autogenerate, $paymentMethod, $paymentStatus, $paymentMeta, $chequeDate, $confirmedAt, $student, $result, $feeOverrides) {
+            if ($student && !empty($feeOverrides)) {
+                foreach ($feeOverrides as $override) {
+                    StudentMonthlyFeeOverride::updateOrCreate(
+                        [
+                            'student_id' => $student->id,
+                            'year' => (int) $override['year'],
+                            'month' => (int) $override['month'],
+                        ],
+                        [
+                            'fee_amount' => (float) $override['fee_amount'],
+                            'set_by' => $request->user()?->id,
+                        ]
+                    );
+                }
+            }
+
+            $item->update([
+                'bill_no' => $autogenerate ? $item->bill_no : ($validated['bill_no'] ?? null),
+                'revenue_category_id' => (int) $validated['revenue_category_id'],
+                'student_id' => $validated['student_id'] ? (int) $validated['student_id'] : null,
+                'amount' => $validated['amount'],
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentStatus,
+                'payment_meta' => $paymentMeta,
+                'cheque_date' => $chequeDate,
+                'confirmed_at' => $confirmedAt,
+                'paid_at' => $validated['paid_at'],
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            \App\Models\StudentMonthFeeAllocation::query()
+                ->where('revenue_id', $item->id)
+                ->delete();
+
+            if ($student && $result && !empty($result['allocations'])) {
+                foreach ($result['allocations'] as $a) {
+                    \App\Models\StudentMonthFeeAllocation::create([
+                        'revenue_id' => $item->id,
+                        'student_id' => $student->id,
+                        'month' => (int) $a['month'],
+                        'year' => (int) $a['year'],
+                        'type' => (string) $a['type'],
+                        'applied_amount' => (float) $a['applied_amount'],
+                        'is_partial' => (bool) $a['is_partial'],
+                        'remaining_for_month' => (float) $a['remaining_for_month'],
+                    ]);
+                }
+            }
+        });
 
         app(AuditLogger::class)->log(
             'revenue.update',
@@ -569,31 +693,50 @@ class RevenueController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Revenue $item): RedirectResponse
+    public function destroy(Request $request, Revenue $item): RedirectResponse
     {
-        $hasAdjustments = RevenueAdjustment::query()
-            ->where('revenue_id', $item->id)
-            ->exists();
-
-        if ($hasAdjustments) {
-            return redirect()->route('revenue.items.index')->withErrors([
-                'delete' => 'Cannot delete this revenue because it has refund/waiver adjustments.',
-            ]);
+        if ($item->isCancelled()) {
+            return redirect()->route('revenue.items.index')->with('status', 'Revenue bill is already cancelled.');
         }
 
+        $validated = $request->validate([
+            'cancel_reason' => ['required', 'string', 'min:3', 'max:1000'],
+        ]);
+
+        $originalAmount = (float) $item->amount;
+        $billNo = $item->bill_no;
+
+        DB::transaction(function () use ($request, $item, $validated) {
+            RevenueAdjustment::query()
+                ->where('revenue_id', $item->id)
+                ->delete();
+
+            \App\Models\StudentMonthFeeAllocation::query()
+                ->where('revenue_id', $item->id)
+                ->delete();
+
+            $item->forceFill([
+                'amount' => 0,
+                'payment_status' => 'cancelled',
+                'confirmed_at' => null,
+                'cancelled_at' => now(),
+                'cancelled_by' => $request->user()?->id,
+                'cancel_reason' => $validated['cancel_reason'],
+            ])->save();
+        });
+
         app(AuditLogger::class)->log(
-            'revenue.delete',
+            'revenue.cancel',
             $item,
-            'Revenue deleted',
+            'Revenue cancelled',
             [
-                'bill_no' => $item->bill_no,
-                'amount' => (float) $item->amount,
+                'bill_no' => $billNo,
+                'original_amount' => $originalAmount,
+                'cancel_reason' => $validated['cancel_reason'],
             ]
         );
 
-        $item->delete();
-
-        return redirect()->route('revenue.items.index')->with('status', 'Revenue deleted.');
+        return redirect()->route('revenue.items.index')->with('status', 'Revenue bill cancelled. Bill number was kept and amount is now 0.00.');
     }
 
     /**
@@ -643,13 +786,23 @@ class RevenueController extends Controller
             $parsed = json_decode($advRaw, true);
             if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
         }
+        $overrideRaw = $request->input('monthly_fee_overrides');
+        if (is_string($overrideRaw)) {
+            $parsed = json_decode($overrideRaw, true);
+            if (is_array($parsed)) { $request->merge(['monthly_fee_overrides' => $parsed]); }
+        }
         $validated = $request->validate([
             'student_id' => ['required', 'exists:students,id'],
             'revenue_category_id' => ['nullable', 'integer', 'exists:revenue_categories,id'],
+            'revenue_id' => ['nullable', 'integer', 'exists:revenues,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'advance_months' => ['nullable', 'array'],
             'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
             'advance_months.*.year' => ['required_with:advance_months', 'integer', 'min:2000'],
+            'monthly_fee_overrides' => ['nullable', 'array'],
+            'monthly_fee_overrides.*.month' => ['required_with:monthly_fee_overrides', 'integer', 'min:1', 'max:12'],
+            'monthly_fee_overrides.*.year' => ['required_with:monthly_fee_overrides', 'integer', 'min:2000'],
+            'monthly_fee_overrides.*.fee_amount' => ['required_with:monthly_fee_overrides', 'numeric', 'min:0.01'],
         ]);
 
         $student = Student::query()->with('classRoom')->find((int) $validated['student_id']);
@@ -684,12 +837,24 @@ class RevenueController extends Controller
         }
 
         $advanceMonths = $validated['advance_months'] ?? [];
-        $result = $allocator->allocate($student, (float) $validated['amount'], $advanceMonths);
+        $feeOverrides = $this->normalizeMonthlyFeeOverrides($validated['monthly_fee_overrides'] ?? []);
+        $excludeRevenueIds = [];
+        if (!empty($validated['revenue_id'])) {
+            $editingRevenue = Revenue::query()
+                ->where('id', (int) $validated['revenue_id'])
+                ->where('student_id', $student->id)
+                ->first();
+            if ($editingRevenue) {
+                $excludeRevenueIds[] = (int) $editingRevenue->id;
+            }
+        }
+
+        $result = $allocator->allocate($student, (float) $validated['amount'], $advanceMonths, $feeOverrides, $excludeRevenueIds);
 
         // Month-aware required amount for selected advance months (respects promotion/demotion fee changes + partials)
         $required = 0.0;
         if (!empty($advanceMonths)) {
-            $ledger = $allocator->buildLedger($student, 24);
+            $ledger = $allocator->buildLedger($student, 24, $feeOverrides, $excludeRevenueIds);
             foreach ($advanceMonths as $am) {
                 $m = (int) ($am['month'] ?? 0);
                 $y = (int) ($am['year'] ?? 0);
@@ -709,5 +874,29 @@ class RevenueController extends Controller
         $result['summary']['selected_advance_months_required_amount'] = round($required, 2);
 
         return response()->json($result);
+    }
+
+    private function normalizeMonthlyFeeOverrides(array $overrides): array
+    {
+        $normalized = [];
+        foreach ($overrides as $override) {
+            $month = (int) ($override['month'] ?? 0);
+            $year = (int) ($override['year'] ?? 0);
+            $amount = round((float) ($override['fee_amount'] ?? $override['amount'] ?? 0), 2);
+
+            if ($month < 1 || $month > 12 || $year < 2000 || $amount <= 0) {
+                continue;
+            }
+
+            $normalized[sprintf('%04d-%02d', $year, $month)] = [
+                'year' => $year,
+                'month' => $month,
+                'fee_amount' => $amount,
+            ];
+        }
+
+        ksort($normalized);
+
+        return array_values($normalized);
     }
 }

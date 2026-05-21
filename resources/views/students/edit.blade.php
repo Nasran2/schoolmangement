@@ -10,6 +10,17 @@
 
     <div class="py-12 bg-gray-50 min-h-screen">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+            @if ($errors->any())
+                <div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    <div class="font-semibold">Student was not updated. Please fix these missing or invalid details:</div>
+                    <ul class="mt-2 list-disc space-y-1 pl-5">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             @if (session('status'))
                 <div class="mb-6 rounded-lg bg-green-50 border border-green-200 p-4 text-sm text-green-800 flex items-center">
                     <svg class="w-5 h-5 mr-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -186,6 +197,153 @@
                     </div>
                 </form>
             </div>
+
+            @if($monthlyFeeCreditsEnabled)
+                <div class="bg-white rounded-lg shadow-lg border border-gray-100 mt-6">
+                    <div class="border-b border-gray-200 px-6 py-6 bg-gradient-to-r from-slate-50 to-slate-100">
+                        <h3 class="text-lg font-semibold text-gray-800">Historical Monthly Fee Credit</h3>
+                        <p class="text-sm text-gray-600 mt-1">Record old monthly fee payments for balance calculations only (not revenue).</p>
+                    </div>
+
+                    <div class="p-6 space-y-6">
+                    @php
+                        $monthOptions = [
+                            1 => 'January',
+                            2 => 'February',
+                            3 => 'March',
+                            4 => 'April',
+                            5 => 'May',
+                            6 => 'June',
+                            7 => 'July',
+                            8 => 'August',
+                            9 => 'September',
+                            10 => 'October',
+                            11 => 'November',
+                            12 => 'December',
+                        ];
+                    @endphp
+
+                    <form method="POST" action="{{ route('students.monthly_fee.credits.store', $student) }}" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        @csrf
+
+                        <div>
+                            <x-input-label for="credit_month" :value="__('Month')" class="font-semibold mb-2" />
+                            <select id="credit_month" name="credit_month" class="mt-1 block w-full border-gray-300 focus:border-slate-500 focus:ring-slate-500 rounded-lg shadow-sm">
+                                @foreach($monthOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected((int) old('credit_month', now()->month) === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error class="mt-2" :messages="$errors->get('credit_month')" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="credit_year" :value="__('Year')" class="font-semibold mb-2" />
+                            <x-text-input
+                                id="credit_year"
+                                name="credit_year"
+                                type="number"
+                                min="2000"
+                                class="mt-1 block w-full border-gray-300 focus:border-slate-500 focus:ring-slate-500 rounded-lg shadow-sm"
+                                :value="old('credit_year', now()->year)"
+                            />
+                            <x-input-error class="mt-2" :messages="$errors->get('credit_year')" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="credit_amount" :value="__('Amount')" class="font-semibold mb-2" />
+                            <div class="relative">
+                                <span class="absolute left-3 top-3 text-gray-500 font-semibold">Rs</span>
+                                <x-text-input
+                                    id="credit_amount"
+                                    name="credit_amount"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    class="mt-1 block w-full pl-8 border-gray-300 focus:border-slate-500 focus:ring-slate-500 rounded-lg shadow-sm"
+                                    :value="old('credit_amount')"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <x-input-error class="mt-2" :messages="$errors->get('credit_amount')" />
+                        </div>
+
+                        <div>
+                            <x-input-label for="credit_applied_at" :value="__('Payment Date')" class="font-semibold mb-2" />
+                            <x-text-input
+                                id="credit_applied_at"
+                                name="credit_applied_at"
+                                type="date"
+                                class="mt-1 block w-full border-gray-300 focus:border-slate-500 focus:ring-slate-500 rounded-lg shadow-sm"
+                                :value="old('credit_applied_at', now()->format('Y-m-d'))"
+                            />
+                            <x-input-error class="mt-2" :messages="$errors->get('credit_applied_at')" />
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <x-input-label for="credit_note" :value="__('Note (optional)')" class="font-semibold mb-2" />
+                            <x-text-input
+                                id="credit_note"
+                                name="credit_note"
+                                type="text"
+                                class="mt-1 block w-full border-gray-300 focus:border-slate-500 focus:ring-slate-500 rounded-lg shadow-sm"
+                                :value="old('credit_note')"
+                                placeholder="e.g., Old advance payment"
+                            />
+                            <x-input-error class="mt-2" :messages="$errors->get('credit_note')" />
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <x-primary-button class="bg-slate-700 hover:bg-slate-800">
+                                Add Credit
+                            </x-primary-button>
+                        </div>
+                    </form>
+
+                    @if($student->monthlyFeeCredits->isNotEmpty())
+                        <div class="pt-4 border-t border-gray-200">
+                            <h4 class="text-sm font-semibold text-gray-800 mb-3">Existing Credits</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead class="bg-slate-50 text-gray-700">
+                                        <tr>
+                                            <th class="px-3 py-2 text-left">Month</th>
+                                            <th class="px-3 py-2 text-left">Amount</th>
+                                            <th class="px-3 py-2 text-left">Date</th>
+                                            <th class="px-3 py-2 text-left">Note</th>
+                                            <th class="px-3 py-2 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($student->monthlyFeeCredits as $credit)
+                                            @php
+                                                $monthLabel = $monthOptions[(int) $credit->month] ?? $credit->month;
+                                            @endphp
+                                            <tr class="border-t border-gray-100">
+                                                <td class="px-3 py-2">{{ $monthLabel }} {{ $credit->year }}</td>
+                                                <td class="px-3 py-2">Rs {{ number_format((float) $credit->amount, 2) }}</td>
+                                                <td class="px-3 py-2">{{ optional($credit->applied_at)->format('d-m-Y') ?? '-' }}</td>
+                                                <td class="px-3 py-2">{{ $credit->note ?? '-' }}</td>
+                                                <td class="px-3 py-2 text-right">
+                                                    <form method="POST" action="{{ route('students.monthly_fee.credits.delete', [$student, $credit]) }}" onsubmit="return confirm('Remove this credit?')">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="text-rose-600 hover:text-rose-700 font-semibold">Remove</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    @endif
+                    </div>
+                </div>
+            @else
+                <div class="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Historical monthly fee credits are not available yet. Run migrations to enable this feature.
+                </div>
+            @endif
         </div>
     </div>
 

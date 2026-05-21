@@ -7,11 +7,77 @@ use App\Models\RevenueAdjustment;
 use App\Models\Student;
 use App\Models\StudentMonthlyFeeOverride;
 use App\Models\StudentMonthFeeAllocation;
+use App\Models\StudentMonthlyFeeCredit;
 use App\Models\StudentPromotionHistory;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class MonthlyFeeAllocator
 {
+    /**
+     * Rebuild monthly-fee allocations after a student's billing timeline changes.
+     *
+     * Existing allocations can point to months that no longer exist in the ledger
+     * after fee_start_date changes. Replaying the revenues in payment order keeps
+     * the paid-month tracker and due amount aligned with the new start month.
+     */
+    public function rebuildAllocationsForStudent(Student $student): void
+    {
+        $monthlyCatId = $student->monthlyFeeCategoryId();
+        if (! $monthlyCatId) {
+            StudentMonthFeeAllocation::query()
+                ->where('student_id', $student->id)
+                ->delete();
+
+            return;
+        }
+
+        $revenues = Revenue::query()
+            ->where('student_id', $student->id)
+            ->where('revenue_category_id', $monthlyCatId)
+            ->where(function ($q) {
+                $q->whereNull('payment_status')
+                    ->orWhereIn('payment_status', ['confirmed', 'hold', 'pending']);
+            })
+            ->orderBy('paid_at')
+            ->orderBy('id')
+            ->get();
+
+        StudentMonthFeeAllocation::query()
+            ->where('student_id', $student->id)
+            ->delete();
+
+        $revenueIds = $revenues->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+
+        foreach ($revenues->values() as $index => $revenue) {
+            $refunded = (float) RevenueAdjustment::query()
+                ->where('revenue_id', $revenue->id)
+                ->where('type', 'refund')
+                ->sum('amount');
+
+            $amount = max(0.0, (float) $revenue->amount - $refunded);
+            if ($amount <= 0.0) {
+                continue;
+            }
+
+            $excludeRevenueIds = array_slice($revenueIds, $index);
+            $result = $this->allocate($student, $amount, [], [], $excludeRevenueIds);
+
+            foreach (($result['allocations'] ?? []) as $allocation) {
+                StudentMonthFeeAllocation::create([
+                    'revenue_id' => $revenue->id,
+                    'student_id' => $student->id,
+                    'month' => (int) $allocation['month'],
+                    'year' => (int) $allocation['year'],
+                    'type' => (string) $allocation['type'],
+                    'applied_amount' => (float) $allocation['applied_amount'],
+                    'is_partial' => (bool) $allocation['is_partial'],
+                    'remaining_for_month' => (float) $allocation['remaining_for_month'],
+                ]);
+            }
+        }
+    }
+
     /**
      * Resolve the monthly fee for a given month start, honoring:
      * - explicit month override (current-month old/new selection)
@@ -56,8 +122,9 @@ class MonthlyFeeAllocator
      * @param int $horizonMonths number of future months to include for advance suggestions
      * @return array<string,array<string,mixed>>
      */
-    public function buildLedger(Student $student, int $horizonMonths = 12): array
+    public function buildLedger(Student $student, int $horizonMonths = 12, array $feeOverrides = [], array $excludeRevenueIds = []): array
     {
+        $excludeRevenueIds = array_values(array_filter(array_map('intval', $excludeRevenueIds)));
         $startDate = $student->fee_start_date ?: $student->joining_date ?: optional($student->created_at)->toDateString();
         $start = $startDate ? Carbon::parse($startDate)->startOfDay() : null;
         if (! $start) return [];
@@ -80,6 +147,16 @@ class MonthlyFeeAllocator
                 return [$key => (float) $o->fee_amount];
             })
             ->all();
+
+        foreach ($feeOverrides as $override) {
+            $month = (int) ($override['month'] ?? 0);
+            $year = (int) ($override['year'] ?? 0);
+            $amount = (float) ($override['fee_amount'] ?? $override['amount'] ?? 0);
+            if ($month < 1 || $month > 12 || $year < 2000 || $amount <= 0) {
+                continue;
+            }
+            $overridesByKey[sprintf('%04d-%02d', $year, $month)] = $amount;
+        }
 
         $now = now();
         $monthsCount = $now->lt($start) ? 0 : (int) ($start->diffInMonths($now) + 1);
@@ -105,10 +182,43 @@ class MonthlyFeeAllocator
             ];
         }
 
+        // Apply historical credits (non-revenue adjustments) to reduce remaining balance.
+        if (Schema::hasTable('student_month_fee_credits')) {
+            $credits = StudentMonthlyFeeCredit::query()
+                ->where('student_id', $student->id)
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get(['year', 'month', 'amount']);
+
+            foreach ($credits as $c) {
+                $key = sprintf('%04d-%02d', (int) $c->year, (int) $c->month);
+                if (!isset($ledger[$key])) {
+                    continue;
+                }
+
+                $remaining = (float) ($ledger[$key]['remaining'] ?? 0.0);
+                if ($remaining <= 0) {
+                    continue;
+                }
+
+                $apply = min((float) $c->amount, $remaining);
+                if ($apply <= 0) {
+                    continue;
+                }
+
+                $ledger[$key]['paid'] += $apply;
+                $ledger[$key]['remaining'] = max(0.0, $ledger[$key]['due'] - $ledger[$key]['paid']);
+                $ledger[$key]['status'] = $this->statusFromAmounts($ledger[$key]['due'], $ledger[$key]['paid']);
+            }
+        }
+
         // Apply existing allocations first
         $allocs = StudentMonthFeeAllocation::query()
             ->join('revenues', 'revenues.id', '=', 'student_month_fee_allocations.revenue_id')
             ->where('student_month_fee_allocations.student_id', $student->id)
+            ->when(!empty($excludeRevenueIds), function ($q) use ($excludeRevenueIds) {
+                $q->whereNotIn('student_month_fee_allocations.revenue_id', $excludeRevenueIds);
+            })
             ->where(function ($q) {
                 $q->whereNull('revenues.payment_status')
                     ->orWhere('revenues.payment_status', 'confirmed');
@@ -131,6 +241,9 @@ class MonthlyFeeAllocator
             $legacy = Revenue::query()
                 ->where('student_id', $student->id)
                 ->where('revenue_category_id', $monthlyCatId)
+                ->when(!empty($excludeRevenueIds), function ($q) use ($excludeRevenueIds) {
+                    $q->whereNotIn('id', $excludeRevenueIds);
+                })
                 ->where(function ($q) {
                     $q->whereNull('payment_status')
                         ->orWhere('payment_status', 'confirmed');
@@ -139,7 +252,14 @@ class MonthlyFeeAllocator
                 ->get();
             foreach ($legacy as $rev) {
                 // Skip amounts that already have allocations
-                $allocatedSum = StudentMonthFeeAllocation::query()->where('revenue_id', $rev->id)->sum('applied_amount');
+                $allocatedSum = StudentMonthFeeAllocation::query()
+                    ->where('revenue_id', $rev->id)
+                    ->get(['year', 'month', 'applied_amount'])
+                    ->sum(function ($allocation) use ($ledger) {
+                        $key = sprintf('%04d-%02d', (int) $allocation->year, (int) $allocation->month);
+
+                        return isset($ledger[$key]) ? (float) $allocation->applied_amount : 0.0;
+                    });
                 $refundedSum = (float) RevenueAdjustment::query()
                     ->where('revenue_id', $rev->id)
                     ->where('type', 'refund')
@@ -264,9 +384,9 @@ class MonthlyFeeAllocator
      * @return array{allocations: array<int,array{month:int,year:int,type:string,applied_amount:float,is_partial:bool,remaining_for_month:float}>,
      *               summary: array{total_applied:float,unallocated_balance:float,paid_due_months:array,advance_months:array,errors:array}}
      */
-    public function allocate(Student $student, float $amount, array $selectedAdvanceMonths = []): array
+    public function allocate(Student $student, float $amount, array $selectedAdvanceMonths = [], array $feeOverrides = [], array $excludeRevenueIds = []): array
     {
-        $ledger = $this->buildLedger($student, 24);
+        $ledger = $this->buildLedger($student, 24, $feeOverrides, $excludeRevenueIds);
         if (empty($ledger)) {
             return [
                 'allocations' => [],

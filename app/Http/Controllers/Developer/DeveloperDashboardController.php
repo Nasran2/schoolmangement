@@ -134,7 +134,7 @@ class DeveloperDashboardController extends Controller
         $usersQuery = User::query()->with('roles')->orderBy('id');
         $usersTotal = (clone $usersQuery)->count();
         $usersActive = $usersHaveActiveColumn
-            ? (clone $usersQuery)->where('active', true)->count()
+            ? User::query()->where('active', true)->count()
             : $usersTotal;
         $usersPreview = (clone $usersQuery)->limit(25)->get();
 

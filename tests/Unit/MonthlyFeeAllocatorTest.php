@@ -224,4 +224,72 @@ class MonthlyFeeAllocatorTest extends TestCase
         $this->assertSame('unpaid', (string) ($ledger['2026-01']['status'] ?? ''));
         $this->assertEquals(0.0, (float) ($holdCoverage['2026-01'] ?? 0));
     }
+
+    #[Test]
+    public function rebuilds_allocations_after_fee_start_date_changes()
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 12, 10, 0, 0));
+
+        $cat = RevenueCategory::create(['name' => 'Monthly Fee', 'payment_type' => 'monthly', 'active' => true]);
+        $class = ClassRoom::create(['name' => 'Grade 5', 'monthly_fee' => 7750, 'monthly_fee_revenue_category_id' => $cat->id]);
+        $student = Student::create([
+            'admission_number' => 'A400',
+            'name' => 'Start Date Change',
+            'class_room_id' => $class->id,
+            'class' => $class->name,
+            'monthly_fee' => 7750,
+            'fee_start_date' => Carbon::create(2026, 1, 1)->format('Y-m-d'),
+            'active' => true,
+        ]);
+
+        $revenue = Revenue::create([
+            'student_id' => $student->id,
+            'revenue_category_id' => $cat->id,
+            'amount' => 15500,
+            'paid_at' => Carbon::create(2026, 2, 5)->format('Y-m-d'),
+            'bill_no' => 'R-START-1',
+            'payment_status' => 'confirmed',
+        ]);
+
+        StudentMonthFeeAllocation::create([
+            'revenue_id' => $revenue->id,
+            'student_id' => $student->id,
+            'month' => 1,
+            'year' => 2026,
+            'type' => 'due',
+            'applied_amount' => 7750,
+            'is_partial' => false,
+            'remaining_for_month' => 0,
+        ]);
+        StudentMonthFeeAllocation::create([
+            'revenue_id' => $revenue->id,
+            'student_id' => $student->id,
+            'month' => 2,
+            'year' => 2026,
+            'type' => 'due',
+            'applied_amount' => 7750,
+            'is_partial' => false,
+            'remaining_for_month' => 0,
+        ]);
+
+        $student->forceFill(['fee_start_date' => Carbon::create(2026, 4, 1)->format('Y-m-d')])->save();
+
+        $svc = new MonthlyFeeAllocator();
+        $ledgerBeforeRebuild = $svc->buildLedger($student->refresh(), 0);
+
+        $this->assertSame('paid', (string) ($ledgerBeforeRebuild['2026-04']['status'] ?? ''));
+        $this->assertSame('paid', (string) ($ledgerBeforeRebuild['2026-05']['status'] ?? ''));
+
+        $svc->rebuildAllocationsForStudent($student->refresh());
+        $ledger = $svc->buildLedger($student->refresh(), 0);
+
+        $this->assertDatabaseMissing('student_month_fee_allocations', [
+            'student_id' => $student->id,
+            'year' => 2026,
+            'month' => 1,
+        ]);
+        $this->assertSame('paid', (string) ($ledger['2026-04']['status'] ?? ''));
+        $this->assertSame('paid', (string) ($ledger['2026-05']['status'] ?? ''));
+        $this->assertEquals(0.0, $student->refresh()->computeMonthlyDue());
+    }
 }

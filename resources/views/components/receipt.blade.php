@@ -44,6 +44,7 @@ $isMonthly = !empty($category?->interval_months) || $paymentType === 'monthly';
 $isAdmission = $paymentType === 'admission';
 $isFacilities = $paymentType === 'facilities';
 $isTerm = in_array($paymentType, ['term','semester','term_fee']);
+$studentMonthlyFee = (float) ($student?->monthly_fee ?? $student?->classRoom?->monthly_fee ?? 0);
 
 $schoolName = $schoolInfo['name'] ?? config('app.name');
 $schoolAddress = $schoolInfo['address'] ?? '';
@@ -52,8 +53,9 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
 $refundedAmount = 0.0;
 $waivedAmount = 0.0;
 $isReturnedCheque = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
-$isCancelledPayment = $isReturnedCheque;
-$cancelledLabel = $isReturnedCheque ? 'CHEQUE RETURNED' : 'PAYMENT CANCELLED';
+$isManualCancellation = method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled');
+$isCancelledPayment = $isReturnedCheque || $isManualCancellation;
+$cancelledLabel = $isReturnedCheque ? 'CHEQUE RETURNED' : 'CANCELLED';
 try {
     $refundedAmount = (float) \App\Models\RevenueAdjustment::query()
         ->where('revenue_id', $revenue->id)
@@ -99,6 +101,70 @@ if (empty($coveredMonths) && $revenue->exists) {
     }
 }
 
+// If an advance month was previously paid partially, and this receipt completes it,
+// show it as "balance" (avoid using the word "partial" on the bill).
+$priorPartialByMonthKey = [];
+if (!empty($coveredMonths) && !empty($student?->id) && $revenue->exists) {
+    try {
+        $monthKeys = [];
+        foreach ($coveredMonths as $cm) {
+            $m = (int) ($cm['month'] ?? 0);
+            $y = (int) ($cm['year'] ?? 0);
+            if ($m < 1 || $m > 12 || $y < 2000) continue;
+            $monthKeys[sprintf('%04d-%02d', $y, $m)] = ['year' => $y, 'month' => $m];
+        }
+
+        if (!empty($monthKeys)) {
+            $q = \App\Models\StudentMonthFeeAllocation::query()
+                ->where('student_id', (int) $student->id)
+                ->where('revenue_id', '!=', (int) $revenue->id)
+                ->where(function ($sub) use ($monthKeys) {
+                    foreach ($monthKeys as $row) {
+                        $sub->orWhere(function ($w) use ($row) {
+                            $w->where('year', (int) $row['year'])->where('month', (int) $row['month']);
+                        });
+                    }
+                })
+                ->get(['year', 'month', 'is_partial', 'remaining_for_month']);
+
+            foreach ($q as $al) {
+                $key = sprintf('%04d-%02d', (int) $al->year, (int) $al->month);
+                if (!isset($priorPartialByMonthKey[$key])) {
+                    $priorPartialByMonthKey[$key] = false;
+                }
+                if ((bool) $al->is_partial || (float) $al->remaining_for_month > 0) {
+                    $priorPartialByMonthKey[$key] = true;
+                }
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasTable('student_month_fee_credits')) {
+                $credits = \App\Models\StudentMonthlyFeeCredit::query()
+                    ->where('student_id', (int) $student->id)
+                    ->where(function ($sub) use ($monthKeys) {
+                        foreach ($monthKeys as $row) {
+                            $sub->orWhere(function ($w) use ($row) {
+                                $w->where('year', (int) $row['year'])->where('month', (int) $row['month']);
+                            });
+                        }
+                    })
+                    ->get(['year', 'month', 'amount']);
+
+                foreach ($credits as $credit) {
+                    $key = sprintf('%04d-%02d', (int) $credit->year, (int) $credit->month);
+                    if (!isset($priorPartialByMonthKey[$key])) {
+                        $priorPartialByMonthKey[$key] = false;
+                    }
+                    if ((float) $credit->amount > 0) {
+                        $priorPartialByMonthKey[$key] = true;
+                    }
+                }
+            }
+        }
+    } catch (\Exception $e) {
+        $priorPartialByMonthKey = [];
+    }
+}
+
 // Compute month boxes: show month if covered, but only mark 'X' if that month was fully paid (not partial)
 $boxed = array_fill(1, 12, false);
 $boxedMark = array_fill(1, 12, false);
@@ -118,6 +184,15 @@ foreach ($coveredMonths as $cm) {
 $monthlySum = 0.0;
 foreach ($coveredMonths as $cm) { $monthlySum += (float) $cm['amount']; }
 if ($monthlySum <= 0 && !empty($category?->interval_months)) { $monthlySum = $amount; }
+
+// Use the actual allocation amount so year-wise/month-wise fee overrides appear correctly on receipts.
+$singleMonthlyReceiptAmount = $amount;
+if ($isMonthly && count($coveredMonths) === 1) {
+    $singleMonthlyReceiptAmount = (float) ($coveredMonths[0]['amount'] ?? $amount);
+}
+$isFullMonthlyPayment = $isMonthly && count($coveredMonths) === 1
+    ? empty($coveredMonths[0]['partial'])
+    : ($studentMonthlyFee > 0 && $amount >= $studentMonthlyFee);
 
 // Determine parent/guardian name
 $parentName = $student?->guardian_name;
@@ -175,6 +250,11 @@ if (empty($studentAddress) && $student) {
             Payment cancelled. This receipt is not valid for collection.
             @if($isReturnedCheque)
                 Cheque returned on {{ optional($revenue->confirmed_at)->format('d/m/Y') ?: '-' }}.
+            @elseif($isManualCancellation)
+                Cancelled on {{ optional($revenue->cancelled_at)->format('d/m/Y') ?: '-' }}.
+                @if(!empty($revenue->cancel_reason))
+                    Reason: {{ $revenue->cancel_reason }}
+                @endif
             @endif
         </div>
     @endif
@@ -253,7 +333,23 @@ if (empty($studentAddress) && $student) {
             <span class="mr-2">As payment for</span>
             <span class="inline-block border-b border-gray-800 min-w-[360px]">
                 @if($isMonthly && !empty($coveredMonths))
-                    @foreach($coveredMonths as $cm){{ \Carbon\Carbon::createFromDate($cm['year'], $cm['month'], 1)->format('F') }}@if(!empty($cm['partial'])) (partial)@endif{{ !$loop->last ? ', ' : '' }}@endforeach
+                    @foreach($coveredMonths as $cm)
+                        @php
+                            $monthLabel = \Carbon\Carbon::createFromDate($cm['year'], $cm['month'], 1)->format('F');
+                            $tags = [];
+                            $type = strtolower((string) ($cm['type'] ?? ''));
+                            $monthKey = sprintf('%04d-%02d', (int) ($cm['year'] ?? 0), (int) ($cm['month'] ?? 0));
+                            $isBalancePayment = empty($cm['partial'])
+                                && !empty($priorPartialByMonthKey[$monthKey]);
+                            if ($type === 'advance') {
+                                $tags[] = $isBalancePayment ? 'balance' : 'advance';
+                            }
+                            if ($type === 'due' && $isBalancePayment) {
+                                $tags[] = 'balance';
+                            }
+                        @endphp
+                        {{ $monthLabel }}@if(!empty($tags)) ({{ implode(', ', $tags) }})@endif{{ !$loop->last ? ', ' : '' }}
+                    @endforeach
                 @else
                     {{ $category->name ?? 'Fees' }}
                 @endif
@@ -296,7 +392,7 @@ if (empty($studentAddress) && $student) {
                     <div class="flex justify-between"><span>I. Admission fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                 @endif
                 @if($isMonthly)
-                    <div class="flex justify-between"><span>{{ $isAdmission ? 'II.' : 'I.' }} Monthly fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($monthlySum,2) }}</span></div>
+                    <div class="flex justify-between"><span>{{ $isAdmission ? 'II.' : 'I.' }} Monthly fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($singleMonthlyReceiptAmount,2) }}</span></div>
                 @endif
                 @if($isFacilities)
                     <div class="flex justify-between"><span>{{ ($isAdmission || $isMonthly) ? 'III.' : 'I.' }} Facilities fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
@@ -334,13 +430,20 @@ if (empty($studentAddress) && $student) {
                 <p class="font-semibold">Months covered in this receipt:</p>
                 <ul class="list-disc ml-5">
                     @foreach($coveredMonths as $cm)
+                        @php
+                            $type = strtolower((string) ($cm['type'] ?? ''));
+                            $monthKey = sprintf('%04d-%02d', (int) ($cm['year'] ?? 0), (int) ($cm['month'] ?? 0));
+                            $isBalancePayment = empty($cm['partial'])
+                                && !empty($priorPartialByMonthKey[$monthKey]);
+                            $typeLabel = $type === 'due'
+                                ? ($isBalancePayment ? 'Balance' : 'Paid')
+                                : ($type === 'advance'
+                                    ? ($isBalancePayment ? 'Balance' : 'Advance')
+                                    : ucfirst((string) ($cm['type'] ?? '')));
+                        @endphp
                         <li>
-                            {{ \Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y') }} – Rs {{ number_format($cm['amount'],2) }} 
-                            ({{ strtolower($cm['type']) === 'due' ? 'Paid' : ucfirst($cm['type']) }}
-                            @if(!empty($cm['partial']))
-                                , partial
-                            @endif
-                            )
+                            {{ \Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y') }} – Rs {{ number_format((float) $cm['amount'],2) }} 
+                            ({{ $typeLabel }})
                         </li>
                     @endforeach
                 </ul>

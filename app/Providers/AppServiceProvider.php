@@ -49,20 +49,23 @@ class AppServiceProvider extends ServiceProvider
             return null;
         });
 
-        View::share('schoolName', app('settings')->get('school.name', config('app.name')));
+        $settings = app('settings');
+
+        View::share('schoolName', $settings->get('school.name', config('app.name')));
 
         // Ensure permissions for new modules exist
-        if (Schema::hasTable('permissions')) {
+        if ($this->tableExists('permissions')) {
             try {
                 Permission::findOrCreate('audit_logs.view');
                 Permission::findOrCreate('dashboard.widget.recent_activity.view');
                 Permission::findOrCreate('reports.daily_ledger.view');
+                Permission::findOrCreate('users.manage');
             } catch (\Throwable $e) {
                 // ignore creation failures
             }
         }
 
-        $defaultYear = app('settings')->get('school.academic_year', date('Y').'-'.(date('Y') + 1));
+        $defaultYear = $settings->get('school.academic_year', date('Y').'-'.(date('Y') + 1));
         $selectedYear = $defaultYear;
         if (! app()->runningInConsole() && request()?->hasSession()) {
             $selectedYear = request()->session()->get('academic_year', $defaultYear);
@@ -109,10 +112,6 @@ class AppServiceProvider extends ServiceProvider
 
     private function applyMailSettings(): void
     {
-        if (! Schema::hasTable('settings')) {
-            return;
-        }
-
         $s = app('settings');
 
         $host = (string) $s->get('smtp.host', '');
@@ -153,6 +152,21 @@ class AppServiceProvider extends ServiceProvider
                 'mail.from.address' => $fromAddress,
                 'mail.from.name' => $fromName,
             ]);
+        }
+    }
+
+    private function tableExists(string $table): bool
+    {
+        try {
+            return Schema::hasTable($table);
+        } catch (\Throwable $e) {
+            Log::warning('Unable to check whether a database table exists.', [
+                'table' => $table,
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            return false;
         }
     }
 

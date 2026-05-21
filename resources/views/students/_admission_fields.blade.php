@@ -192,7 +192,10 @@
                         <x-input-label for="father_name_with_initial">
                             {{ __('Name with Initial') }} <span x-show="!useGuardian" class="text-red-600">*</span>
                         </x-input-label>
-                        <x-text-input id="father_name_with_initial" name="father_name_with_initial" type="text" class="mt-1 block w-full" :value="old('father_name_with_initial', $S->father_name_with_initial ?? '')" />
+                        <x-text-input id="father_name_with_initial" name="father_name_with_initial" type="text" class="mt-1 block w-full"
+                            x-bind:required="!useGuardian"
+                            :value="old('father_name_with_initial', $S->father_name_with_initial ?? '')" />
+                        <x-input-error class="mt-2" :messages="$errors->get('father_name_with_initial')" />
                     </div>
                     <div>
                         <x-input-label for="father_nic_passport" :value="__('NIC / Passport')" />
@@ -314,21 +317,27 @@
                         {{ __('Guardian Name') }} <span class="text-red-600">*</span>
                     </x-input-label>
                     <x-text-input id="guardian_name" name="guardian_name" type="text" class="mt-1 block w-full"
+                        x-bind:required="useGuardian"
                         :value="old('guardian_name', $S->guardian_name ?? '')" />
+                    <x-input-error class="mt-2" :messages="$errors->get('guardian_name')" />
                 </div>
                 <div>
                     <x-input-label for="guardian_relationship">
                         {{ __('Relationship') }} <span class="text-red-600">*</span>
                     </x-input-label>
                     <x-text-input id="guardian_relationship" name="guardian_relationship" type="text" class="mt-1 block w-full"
+                        x-bind:required="useGuardian"
                         :value="old('guardian_relationship', $S->guardian_relationship ?? '')" placeholder="e.g. Uncle, Grandparent" />
+                    <x-input-error class="mt-2" :messages="$errors->get('guardian_relationship')" />
                 </div>
                 <div>
                     <x-input-label for="guardian_phone">
                         {{ __('Guardian Phone') }} <span class="text-red-600">*</span>
                     </x-input-label>
                     <x-text-input id="guardian_phone" name="guardian_phone" type="text" class="mt-1 block w-full"
+                        x-bind:required="useGuardian"
                         :value="old('guardian_phone', $S->guardian_phone ?? '')" />
+                    <x-input-error class="mt-2" :messages="$errors->get('guardian_phone')" />
                 </div>
             </div>
         </div>

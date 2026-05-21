@@ -107,7 +107,8 @@
 
                                 {{-- Student Picker --}}
                                 <div x-data="studentPicker()" x-init="init()"
-                                    data-student-id="{{ $initialSelectedStudentId }}">
+                                    data-student-id="{{ $initialSelectedStudentId }}"
+                                    data-exclude-revenue-id="{{ $isEdit ? (int) $item->id : '' }}">
                                     <label class="block text-sm font-semibold text-gray-800 mb-3">Student <span
                                             class="font-normal text-gray-500">(optional)</span></label>
 
@@ -247,6 +248,67 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                {{-- Year-wise fee override --}}
+                                <div x-show="categoryType === 'monthly' && studentName && selectedCategoryIsMonthlyFee" x-cloak
+                                    class="mt-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <p class="text-sm font-semibold text-gray-900">Edit Year Amounts</p>
+                                            <p class="text-xs text-gray-500">Set one monthly payment amount for each year for this student.</p>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" x-on:click="addYearlyFeeRow()"
+                                                class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">
+                                                Add Year
+                                            </button>
+                                            <button type="button" x-on:click="setAmountFromYearlyFeeRows()"
+                                                class="inline-flex items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700">
+                                                Use Payable
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 space-y-3">
+                                        <template x-for="(row, index) in yearlyFeeRows" :key="row.uid">
+                                            <div class="grid grid-cols-1 gap-3 rounded-lg border border-indigo-100 bg-white p-3 sm:grid-cols-9 sm:items-end">
+                                                <div class="sm:col-span-3">
+                                                    <label class="block text-[11px] font-semibold uppercase text-gray-500">Year</label>
+                                                    <input type="number" min="2000" step="1" x-model="row.year" x-on:input="yearlyFeeRowsChanged()"
+                                                        class="mt-1 block w-full rounded-lg border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                </div>
+                                                <div class="sm:col-span-5">
+                                                    <label class="block text-[11px] font-semibold uppercase text-gray-500">Monthly Amount</label>
+                                                    <div class="relative mt-1">
+                                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-semibold text-gray-500">Rs</span>
+                                                        <input type="number" min="0.01" step="0.01" x-model="row.fee_amount" x-on:input="yearlyFeeRowsChanged()"
+                                                            class="block w-full rounded-lg border-gray-300 pl-9 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                                    </div>
+                                                </div>
+                                                <div class="sm:col-span-1">
+                                                    <button type="button" x-on:click="removeYearlyFeeRow(index)"
+                                                        class="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-rose-50 hover:text-rose-600"
+                                                        title="Remove row">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M18 6L6 18M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </template>
+
+                                        <p x-show="yearlyFeeRows.length === 0" class="rounded-lg border border-dashed border-indigo-200 bg-white px-3 py-4 text-center text-xs text-gray-500">
+                                            No custom year amounts added.
+                                        </p>
+                                    </div>
+
+                                    <div class="mt-3 flex justify-between border-t border-indigo-100 pt-3 text-sm">
+                                        <span class="font-medium text-gray-600">Payable total</span>
+                                        <span class="font-bold text-indigo-700">Rs <span x-text="formatMoney(yearlyFeeRowsPayableTotal())"></span></span>
+                                    </div>
+
+                                    <input type="hidden" name="monthly_fee_overrides" :value="JSON.stringify(yearlyFeeRowsPayload())">
                                 </div>
 
                                 {{-- Advance payment toggle --}}
@@ -759,6 +821,7 @@
                         bill_no: '{{ $autogenerate ? '' : $defaultBillNo }}',
                         payment_method: '{{ $defaultPaymentMethod }}',
                     },
+                    editingRevenueId: '{{ $isEdit ? (int) $item->id : '' }}',
                     categories: @json($categories),
                     categoryName: '',
                     categoryType: '',
@@ -779,6 +842,9 @@
                     selectedAdvanceKeys: new Set(),
                     selectedAdvanceMonths: [],
                     selectedAdvanceLabels: [],
+                    yearlyFeeRows: [],
+                    yearlyFeeRowSeq: 0,
+                    yearlyFeePreviewTimer: null,
                     allocation: { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } },
                     isAllocationLoading: false,
 
@@ -813,6 +879,7 @@
                                             this.studentHoldChequeNumbers = Array.isArray(e.detail.hold_cheque_numbers) ? e.detail.hold_cheque_numbers : [];
                                             this.selectedStudentId = e.detail.id || '';
                                             this.monthlyCatId = e.detail.monthly_category_id || '';
+                                            this.yearlyFeeRows = this.rowsFromDueMonths(this.studentDueMonths);
 
                                             // monthlyCatId becomes known only after student selection,
                                             // so re-evaluate whether the selected category is the student's monthly fee category.
@@ -836,6 +903,7 @@
                                             this.studentName = '';
                                             this.studentDueAmount = 0;
                                             this.studentDueMonths = [];
+                                            this.yearlyFeeRows = [];
                                             this.studentHoldAmount = 0;
                                             this.studentHoldChequeNumbers = [];
                                             this.selectedStudentId = '';
@@ -976,6 +1044,84 @@
                         const n = Number(v || 0);
                         return n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     },
+                    rowsFromDueMonths(months) {
+                        if (!Array.isArray(months)) return [];
+                        const byYear = new Map();
+                        for (const month of months) {
+                            const key = String(month?.month_key || '');
+                            const [year, mo] = key.split('-').map(v => Number(v));
+                            if (!year || !mo) continue;
+                            if (!byYear.has(year)) {
+                                byYear.set(year, Number(month?.due_amount ?? month?.amount ?? 0));
+                            }
+                        }
+
+                        return [...byYear.entries()].map(([year, feeAmount]) => ({
+                            uid: ++this.yearlyFeeRowSeq,
+                            year,
+                            fee_amount: Number(feeAmount || 0).toFixed(2),
+                        }));
+                    },
+                    addYearlyFeeRow() {
+                        const today = new Date();
+                        this.yearlyFeeRows.push({
+                            uid: ++this.yearlyFeeRowSeq,
+                            year: today.getFullYear(),
+                            fee_amount: Number(this.studentMonthlyFee || 0).toFixed(2),
+                        });
+                        this.yearlyFeeRowsChanged();
+                    },
+                    removeYearlyFeeRow(index) {
+                        this.yearlyFeeRows.splice(index, 1);
+                        this.yearlyFeeRowsChanged();
+                    },
+                    yearlyFeeRowsPayload() {
+                        const byKey = new Map();
+                        for (const row of this.yearlyFeeRows || []) {
+                            const year = Number(row.year || 0);
+                            const fee = Number(row.fee_amount || 0);
+                            if (year < 2000 || fee <= 0) continue;
+                            for (let month = 1; month <= 12; month++) {
+                                byKey.set(`${year}-${String(month).padStart(2, '0')}`, {
+                                    year,
+                                    month,
+                                    fee_amount: Number(fee.toFixed(2)),
+                                });
+                            }
+                        }
+                        return [...byKey.values()].sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
+                    },
+                    yearlyFeeRowsPayableTotal() {
+                        const feeByYear = new Map();
+                        for (const row of this.yearlyFeeRows || []) {
+                            const year = Number(row.year || 0);
+                            const fee = Number(row.fee_amount || 0);
+                            if (year >= 2000 && fee > 0) {
+                                feeByYear.set(year, fee);
+                            }
+                        }
+
+                        const paidByKey = new Map((this.studentDueMonths || []).map((month) => [
+                            String(month?.month_key || ''),
+                            Number(month?.paid_amount || 0),
+                        ]));
+
+                        return (this.studentDueMonths || []).reduce((sum, month) => {
+                            const key = String(month?.month_key || '');
+                            const [year] = key.split('-').map(v => Number(v));
+                            const fee = feeByYear.get(year);
+                            if (!fee) return sum;
+                            return sum + Math.max(0, fee - Number(paidByKey.get(key) || 0));
+                        }, 0);
+                    },
+                    setAmountFromYearlyFeeRows() {
+                        this.formData.amount = this.yearlyFeeRowsPayableTotal().toFixed(2);
+                        this.updateAllocationPreview();
+                    },
+                    yearlyFeeRowsChanged() {
+                        window.clearTimeout(this.yearlyFeePreviewTimer);
+                        this.yearlyFeePreviewTimer = window.setTimeout(() => this.updateAllocationPreview(), 250);
+                    },
                     coverageSummaryText() {
                         const allocs = Array.isArray(this.allocation?.allocations) ? this.allocation.allocations : [];
                         if (!allocs.length) return '—';
@@ -1011,10 +1157,13 @@
 
                             this.isAllocationLoading = true;
                             const adv = [...this.selectedAdvanceKeys].map(k => { const [y, mo] = k.split('-'); return {year: +y, month: +mo}; });
+                            const feeOverrides = this.yearlyFeeRowsPayload();
+                            const payload = { student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv, monthly_fee_overrides: feeOverrides };
+                            if (this.editingRevenueId) payload.revenue_id = this.editingRevenueId;
                             const res = await fetch("{{ route('revenue.items.preview_allocation') }}", {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
-                                body: JSON.stringify({ student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv })
+                                body: JSON.stringify(payload)
                             });
                             if (res.ok) {
                                 const data = await res.json();
@@ -1032,10 +1181,12 @@
                                         this.syncAdvanceSelections();
                                         // Recompute preview with auto-selected months
                                         const adv2 = [...this.selectedAdvanceKeys].map(k => { const [y, mo] = k.split('-'); return {year: +y, month: +mo}; });
+                                        const payload2 = { student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv2, monthly_fee_overrides: feeOverrides };
+                                        if (this.editingRevenueId) payload2.revenue_id = this.editingRevenueId;
                                         const res2 = await fetch("{{ route('revenue.items.preview_allocation') }}", {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
-                                            body: JSON.stringify({ student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv2 })
+                                            body: JSON.stringify(payload2)
                                         });
                                         if (res2.ok) {
                                             const data2 = await res2.json();
@@ -1122,11 +1273,13 @@
                     selected: null,
                     highlightedIndex: -1,
                     initialStudentId: '',
+                    excludeRevenueId: '',
                     isLoading: false,
 
                     init() {
                         try {
                             this.initialStudentId = this.$el?.getAttribute('data-student-id') || '';
+                            this.excludeRevenueId = this.$el?.getAttribute('data-exclude-revenue-id') || '';
                             if (this.initialStudentId) {
                                 this.loadInitialStudent();
                             }
@@ -1140,7 +1293,8 @@
                         if (!this.initialStudentId) return;
                         try {
                             this.isLoading = true;
-                            const res = await fetch(`/students/search?id=${encodeURIComponent(this.initialStudentId)}`);
+                            const excludeParam = this.excludeRevenueId ? `&exclude_revenue_id=${encodeURIComponent(this.excludeRevenueId)}` : '';
+                            const res = await fetch(`/students/search?id=${encodeURIComponent(this.initialStudentId)}${excludeParam}`);
                             if (res && res.ok) {
                                 const data = await res.json();
                                 if (data) {

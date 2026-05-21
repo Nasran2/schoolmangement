@@ -105,14 +105,14 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 10%">Date</th>
-                <th style="width: 10%">Type</th>
-                <th style="width: 10%">Ref</th>
-                <th style="width: 18%">Student</th>
-                <th style="width: 16%">Category</th>
-                <th>Details</th>
-                <th style="width: 12%">Method</th>
-                <th style="width: 10%">Cheque Date</th>
+                <th style="width: 8%">Date</th>
+                <th style="width: 6%">Type</th>
+                <th style="width: 5%">Ref</th>
+                <th style="width: 8%">Student</th>
+                <th style="width: 8%">Category</th>
+                <th style="width: 35%">Details</th>
+                <th style="width: 6%">Method</th>
+                <th style="width: 6%">Cheque Date</th>
                 <th class="num" style="width: 12%">Amount</th>
             </tr>
         </thead>

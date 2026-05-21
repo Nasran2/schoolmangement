@@ -30,6 +30,8 @@ class GeneralSettingsController extends Controller
 
             'auto_email_teacher_payslip' => $settings->get('salary.auto_email_payslip', '0'),
 
+            'show_student_payment_start_quick_edit' => $settings->get('students.show_payment_start_quick_edit', '1'),
+
             'revenue_bill_autogenerate' => $settings->get('billing.revenue.autogenerate', '1'),
             'revenue_bill_prefix' => $settings->get('billing.revenue.prefix', 'BILL-'),
             'revenue_bill_start_number' => $settings->get('billing.revenue.start_number', '1000'),
@@ -54,6 +56,8 @@ class GeneralSettingsController extends Controller
             'receipt_paper_height' => ['required', 'string', 'max:20'],
 
             'auto_email_teacher_payslip' => ['nullable', 'in:0,1'],
+
+            'show_student_payment_start_quick_edit' => ['nullable', 'in:0,1'],
 
             'revenue_bill_autogenerate' => ['nullable', 'in:0,1'],
             'revenue_bill_prefix' => ['nullable', 'string', 'max:20'],
@@ -91,6 +95,8 @@ class GeneralSettingsController extends Controller
             'receipt.paper_height' => $validated['receipt_paper_height'],
 
             'salary.auto_email_payslip' => $validated['auto_email_teacher_payslip'] ?? '0',
+
+            'students.show_payment_start_quick_edit' => $validated['show_student_payment_start_quick_edit'] ?? '0',
 
             'billing.revenue.autogenerate' => $validated['revenue_bill_autogenerate'] ?? '0',
             'billing.revenue.prefix' => $validated['revenue_bill_prefix'] ?? '',

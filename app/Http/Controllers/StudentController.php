@@ -8,6 +8,7 @@ use App\Models\RevenueAdjustment;
 use App\Models\Student;
 use App\Models\StudentPromotionHistory;
 use App\Models\StudentMonthlyFeeOverride;
+use App\Models\StudentMonthlyFeeCredit;
 use App\Services\AuditLogger;
 use App\Services\Billing\MonthlyFeeAllocator;
 use Carbon\Carbon;
@@ -31,17 +32,73 @@ class StudentController extends Controller
             return null;
         }
 
-        // Prefer explicit formats used by the UI to avoid month/day swaps.
-        if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $raw)) {
-            $d = Carbon::createFromFormat('d-m-Y', $raw);
-            return $d ? $d->startOfDay() : null;
+        try {
+            // Prefer explicit formats used by the UI to avoid month/day swaps.
+            if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $raw)) {
+                $d = Carbon::createFromFormat('d-m-Y', $raw);
+                return $d ? $d->startOfDay() : null;
+            }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+                $d = Carbon::createFromFormat('Y-m-d', $raw);
+                return $d ? $d->startOfDay() : null;
+            }
+
+            return Carbon::parse($raw)->startOfDay();
+        } catch (\Throwable) {
+            return null;
         }
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
-            $d = Carbon::createFromFormat('Y-m-d', $raw);
-            return $d ? $d->startOfDay() : null;
+    }
+
+    private function normalizeDateInputs(Request $request, array $fields): void
+    {
+        $normalized = [];
+        foreach ($fields as $field) {
+            if (! $request->has($field)) {
+                continue;
+            }
+
+            $date = $this->parseFlexibleDate($request->input($field));
+            if ($date) {
+                $normalized[$field] = $date->toDateString();
+            }
         }
 
-        return Carbon::parse($raw)->startOfDay();
+        if (! empty($normalized)) {
+            $request->merge($normalized);
+        }
+    }
+
+    private function studentValidationMessages(): array
+    {
+        return [
+            'guardian_name.required_if' => 'Guardian Name is required because "Student has a Guardian (No Parents)" is checked.',
+            'guardian_relationship.required_if' => 'Relationship is required because "Student has a Guardian (No Parents)" is checked.',
+            'guardian_phone.required_if' => 'Guardian Phone is required because "Student has a Guardian (No Parents)" is checked.',
+            'father_name_with_initial.required_if' => 'Father Name with Initial is required when the student does not have a guardian.',
+        ];
+    }
+
+    private function studentValidationAttributes(): array
+    {
+        return [
+            'admission_number' => 'Admission Number',
+            'first_name' => 'First Name',
+            'name_with_initial' => 'Name With Initial',
+            'date_of_birth' => 'Date of Birth',
+            'parent_address' => 'Permanent Address',
+            'use_guardian' => 'Student has a Guardian',
+            'guardian_name' => 'Guardian Name',
+            'guardian_relationship' => 'Relationship',
+            'guardian_phone' => 'Guardian Phone',
+            'father_name_with_initial' => 'Father Name with Initial',
+            'class_room_id' => 'Class',
+            'fee_start_date' => 'Payment Start Date',
+            'monthly_fee' => 'Monthly Fee',
+            'long_term_medication' => 'Long-term Medication',
+            'learning_disabilities' => 'Learning Disabilities',
+            'has_siblings_in_college' => 'Has siblings in college',
+            'leaving_docs_issued' => 'Leaving Documents/Certificates issued',
+        ];
     }
 
     private function computeNetDue(Student $student): float
@@ -63,9 +120,73 @@ class StudentController extends Controller
         $paidMonthlyFeeNet = (float) $student->monthlyFeePaidAmount();
         $holdMonthlyFee = (float) $student->monthlyFeeHoldAmount();
         $waivedMonthlyFee = (float) $student->monthlyFeeWaiverAmount();
+        $creditMonthlyFee = (float) $student->monthlyFeeCreditAmount();
         $expectedDueNet = max(0.0, $expectedBase - $waivedMonthlyFee);
 
-        return max(0.0, $expectedDueNet - $paidMonthlyFeeNet - $holdMonthlyFee);
+        return max(0.0, $expectedDueNet - $paidMonthlyFeeNet - $holdMonthlyFee - $creditMonthlyFee);
+    }
+
+    private function computeExpectedDue(float $monthlyFee, ?Carbon $feeStartDate): float
+    {
+        if (! $feeStartDate) {
+            return 0.0;
+        }
+
+        $now = now();
+        if ($now->lt($feeStartDate)) {
+            return 0.0;
+        }
+
+        $months = $feeStartDate->diffInMonths($now) + 1;
+
+        return $monthlyFee * max(0, $months);
+    }
+
+    private function rebuildMonthlyAllocationsAndDue(Student $student): float
+    {
+        $student->refresh()->loadMissing('classRoom');
+
+        app(MonthlyFeeAllocator::class)->rebuildAllocationsForStudent($student);
+
+        $student->refresh()->loadMissing('classRoom');
+        $dueAmount = $student->computeMonthlyDue();
+
+        $student->forceFill([
+            'due_amount' => $dueAmount,
+        ])->save();
+
+        return $dueAmount;
+    }
+
+    private function applyMonthlyFeeToCurrentDueMonths(Student $student, float $monthlyFee, ?string $feeStartDate, ?int $userId = null): void
+    {
+        if ($monthlyFee <= 0 || ! $feeStartDate) {
+            return;
+        }
+
+        $start = Carbon::parse($feeStartDate)->startOfMonth();
+        $current = now()->startOfMonth();
+
+        if ($start->gt($current)) {
+            return;
+        }
+
+        $month = $start->copy();
+        while ($month->lte($current)) {
+            StudentMonthlyFeeOverride::query()->updateOrCreate(
+                [
+                    'student_id' => $student->id,
+                    'year' => (int) $month->format('Y'),
+                    'month' => (int) $month->format('n'),
+                ],
+                [
+                    'fee_amount' => $monthlyFee,
+                    'set_by' => $userId,
+                ]
+            );
+
+            $month->addMonthNoOverflow();
+        }
     }
 
     /**
@@ -102,7 +223,48 @@ class StudentController extends Controller
             $query->where('alumni', false);
         }
 
+        $paymentFilter = (string) $request->query('payment_filter', 'all');
+        if ($paymentFilter === 'never_paid') {
+            $query->whereDoesntHave('revenues', function ($sub) {
+                $sub->where('amount', '>', 0)
+                    ->where(function ($statusQuery) {
+                        $statusQuery->whereNull('payment_status')
+                            ->orWhere('payment_status', 'confirmed');
+                    });
+            });
+        }
+
         $students = (clone $query)->orderBy('name')->paginate(15)->withQueryString();
+
+        $recentPaymentsByStudent = collect();
+        $historicalCreditsByStudent = collect();
+        $creditsEnabled = Schema::hasTable('student_month_fee_credits');
+        $studentIds = $students->pluck('id')->filter()->values()->all();
+        if (!empty($studentIds)) {
+            $recentPaymentsByStudent = Revenue::query()
+                ->with('category:id,name')
+                ->whereIn('student_id', $studentIds)
+                ->where(function ($q) {
+                    $q->whereNull('payment_status')
+                        ->orWhere('payment_status', 'confirmed');
+                })
+                ->orderByDesc('paid_at')
+                ->orderByDesc('id')
+                ->get(['id', 'student_id', 'revenue_category_id', 'bill_no', 'paid_at', 'amount'])
+                ->groupBy('student_id')
+                ->map(fn ($rows) => $rows->take(5)->values());
+
+            if ($creditsEnabled) {
+                $historicalCreditsByStudent = StudentMonthlyFeeCredit::query()
+                    ->whereIn('student_id', $studentIds)
+                    ->orderByDesc('year')
+                    ->orderByDesc('month')
+                    ->orderByDesc('id')
+                    ->get(['id', 'student_id', 'year', 'month', 'amount', 'applied_at'])
+                    ->groupBy('student_id')
+                    ->map(fn ($rows) => $rows->take(5)->values());
+            }
+        }
 
         $totalStudents = (clone $query)->count();
         $activeStudents = (clone $query)->where('active', true)->count();
@@ -116,11 +278,15 @@ class StudentController extends Controller
 
         return view('students.index', [
             'students' => $students,
-            'filters' => $request->only(['q']) + ['status' => $status],
+            'filters' => $request->only(['q']) + ['status' => $status, 'payment_filter' => $paymentFilter],
             'totalStudents' => $totalStudents,
             'activeStudents' => $activeStudents,
             'studentsWithDueCount' => $studentsWithDueCount,
             'totalReceivableDue' => $totalReceivableDue,
+            'showPaymentStartQuickEdit' => app('settings')->get('students.show_payment_start_quick_edit', '1') === '1',
+            'recentPaymentsByStudent' => $recentPaymentsByStudent,
+            'historicalCreditsByStudent' => $historicalCreditsByStudent,
+            'monthlyFeeCreditsEnabled' => $creditsEnabled,
         ]);
     }
 
@@ -396,6 +562,8 @@ class StudentController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $this->normalizeDateInputs($request, ['date_of_birth', 'joining_date', 'fee_start_date']);
+
         $validated = $request->validate([
             'admission_number' => ['nullable', 'string', 'max:50', 'unique:students,admission_number'],
             'name' => ['required', 'string', 'max:120'],
@@ -449,7 +617,7 @@ class StudentController extends Controller
             'mother_emergency_number' => ['nullable', 'string', 'max:30'],
             'passport_photo_path' => ['nullable', 'string', 'max:255'],
             'hear_about_us' => ['nullable', 'string', 'in:Facebook,Friends,TV,Ads,Other'],
-        ]);
+        ], $this->studentValidationMessages(), $this->studentValidationAttributes());
 
         $yearStart = null;
         $selectedAcademicYear = $request->session()->get(
@@ -894,11 +1062,14 @@ class StudentController extends Controller
                 ->sum('amount');
         }
 
+        $creditMonthlyFee = (float) $student->monthlyFeeCreditAmount();
+
         $summary = [
             'expectedDue' => $expectedDue,
             'paidMonthlyFee' => $paidMonthlyFee,
             'holdMonthlyFee' => $holdMonthlyFee,
-            'netDue' => max(0.0, $expectedDue - $paidMonthlyFee - $holdMonthlyFee),
+            'creditMonthlyFee' => $creditMonthlyFee,
+            'netDue' => max(0.0, $expectedDue - $paidMonthlyFee - $holdMonthlyFee - $creditMonthlyFee),
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('students.statement', [
@@ -942,6 +1113,15 @@ class StudentController extends Controller
      */
     public function edit(Student $student): View
     {
+        $creditsEnabled = Schema::hasTable('student_month_fee_credits');
+        if ($creditsEnabled) {
+            $student->load(['monthlyFeeCredits' => function ($q) {
+                $q->orderBy('year')->orderBy('month')->orderBy('id');
+            }]);
+        } else {
+            $student->setRelation('monthlyFeeCredits', collect());
+        }
+
         return view('students.edit', [
             'student' => $student,
             'classRooms' => ClassRoom::query()
@@ -949,6 +1129,7 @@ class StudentController extends Controller
                 ->orderBy('level')
                 ->orderBy('name')
                 ->get(),
+            'monthlyFeeCreditsEnabled' => $creditsEnabled,
         ]);
     }
 
@@ -957,6 +1138,8 @@ class StudentController extends Controller
      */
     public function update(Request $request, Student $student): RedirectResponse
     {
+        $this->normalizeDateInputs($request, ['date_of_birth', 'joining_date', 'fee_start_date']);
+
         $validated = $request->validate([
             'admission_number' => ['nullable', 'string', 'max:50', 'unique:students,admission_number,'.$student->id],
             'name' => ['required', 'string', 'max:120'],
@@ -1012,10 +1195,17 @@ class StudentController extends Controller
             'passport_photo_path' => ['nullable', 'string', 'max:255'],
             'hear_about_us' => ['nullable', 'string', 'in:Facebook,Friends,TV,Ads,Other'],
             'leaving_docs_issued' => ['nullable', 'in:0,1'],
-        ]);
+        ], $this->studentValidationMessages(), $this->studentValidationAttributes());
+
+        $student->loadMissing('classRoom');
+        $fromClassRoom = $student->classRoom;
+        $fromClassRoomId = $student->class_room_id;
+        $oldMonthlyFee = (float) ($student->monthly_fee ?? 0);
 
         $classRoom = ClassRoom::query()->find($validated['class_room_id']);
+        $classChanged = (int) $fromClassRoomId !== (int) $classRoom?->id;
         $monthlyFee = (float) ($validated['monthly_fee'] ?? ($classRoom?->monthly_fee ?? 0));
+        $monthlyFeeChanged = abs($oldMonthlyFee - $monthlyFee) > 0.001;
 
         $feeStartDate = $this->parseFlexibleDate($request->input('fee_start_date'));
         $feeStartDateToStore = $request->filled('fee_start_date')
@@ -1035,67 +1225,209 @@ class StudentController extends Controller
             $dueAmount = $monthlyFee * max(0, $months);
         }
 
-        $student->update([
-            'admission_number' => $validated['admission_number'],
-            'name' => $validated['name'],
-            'first_name' => $validated['first_name'] ?? $student->first_name,
-            'other_names' => $validated['other_names'] ?? $student->other_names,
-            'name_with_initial' => $validated['name_with_initial'] ?? $student->name_with_initial,
-            'address' => $validated['address'] ?? null,
-            'parent_address' => $validated['parent_address'] ?? $student->parent_address,
-            'phone' => $validated['phone'] ?? null,
-            'whatsapp_number' => $validated['whatsapp_number'] ?? null,
-            'gender' => $validated['gender'] ?? $student->gender,
-            'date_of_birth' => $validated['date_of_birth'] ?? $student->date_of_birth,
-            'use_guardian' => $validated['use_guardian'] ?? false,
-            'guardian_name' => $validated['guardian_name'] ?? null,
-            'guardian_relationship' => $validated['guardian_relationship'] ?? null,
-            'guardian_phone' => $validated['guardian_phone'] ?? null,
-            'joining_date' => $validated['joining_date'] ?? null,
-            'fee_start_date' => $feeStartDateToStore,
-            'year' => isset($validated['joining_date']) 
+        DB::transaction(function () use ($student, $validated, $classRoom, $monthlyFee, $dueAmount, $feeStartDateToStore, $classChanged, $monthlyFeeChanged, $fromClassRoom, $fromClassRoomId, $request) {
+            $academicYear = isset($validated['joining_date'])
                 ? (\Carbon\Carbon::parse($validated['joining_date'])->year . '-' . (\Carbon\Carbon::parse($validated['joining_date'])->year + 1))
-                : $student->year,
-            'class_room_id' => $validated['class_room_id'],
-            'class' => $classRoom?->name,
-            'religion' => $validated['religion'] ?? $student->religion,
-            'nationality' => $validated['nationality'] ?? ($student->nationality ?: 'Sri Lankan'),
-            'desired_class' => $validated['desired_class'] ?? $student->desired_class,
-            'medical_history' => $validated['medical_history'] ?? $student->medical_history,
-            'long_term_medication' => (bool) ($validated['long_term_medication'] ?? $student->long_term_medication),
-            'learning_disabilities' => (bool) ($validated['learning_disabilities'] ?? $student->learning_disabilities),
-            'previous_school' => $validated['previous_school'] ?? $student->previous_school,
-            'previous_grade' => $validated['previous_grade'] ?? $student->previous_grade,
-            'siblings' => $validated['siblings'] ?? $student->siblings,
-            'has_siblings_in_college' => (bool) ($validated['has_siblings_in_college'] ?? $student->has_siblings_in_college),
-            'father_name_with_initial' => $validated['father_name_with_initial'] ?? $student->father_name_with_initial,
-            'father_nic_passport' => $validated['father_nic_passport'] ?? $student->father_nic_passport,
-            'father_religion' => $validated['father_religion'] ?? $student->father_religion,
-            'father_nationality' => $validated['father_nationality'] ?? $student->father_nationality,
-            'father_occupation' => $validated['father_occupation'] ?? $student->father_occupation,
-            'father_phone' => $validated['father_phone'] ?? $student->father_phone,
-            'father_whatsapp' => $validated['father_whatsapp'] ?? $student->father_whatsapp,
-            'father_office_phone' => $validated['father_office_phone'] ?? $student->father_office_phone,
-            'father_emergency_number' => $validated['father_emergency_number'] ?? $student->father_emergency_number,
-            'mother_name_with_initial' => $validated['mother_name_with_initial'] ?? $student->mother_name_with_initial,
-            'mother_nic_passport' => $validated['mother_nic_passport'] ?? $student->mother_nic_passport,
-            'mother_religion' => $validated['mother_religion'] ?? $student->mother_religion,
-            'mother_nationality' => $validated['mother_nationality'] ?? $student->mother_nationality,
-            'mother_occupation' => $validated['mother_occupation'] ?? $student->mother_occupation,
-            'mother_phone' => $validated['mother_phone'] ?? $student->mother_phone,
-            'mother_whatsapp' => $validated['mother_whatsapp'] ?? $student->mother_whatsapp,
-            'mother_office_phone' => $validated['mother_office_phone'] ?? $student->mother_office_phone,
-            'mother_emergency_number' => $validated['mother_emergency_number'] ?? $student->mother_emergency_number,
-            'passport_photo_path' => $validated['passport_photo_path'] ?? $student->passport_photo_path,
-            'admission_agree' => (bool) ($validated['admission_agree'] ?? $student->admission_agree),
-            'hear_about_us' => $validated['hear_about_us'] ?? $student->hear_about_us,
-            'leaving_docs_issued' => (bool) ($validated['leaving_docs_issued'] ?? $student->leaving_docs_issued),
-            'monthly_fee' => $monthlyFee,
-            'due_amount' => $dueAmount,
-            'active' => ($validated['active'] ?? '1') === '1',
-        ]);
+                : $student->year;
+
+            $student->update([
+                'admission_number' => $validated['admission_number'],
+                'name' => $validated['name'],
+                'first_name' => $validated['first_name'] ?? $student->first_name,
+                'other_names' => $validated['other_names'] ?? $student->other_names,
+                'name_with_initial' => $validated['name_with_initial'] ?? $student->name_with_initial,
+                'address' => $validated['address'] ?? null,
+                'parent_address' => $validated['parent_address'] ?? $student->parent_address,
+                'phone' => $validated['phone'] ?? null,
+                'whatsapp_number' => $validated['whatsapp_number'] ?? null,
+                'gender' => $validated['gender'] ?? $student->gender,
+                'date_of_birth' => $validated['date_of_birth'] ?? $student->date_of_birth,
+                'use_guardian' => $validated['use_guardian'] ?? false,
+                'guardian_name' => $validated['guardian_name'] ?? null,
+                'guardian_relationship' => $validated['guardian_relationship'] ?? null,
+                'guardian_phone' => $validated['guardian_phone'] ?? null,
+                'joining_date' => $validated['joining_date'] ?? null,
+                'fee_start_date' => $feeStartDateToStore,
+                'year' => $academicYear,
+                'class_room_id' => $classRoom?->id,
+                'class' => $classRoom?->name,
+                'religion' => $validated['religion'] ?? $student->religion,
+                'nationality' => $validated['nationality'] ?? ($student->nationality ?: 'Sri Lankan'),
+                'desired_class' => $validated['desired_class'] ?? $student->desired_class,
+                'medical_history' => $validated['medical_history'] ?? $student->medical_history,
+                'long_term_medication' => (bool) ($validated['long_term_medication'] ?? $student->long_term_medication),
+                'learning_disabilities' => (bool) ($validated['learning_disabilities'] ?? $student->learning_disabilities),
+                'previous_school' => $validated['previous_school'] ?? $student->previous_school,
+                'previous_grade' => $validated['previous_grade'] ?? $student->previous_grade,
+                'siblings' => $validated['siblings'] ?? $student->siblings,
+                'has_siblings_in_college' => (bool) ($validated['has_siblings_in_college'] ?? $student->has_siblings_in_college),
+                'father_name_with_initial' => $validated['father_name_with_initial'] ?? $student->father_name_with_initial,
+                'father_nic_passport' => $validated['father_nic_passport'] ?? $student->father_nic_passport,
+                'father_religion' => $validated['father_religion'] ?? $student->father_religion,
+                'father_nationality' => $validated['father_nationality'] ?? $student->father_nationality,
+                'father_occupation' => $validated['father_occupation'] ?? $student->father_occupation,
+                'father_phone' => $validated['father_phone'] ?? $student->father_phone,
+                'father_whatsapp' => $validated['father_whatsapp'] ?? $student->father_whatsapp,
+                'father_office_phone' => $validated['father_office_phone'] ?? $student->father_office_phone,
+                'father_emergency_number' => $validated['father_emergency_number'] ?? $student->father_emergency_number,
+                'mother_name_with_initial' => $validated['mother_name_with_initial'] ?? $student->mother_name_with_initial,
+                'mother_nic_passport' => $validated['mother_nic_passport'] ?? $student->mother_nic_passport,
+                'mother_religion' => $validated['mother_religion'] ?? $student->mother_religion,
+                'mother_nationality' => $validated['mother_nationality'] ?? $student->mother_nationality,
+                'mother_occupation' => $validated['mother_occupation'] ?? $student->mother_occupation,
+                'mother_phone' => $validated['mother_phone'] ?? $student->mother_phone,
+                'mother_whatsapp' => $validated['mother_whatsapp'] ?? $student->mother_whatsapp,
+                'mother_office_phone' => $validated['mother_office_phone'] ?? $student->mother_office_phone,
+                'mother_emergency_number' => $validated['mother_emergency_number'] ?? $student->mother_emergency_number,
+                'passport_photo_path' => $validated['passport_photo_path'] ?? $student->passport_photo_path,
+                'admission_agree' => (bool) ($validated['admission_agree'] ?? $student->admission_agree),
+                'hear_about_us' => $validated['hear_about_us'] ?? $student->hear_about_us,
+                'leaving_docs_issued' => (bool) ($validated['leaving_docs_issued'] ?? $student->leaving_docs_issued),
+                'monthly_fee' => $monthlyFee,
+                'due_amount' => $dueAmount,
+                'active' => ($validated['active'] ?? '1') === '1',
+            ]);
+
+            if ($classChanged) {
+                $fromLevel = $fromClassRoom?->level;
+                $toLevel = $classRoom?->level;
+                $action = ($fromLevel !== null && $toLevel !== null && $toLevel < $fromLevel) ? 'demote' : 'promote';
+
+                StudentPromotionHistory::create([
+                    'student_id' => $student->id,
+                    'from_class_room_id' => $fromClassRoomId,
+                    'to_class_room_id' => $classRoom?->id,
+                    'action' => $action,
+                    'academic_year' => session('academic_year') ?? $academicYear,
+                    'performed_by' => $request->user()?->id,
+                    'notes' => 'Grade changed from student edit.',
+                ]);
+
+            }
+
+            if ($classChanged || $monthlyFeeChanged) {
+                $this->applyMonthlyFeeToCurrentDueMonths(
+                    $student,
+                    $monthlyFee,
+                    $feeStartDateToStore,
+                    $request->user()?->id
+                );
+            }
+
+            $this->rebuildMonthlyAllocationsAndDue($student);
+        });
 
         return back()->with('status', 'Student updated.');
+    }
+
+    public function updateFeeStartDate(Request $request, Student $student): RedirectResponse
+    {
+        $request->validate([
+            'fee_start_date' => ['required', 'date'],
+        ]);
+
+        $feeStartDate = $this->parseFlexibleDate($request->input('fee_start_date'));
+        if (! $feeStartDate) {
+            return back()->withErrors(['fee_start_date' => 'Please enter a valid payment start date.']);
+        }
+
+        $student->loadMissing('classRoom');
+        $monthlyFee = (float) ($student->monthly_fee ?? $student->classRoom?->monthly_fee ?? 0);
+        $oldFeeStartDate = $student->fee_start_date?->toDateString();
+
+        $dueAmount = DB::transaction(function () use ($student, $feeStartDate) {
+            $student->update([
+                'fee_start_date' => $feeStartDate->toDateString(),
+            ]);
+
+            return $this->rebuildMonthlyAllocationsAndDue($student);
+        });
+
+        app(AuditLogger::class)->log(
+            'students.fee_start_date_updated',
+            $student,
+            'Payment start date updated from student list.',
+            [
+                'old_fee_start_date' => $oldFeeStartDate,
+                'new_fee_start_date' => $feeStartDate->toDateString(),
+                'monthly_fee' => $monthlyFee,
+                'due_amount' => $dueAmount,
+            ]
+        );
+
+        return back()->with('status', 'Payment start date updated for '.$student->name.'.');
+    }
+
+    public function storeMonthlyFeeCredit(Request $request, Student $student): RedirectResponse
+    {
+        if (! Schema::hasTable('student_month_fee_credits')) {
+            return back()->withErrors(['credit_amount' => 'Historical credits table is not installed. Please run migrations first.']);
+        }
+
+        $validated = $request->validate([
+            'fee_start_date' => ['nullable', 'date'],
+            'credit_month' => ['required', 'integer', 'min:1', 'max:12'],
+            'credit_year' => ['required', 'integer', 'min:2000'],
+            'credit_amount' => ['required', 'numeric', 'min:0.01'],
+            'credit_applied_at' => ['nullable', 'date'],
+            'credit_note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $feeStartDate = $this->parseFlexibleDate($validated['fee_start_date'] ?? null);
+        $feeStartDateValue = $feeStartDate?->toDateString();
+        $needsRebuild = $feeStartDateValue !== null
+            && $feeStartDateValue !== optional($student->fee_start_date)->toDateString();
+
+        $appliedAt = $this->parseFlexibleDate($validated['credit_applied_at'] ?? null);
+
+        DB::transaction(function () use ($student, $feeStartDateValue, $validated, $appliedAt, $request) {
+            if ($feeStartDateValue !== null) {
+                $student->update([
+                    'fee_start_date' => $feeStartDateValue,
+                ]);
+            }
+
+            StudentMonthlyFeeCredit::create([
+                'student_id' => $student->id,
+                'month' => (int) $validated['credit_month'],
+                'year' => (int) $validated['credit_year'],
+                'amount' => (float) $validated['credit_amount'],
+                'applied_at' => $appliedAt?->toDateString() ?? now()->toDateString(),
+                'note' => $validated['credit_note'] ?? null,
+                'created_by' => $request->user()?->id,
+            ]);
+        });
+
+        if ($needsRebuild) {
+            $this->rebuildMonthlyAllocationsAndDue($student);
+        } else {
+            $student->refresh()->loadMissing('classRoom');
+            $student->forceFill([
+                'due_amount' => $student->computeMonthlyDue(),
+            ])->save();
+        }
+
+        return back()->with('status', 'Historical monthly fee credit added.');
+    }
+
+    public function deleteMonthlyFeeCredit(Student $student, StudentMonthlyFeeCredit $credit): RedirectResponse
+    {
+        if (! Schema::hasTable('student_month_fee_credits')) {
+            return back()->withErrors(['credit_amount' => 'Historical credits table is not installed. Please run migrations first.']);
+        }
+
+        if ((int) $credit->student_id !== (int) $student->id) {
+            abort(404);
+        }
+
+        $credit->delete();
+
+        $student->refresh()->loadMissing('classRoom');
+        $student->forceFill([
+            'due_amount' => $student->computeMonthlyDue(),
+        ])->save();
+
+        return back()->with('status', 'Historical monthly fee credit removed.');
     }
 
     /**
@@ -1121,7 +1453,19 @@ class StudentController extends Controller
                 return response()->json(['results' => []]);
             }
 
-            $ledger = $allocator->buildLedger($s, 12);
+            $excludeRevenueIds = [];
+            $excludeRevenueId = (int) $request->query('exclude_revenue_id', 0);
+            if ($excludeRevenueId > 0) {
+                $belongsToStudent = Revenue::query()
+                    ->where('id', $excludeRevenueId)
+                    ->where('student_id', $s->id)
+                    ->exists();
+                if ($belongsToStudent) {
+                    $excludeRevenueIds[] = $excludeRevenueId;
+                }
+            }
+
+            $ledger = $allocator->buildLedger($s, 12, [], $excludeRevenueIds);
             $dueMonths = [];
 
             $currentMonthStart = now()->startOfMonth();
@@ -1143,6 +1487,8 @@ class StudentController extends Controller
                 $dueMonths[] = [
                     'label' => $label,
                     'amount' => round($remaining, 2),
+                    'due_amount' => round((float) ($m['due'] ?? $remaining), 2),
+                    'paid_amount' => round((float) ($m['paid'] ?? 0), 2),
                     'is_partial' => $isPartial,
                     'month_key' => $monthStart->format('Y-m'),
                 ];

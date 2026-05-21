@@ -9,11 +9,40 @@
     $isTeachers = request()->routeIs('teachers.*') || request()->routeIs('teacher-salary-payments.*');
     $isReports = request()->routeIs('reports.*');
     $isClassrooms = request()->routeIs('classrooms.*');
-    $isSettings = request()->routeIs('settings.*') || request()->routeIs('rbac.*');
+    $isSettings = request()->routeIs('settings.*') || request()->routeIs('rbac.*') || request()->routeIs('users.*');
     $isDeveloper = request()->routeIs('developer.*');
     $isDeveloperStudents = request()->routeIs('developer.students');
     $isDeveloperTeachers = request()->routeIs('developer.teachers');
     $isDeveloperUsers = request()->routeIs('developer.users');
+
+    // Use direct permission checks to bypass Gate::before for menu visibility
+    $canViewDashboard = $user?->hasPermissionTo('dashboard.view') ?? false;
+    $canManageRevenue = $user?->hasPermissionTo('revenue.manage') ?? false;
+    $canAddRevenue = $user?->hasPermissionTo('revenue.add') ?? false;
+    $canManageRevenueCategories = $user?->hasPermissionTo('revenue.categories.manage') ?? false;
+    $canManageExpense = $user?->hasPermissionTo('expense.manage') ?? false;
+    $canAddExpense = $user?->hasPermissionTo('expense.add') ?? false;
+    $canManageExpenseCategories = $user?->hasPermissionTo('expense.categories.manage') ?? false;
+    $canManageStudents = $user?->hasPermissionTo('students.manage') ?? false;
+    $canAddStudents = $user?->hasPermissionTo('students.add') ?? false;
+    $canBulkUploadStudents = $user?->hasPermissionTo('students.bulk_upload') ?? false;
+    $canManageClassrooms = ($user?->hasPermissionTo('classrooms.view') ?? false) || ($user?->hasPermissionTo('classrooms.create') ?? false) || ($user?->hasPermissionTo('classrooms.update') ?? false) || ($user?->hasPermissionTo('classrooms.delete') ?? false);
+    $canManageTeachers = $user?->hasPermissionTo('teachers.manage') ?? false;
+    $canAddTeachers = $user?->hasPermissionTo('teachers.add') ?? false;
+    $canViewReports = $user?->hasPermissionTo('reports.view') ?? false;
+    $canManageUsers = $user?->hasPermissionTo('users.manage') ?? false;
+    $canManageRoles = $user?->hasPermissionTo('roles.manage') ?? false;
+    $canViewActivityLogs = $user?->hasPermissionTo('audit_logs.view') ?? false;
+    $canViewSettingsGeneral = $user?->hasPermissionTo('settings.general.manage') ?? false;
+    $canViewSettingsStatus = $user?->hasPermissionTo('settings.status.view') ?? false;
+    $canManageSettingsPromotion = $user?->hasPermissionTo('settings.promotion.manage') ?? false;
+    $canManageSettingsPrinter = $user?->hasPermissionTo('settings.printer.manage') ?? false;
+    $canManageSettingsSms = $user?->hasPermissionTo('settings.sms.manage') ?? false;
+    $canManageSettingsEmail = $user?->hasPermissionTo('settings.email.manage') ?? false;
+    $canManageSettingsSalaryComponents = $user?->hasPermissionTo('settings.salary_components.manage') ?? false;
+    $canManageSettingsBackups = $user?->hasPermissionTo('settings.backups.manage') ?? false;
+    $canManageSettingsOpeningBalance = $user?->hasPermissionTo('settings.opening_balance.manage') ?? false;
+    $canViewSettings = ($user?->hasPermissionTo('settings.manage') ?? false) || $canViewSettingsGeneral || $canViewSettingsStatus || $canManageSettingsPromotion || $canManageSettingsPrinter || $canManageSettingsSms || $canManageSettingsEmail || $canManageSettingsSalaryComponents || $canManageSettingsBackups || $canManageSettingsOpeningBalance;
 @endphp
 
 <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 hidden lg:flex lg:flex-col">
@@ -35,18 +64,18 @@
     </div>
 
     <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ open: { revenue: @js($isRevenue), expense: @js($isExpense), students: @js($isStudents), teachers: @js($isTeachers), reports: @js($isReports), classrooms: @js($isClassrooms), settings: @js($isSettings), seminars: false, extraClasses: false } }">
-        @can('dashboard.view')
+        @if($canViewDashboard)
             <a href="{{ route('dashboard') }}"
                class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDashboard ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>
                 <span>Dashboard</span>
             </a>
-        @endcan
+        @endif
 
-        @can('revenue.manage')
+        @if($canManageRevenue)
             <a href="{{ route('opening-balance.create') }}"
                class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('opening-balance.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg>
                 <span>Opening Balance</span>
             </a>
         @endcan
@@ -65,7 +94,7 @@
             </div>
         @endif
 
-        @canany(['revenue.add','revenue.manage','revenue.categories.manage'])
+        @if($canAddRevenue || $canManageRevenue || $canManageRevenueCategories)
             <div class="mt-3">
                 <button type="button" @click="open.revenue = !open.revenue" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isRevenue ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -75,24 +104,24 @@
                     <svg class="h-4 w-4 transition" :class="open.revenue ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="open.revenue" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @can('revenue.add')
+                          @if($canAddRevenue)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.create') && !request()->has('quick') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.create') }}">Add</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ (request()->routeIs('revenue.items.create') && request()->get('quick')==='monthly') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'text-indigo-700 hover:bg-indigo-50' }}" href="{{ route('revenue.items.create', ['quick' => 'monthly']) }}">Quick Monthly Payment</a>
-                    @endcan
-                    @can('revenue.manage')
+                          @endif
+                          @if($canManageRevenue)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.index') }}">Manage</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.cheques.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.cheques.index') }}">Cheque Payments</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.reminders.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.reminders.index') }}">Reminders</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.adjustments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.adjustments.index') }}">Refund / Waiver</a>
-                    @endcan
-                    @can('revenue.categories.manage')
+                          @endif
+                          @if($canManageRevenueCategories)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.categories.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.categories.index') }}">Categories</a>
-                    @endcan
+                          @endif
                 </div>
             </div>
-        @endcanany
+        @endif
 
-        @canany(['expense.add','expense.manage','expense.categories.manage'])
+        @if($canAddExpense || $canManageExpense || $canManageExpenseCategories)
             <div class="mt-2">
                 <button type="button" @click="open.expense = !open.expense" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isExpense ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -102,15 +131,15 @@
                     <svg class="h-4 w-4 transition" :class="open.expense ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="open.expense" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @can('expense.add')
+                    @if($canAddExpense)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('expense.items.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('expense.items.create') }}">Add</a>
-                    @endcan
-                    @can('expense.manage')
+                    @endif
+                    @if($canManageExpense)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('expense.items.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('expense.items.index') }}">Manage</a>
-                    @endcan
-                    @can('expense.categories.manage')
+                    @endif
+                    @if($canManageExpenseCategories)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('expense.categories.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('expense.categories.index') }}">Categories</a>
-                    @endcan
+                    @endif
                     @can('reports.view')
                         @can('reports.financial.view')
                             <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.financial') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.financial') }}">Revenue vs Expense</a>
@@ -118,9 +147,9 @@
                     @endcan
                 </div>
             </div>
-        @endcanany
+        @endif
 
-        @canany(['students.add','students.manage'])
+        @if($canAddStudents || $canManageStudents || $canBulkUploadStudents)
             <div class="mt-2">
                 <button type="button" @click="open.students = !open.students" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isStudents ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -142,7 +171,7 @@
                     @endcan
                 </div>
             </div>
-        @endcanany
+        @endif
 
         @canany(['classrooms.view','classrooms.create','classrooms.update','classrooms.delete'])
             <div class="mt-2">
@@ -164,7 +193,7 @@
             </div>
         @endcanany
 
-        @canany(['teachers.add','teachers.manage'])
+        @if($canAddTeachers || $canManageTeachers)
             <div class="mt-2">
                 <button type="button" @click="open.teachers = !open.teachers" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -192,7 +221,7 @@
                     <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('visiting-teachers.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('visiting-teachers.index') }}">Visiting Teachers</a>
                 </div>
             </div>
-        @endcanany
+        @endif
 
         <!-- Seminars -->
         <div class="mt-2">
@@ -226,7 +255,7 @@
             </div>
         </div>
 
-        @can('reports.view')
+        @if($canViewReports)
             <div class="mt-2">
                 <button type="button" @click="open.reports = !open.reports" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isReports ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -314,19 +343,7 @@
             </div>
         @endcan
 
-        @canany([
-            'settings.manage',
-            'settings.general.manage',
-            'settings.status.view',
-            'settings.promotion.manage',
-            'settings.printer.manage',
-            'settings.sms.manage',
-            'settings.email.manage',
-            'settings.salary_components.manage',
-            'settings.backups.manage',
-            'settings.opening_balance.manage',
-            'roles.manage',
-        ])
+        @if($canViewSettings || $canManageRoles)
             <div class="mt-2">
                 <button type="button" @click="open.settings = !open.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isSettings ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -336,48 +353,52 @@
                     <svg class="h-4 w-4 transition" :class="open.settings ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="open.settings" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @canany(['settings.manage','settings.general.manage'])
+                    @if($canViewSettingsGeneral)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.general.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.general.edit') }}">School General</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.status.view'])
+                    @endif
+                    @if($canViewSettingsStatus)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.status.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.status.index') }}">System Status</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.promotion.manage'])
+                    @endif
+                    @if($canManageSettingsPromotion)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.promotion.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.promotion.edit') }}">Promotion</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.printer.manage'])
+                    @endif
+                    @if($canManageSettingsPrinter)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.printer.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.printer.edit') }}">Printer</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.sms.manage'])
+                    @endif
+                    @if($canManageSettingsSms)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.sms.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.sms.edit') }}">SMS</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.email.manage'])
+                    @endif
+                    @if($canManageSettingsEmail)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.email.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.email.edit') }}">Email (SMTP)</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.salary_components.manage'])
+                    @endif
+                    @if($canManageSettingsSalaryComponents)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.salary-components.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.salary-components.edit') }}">Salary Components</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.backups.manage'])
+                    @endif
+                    @if($canManageSettingsBackups)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.backups.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.backups.index') }}">Backups</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.opening_balance.manage'])
+                    @endif
+                    @if($canManageSettingsOpeningBalance)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.opening-balance.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.opening-balance.edit') }}">Opening Balance</a>
-                    @endcanany
-                    @can('roles.manage')
+                    @endif
+                    @if($canManageUsers)
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('users.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('users.index') }}">Users</a>
+                    @endif
+
+                    @if($canManageRoles)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('rbac.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('rbac.roles.index') }}">Roles & Permissions</a>
-                    @endcan
+                    @endif
                 </div>
             </div>
-        @endcanany
+        @endif
 
-        @can('audit_logs.view')
+        @if($canViewActivityLogs)
             <div class="mt-2">
                 <a href="{{ route('audit_logs.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('audit_logs.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
                     <span>Activity Logs</span>
                 </a>
             </div>
-        @endcan
+        @endif
 
         <div class="mt-4 pt-4 border-t border-gray-200">
             <form method="POST" action="{{ route('logout') }}">
@@ -413,29 +434,15 @@
                 </button>
             </div>
     <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ menus: { revenue: @js($isRevenue), expense: @js($isExpense), students: @js($isStudents), teachers: @js($isTeachers), reports: @js($isReports), classrooms: @js($isClassrooms), settings: @js($isSettings), seminars: false, extraClasses: false } }">
-        @can('dashboard.view')
+        @if($canViewDashboard)
             <a href="{{ route('dashboard') }}"
                class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDashboard ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>
                 <span>Dashboard</span>
             </a>
-        @endcan
-
-        @if(auth()->user()?->hasRole('Developer'))
-            <a href="{{ route('developer.dashboard') }}"
-               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDeveloper ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 3.75h4.5v3h-4.5z"/><path d="M4.5 9.75h15v10.5h-15z"/><path d="M9 14.25h6"/><path d="M12 11.25v6"/></svg>
-                <span>Developer Console</span>
-            </a>
-
-            <div class="mt-1 space-y-1 pl-8">
-                <a href="{{ route('developer.students') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperStudents ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Students</a>
-                <a href="{{ route('developer.teachers') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Teachers</a>
-                <a href="{{ route('developer.users') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperUsers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Users</a>
-            </div>
         @endif
 
-        @canany(['revenue.add','revenue.manage','revenue.categories.manage'])
+        @if($canAddRevenue || $canManageRevenue || $canManageRevenueCategories)
             <div class="mt-3">
                 <button type="button" @click="menus.revenue = !menus.revenue" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isRevenue ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -445,32 +452,33 @@
                     <svg class="h-4 w-4 transition" :class="menus.revenue ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="menus.revenue" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @can('revenue.add')
+                    @if($canAddRevenue)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.create') && !request()->has('quick') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.create') }}">Add</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ (request()->routeIs('revenue.items.create') && request()->get('quick')==='monthly') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'text-indigo-700 hover:bg-indigo-50' }}" href="{{ route('revenue.items.create', ['quick' => 'monthly']) }}">Quick Monthly Payment</a>
-                    @endcan
-                    @can('revenue.manage')
+                    @endif
+                    @if($canManageRevenue)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.index') }}">Manage</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.cheques.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.cheques.index') }}">Cheque Payments</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.reminders.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.reminders.index') }}">Reminders</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.adjustments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.adjustments.index') }}">Refund / Waiver</a>
-                    @endcan
-                    @can('revenue.categories.manage')
+                    @endif
+                    @if($canManageRevenueCategories)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.categories.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.categories.index') }}">Categories</a>
-                    @endcan
+                    @endif
                 </div>
             </div>
-        @endcanany
+        @endif
 
-        @can('audit_logs.view')
+        @if($canViewActivityLogs)
             <div class="mt-2">
                 <a href="{{ route('audit_logs.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('audit_logs.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
                     <span>Activity Logs</span>
                 </a>
             </div>
-        @endcan
+        @endif
 
-        @canany(['expense.add','expense.manage','expense.categories.manage'])
+        @if($canAddExpense || $canManageExpense || $canManageExpenseCategories)
             <div class="mt-2">
                 <button type="button" @click="menus.expense = !menus.expense" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isExpense ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -480,15 +488,15 @@
                     <svg class="h-4 w-4 transition" :class="menus.expense ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="menus.expense" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @can('expense.add')
+                    @if($canAddExpense)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('expense.items.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('expense.items.create') }}">Add</a>
-                    @endcan
-                    @can('expense.manage')
+                    @endif
+                    @if($canManageExpense)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('expense.items.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('expense.items.index') }}">Manage</a>
-                    @endcan
-                    @can('expense.categories.manage')
+                    @endif
+                    @if($canManageExpenseCategories)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('expense.categories.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('expense.categories.index') }}">Categories</a>
-                    @endcan
+                    @endif
                     @can('reports.view')
                         @can('reports.financial.view')
                             <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('reports.financial') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('reports.financial') }}">Revenue vs Expense</a>
@@ -496,9 +504,9 @@
                     @endcan
                 </div>
             </div>
-        @endcanany
+        @endif
 
-        @canany(['students.add','students.manage'])
+        @if($canAddStudents || $canManageStudents || $canBulkUploadStudents)
             <div class="mt-2">
                 <button type="button" @click="menus.students = !menus.students" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isStudents ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -519,9 +527,9 @@
                     @endcan
                 </div>
             </div>
-        @endcanany
+        @endif
 
-        @canany(['classrooms.view','classrooms.create','classrooms.update','classrooms.delete'])
+        @if($canManageClassrooms)
             <div class="mt-2">
                 <button type="button" @click="menus.classrooms = !menus.classrooms" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isClassrooms ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -539,9 +547,9 @@
                     @endcan
                 </div>
             </div>
-        @endcanany
+        @endif
 
-        @canany(['teachers.add','teachers.manage'])
+        @if($canAddTeachers || $canManageTeachers)
             <div class="mt-2">
                 <button type="button" @click="menus.teachers = !menus.teachers" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -566,7 +574,7 @@
                     <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('visiting-teachers.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('visiting-teachers.index') }}">Visiting Teachers</a>
                 </div>
             </div>
-        @endcanany
+        @endif
 
         <!-- Seminars -->
         <div class="mt-2">
@@ -600,7 +608,7 @@
             </div>
         </div>
 
-        @can('reports.view')
+        @if($canViewReports)
             <div class="mt-2">
                 <button type="button" @click="menus.reports = !menus.reports" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isReports ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -686,21 +694,9 @@
                     @endcan
                 </div>
             </div>
-        @endcan
+        @endif
 
-        @canany([
-            'settings.manage',
-            'settings.general.manage',
-            'settings.status.view',
-            'settings.promotion.manage',
-            'settings.printer.manage',
-            'settings.sms.manage',
-            'settings.email.manage',
-            'settings.salary_components.manage',
-            'settings.backups.manage',
-            'settings.opening_balance.manage',
-            'roles.manage',
-        ])
+        @if($canViewSettings || $canManageRoles)
             <div class="mt-2">
                 <button type="button" @click="menus.settings = !menus.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isSettings ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -710,39 +706,43 @@
                     <svg class="h-4 w-4 transition" :class="menus.settings ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
                 </button>
                 <div x-show="menus.settings" class="mt-1 space-y-1 pl-8" x-cloak>
-                    @canany(['settings.manage','settings.general.manage'])
+                    @if($canViewSettingsGeneral)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.general.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.general.edit') }}">School General</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.status.view'])
+                    @endif
+                    @if($canViewSettingsStatus)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.status.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.status.index') }}">System Status</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.promotion.manage'])
+                    @endif
+                    @if($canManageSettingsPromotion)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.promotion.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.promotion.edit') }}">Promotion</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.printer.manage'])
+                    @endif
+                    @if($canManageSettingsPrinter)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.printer.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.printer.edit') }}">Printer</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.sms.manage'])
+                    @endif
+                    @if($canManageSettingsSms)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.sms.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.sms.edit') }}">SMS</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.email.manage'])
+                    @endif
+                    @if($canManageSettingsEmail)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.email.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.email.edit') }}">Email (SMTP)</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.salary_components.manage'])
+                    @endif
+                    @if($canManageSettingsSalaryComponents)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.salary-components.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.salary-components.edit') }}">Salary Components</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.backups.manage'])
+                    @endif
+                    @if($canManageSettingsBackups)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.backups.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.backups.index') }}">Backups</a>
-                    @endcanany
-                    @canany(['settings.manage','settings.opening_balance.manage'])
+                    @endif
+                    @if($canManageSettingsOpeningBalance)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('settings.opening-balance.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('settings.opening-balance.edit') }}">Opening Balance</a>
-                    @endcanany
-                    @can('roles.manage')
+                    @endif
+                    @if($canManageUsers)
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('users.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('users.index') }}">Users</a>
+                    @endif
+
+                    @if($canManageRoles)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('rbac.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('rbac.roles.index') }}">Roles & Permissions</a>
-                    @endcan
+                    @endif
                 </div>
             </div>
-        @endcanany
+        @endif
 
         <div class="mt-4 pt-4 border-t border-gray-200">
             <form method="POST" action="{{ route('logout') }}">

@@ -52,11 +52,27 @@
         </div>
     </x-slot>
 
+    @php
+        $widgetPermissionsUser = auth()->user();
+        $canWidgetTotalRevenue = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.total_revenue.view') ?? false;
+        $canWidgetTotalExpenses = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.total_expenses.view') ?? false;
+        $canWidgetNetProfit = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.net_profit.view') ?? false;
+        $canWidgetCashFlow = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.cash_flow.view') ?? false;
+        $canWidgetRevenueVsExpense = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.revenue_vs_expense.view') ?? false;
+        $canWidgetDueStudents = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.due_students.view') ?? false;
+        $canWidgetRevenueBreakdown = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.revenue_category_breakdown.view') ?? false;
+        $canWidgetExpenseBreakdown = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.expense_category_breakdown.view') ?? false;
+        $canWidgetUpcomingTeacherPayments = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.upcoming_teacher_payments.view') ?? false;
+        $canWidgetEnrollmentTrend = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.enrollment_trend.view') ?? false;
+        $canWidgetNotifications = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.notifications.view') ?? false;
+        $canWidgetRecentActivity = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.recent_activity.view') ?? false;
+    @endphp
+
     <div class="py-8">
         <script type="application/json" id="dashboard-data">{!! json_encode($dashboardData ?? []) !!}</script>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            @can('dashboard.widget.total_revenue.view')
+            @if($canWidgetTotalRevenue)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center gap-3">
@@ -70,9 +86,9 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
 
-            @can('dashboard.widget.total_expenses.view')
+            @if($canWidgetTotalExpenses)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center gap-3">
@@ -86,9 +102,9 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
 
-            @can('dashboard.widget.net_profit.view')
+            @if($canWidgetNetProfit)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="flex items-center gap-3">
@@ -102,9 +118,9 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
 
-            @can('dashboard.widget.cash_flow.view')
+            @if($canWidgetCashFlow)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-sm text-gray-500">Cash Flow (Last 30 Days)</div>
@@ -114,10 +130,10 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
         </div>
 
-        @if(($pendingChequeCount ?? 0) > 0)
+        @if(($canViewChequeAlerts ?? false) && (($pendingChequeCount ?? 0) > 0))
             <div class="mt-6" x-data="{ open: true, passModal: false, passAction: '', passMode: 'today', passDate: '{{ now()->toDateString() }}', today: '{{ now()->toDateString() }}' }" x-show="open" x-cloak>
                 <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 shadow-sm">
                     <div class="flex items-start justify-between gap-4">
@@ -267,7 +283,7 @@
         @endif
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-            @can('dashboard.widget.revenue_vs_expense.view')
+            @if($canWidgetRevenueVsExpense)
             <div class="xl:col-span-2 bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Revenue vs Expense ({{ $dashboardRange['label'] ?? 'Selected Range' }})</div>
@@ -276,9 +292,9 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
 
-            @can('dashboard.widget.due_students.view')
+            @if($canWidgetDueStudents)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Students with Due Payments</div>
@@ -309,11 +325,11 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-            @can('dashboard.widget.revenue_category_breakdown.view')
+            @if($canWidgetRevenueBreakdown)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Revenue Category Breakdown</div>
@@ -322,9 +338,9 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
 
-            @can('dashboard.widget.expense_category_breakdown.view')
+            @if($canWidgetExpenseBreakdown)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Expense Category Breakdown</div>
@@ -333,9 +349,9 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
 
-            @can('dashboard.widget.upcoming_teacher_payments.view')
+            @if($canWidgetUpcomingTeacherPayments)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Upcoming Teacher Salary Payments</div>
@@ -372,11 +388,11 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-            @can('dashboard.widget.enrollment_trend.view')
+            @if($canWidgetEnrollmentTrend)
             <div class="xl:col-span-2 bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Student Enrollment Trend (Last 12 Months)</div>
@@ -385,9 +401,9 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
 
-            @can('dashboard.widget.notifications.view')
+            @if($canWidgetNotifications)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">System Notifications & Reminders</div>
@@ -400,10 +416,10 @@
                     </div>
                 </div>
             </div>
-            @endcan
+            @endif
         </div>
 
-        @can('dashboard.widget.recent_activity.view')
+        @if($canWidgetRecentActivity)
         <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
@@ -516,6 +532,6 @@
                 </div>
             </div>
         </div>
-        @endcan
+        @endif
     </div>
 </x-app-layout>

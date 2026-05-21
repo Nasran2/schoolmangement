@@ -1406,6 +1406,7 @@ class ReportController extends Controller
                 DB::raw("CASE WHEN revenues.payment_method = 'cheque' AND revenues.payment_status = 'pending' THEN COALESCE(revenues.cheque_date, revenues.paid_at) WHEN revenues.payment_method = 'cheque' THEN revenues.paid_at ELSE revenues.paid_at END as effective_at"),
                 'revenues.amount',
                 'revenues.notes',
+                'revenues.cancel_reason',
                 'revenues.payment_method',
                 'revenues.payment_status',
                 'revenues.payment_meta',
@@ -1427,6 +1428,10 @@ class ReportController extends Controller
             if (! empty($r->notes)) {
                 $desc .= ' - ' . $r->notes;
             }
+            if ($status === 'cancelled') {
+                $cancelDetail = $r->cancel_reason ?: $r->notes;
+                $desc = 'Cancelled' . (! empty($cancelDetail) ? ' - ' . $cancelDetail : '');
+            }
 
             $meta = is_string($r->payment_meta) ? json_decode($r->payment_meta, true) : $r->payment_meta;
             if (! is_array($meta)) {
@@ -1434,7 +1439,9 @@ class ReportController extends Controller
             }
 
             $methodLabel = $this->paymentMethodLabel($pm);
-            if ($pm === 'cheque') {
+            if ($status === 'cancelled') {
+                $methodLabel = 'Cancelled';
+            } elseif ($pm === 'cheque') {
                 if ($includePendingCheques && $status === 'pending') {
                     $methodLabel .= ' (Pending)';
                 } elseif ($status === 'rejected') {
@@ -1594,6 +1601,7 @@ class ReportController extends Controller
             ->select([
                 'teacher_salary_payments.id',
                 'teacher_salary_payments.paid_at',
+                'teacher_salary_payments.payment_month',
                 'teacher_salary_payments.amount',
                 'teacher_salary_payments.payment_method',
                 'teacher_salary_payments.bank_name',
@@ -1609,6 +1617,13 @@ class ReportController extends Controller
 
             $teacher = $s->teacher_name ?: '—';
             $desc = 'Salary — ' . $teacher;
+            if (! empty($s->payment_month)) {
+                try {
+                    $desc .= ' | Paid: ' . Carbon::parse($s->payment_month . '-01')->format('M');
+                } catch (\Throwable $e) {
+                    $desc .= ' | Paid: ' . $s->payment_month;
+                }
+            }
             if (! empty($s->notes)) {
                 $desc .= ' - ' . $s->notes;
             }
@@ -1797,12 +1812,17 @@ class ReportController extends Controller
             if (! empty($r->notes)) {
                 $desc .= ' - ' . $r->notes;
             }
+            if (($r->payment_status ?? null) === 'cancelled') {
+                $cancelDetail = $r->cancel_reason ?: $r->notes;
+                $desc = 'Cancelled' . (! empty($cancelDetail) ? ' - ' . $cancelDetail : '');
+            }
             $rows->push([
                 'date' => $r->paid_at ? Carbon::parse($r->paid_at) : null,
                 'type' => 'Income',
                 'ref' => $r->bill_no ?: '—',
                 'description' => $desc,
-                'method' => $this->paymentMethodLabel($r->payment_method),
+                'method' => (($r->payment_status ?? null) === 'cancelled') ? 'Cancelled' : $this->paymentMethodLabel($r->payment_method),
+                'status' => (string) ($r->payment_status ?? ''),
                 'in' => (float) $r->amount,
                 'out' => 0.0,
             ]);
@@ -1956,6 +1976,10 @@ class ReportController extends Controller
             if (! empty($r->notes)) {
                 $desc .= ' - ' . $r->notes;
             }
+            if (($r->payment_status ?? null) === 'cancelled') {
+                $cancelDetail = $r->cancel_reason ?: $r->notes;
+                $desc = 'Cancelled' . (! empty($cancelDetail) ? ' - ' . $cancelDetail : '');
+            }
 
             $effectiveDate = ($r->payment_method === 'cheque') ? ($r->cheque_date ?: $r->paid_at) : $r->paid_at;
             $rows->push([
@@ -1963,9 +1987,12 @@ class ReportController extends Controller
                 'type' => 'Income',
                 'ref' => $r->bill_no ?: '—',
                 'description' => $desc,
-                'method' => ($r->payment_method === 'cheque')
+                'method' => (($r->payment_status ?? null) === 'cancelled')
+                    ? 'Cancelled'
+                    : (($r->payment_method === 'cheque')
                     ? ($this->paymentMethodLabel($r->payment_method) . (($includePendingCheques && ($r->payment_status ?? null) === 'pending') ? ' (Pending)' : ((($r->payment_status ?? null) === 'rejected') ? ' (Returned)' : ' (Passed)')))
-                    : $this->paymentMethodLabel($r->payment_method),
+                    : $this->paymentMethodLabel($r->payment_method)),
+                'status' => (string) ($r->payment_status ?? ''),
                 'in' => (float) $r->amount,
                 'out' => 0.0,
             ]);

@@ -20,6 +20,14 @@ class DashboardController extends Controller
 {
     public function __invoke(Request $request): View
     {
+        $user = $request->user();
+        $canViewCashFlow = (bool) $user?->hasPermissionTo('dashboard.widget.cash_flow.view');
+        $canViewRevenueVsExpense = (bool) $user?->hasPermissionTo('dashboard.widget.revenue_vs_expense.view');
+        $canViewRevenueBreakdown = (bool) $user?->hasPermissionTo('dashboard.widget.revenue_category_breakdown.view');
+        $canViewExpenseBreakdown = (bool) $user?->hasPermissionTo('dashboard.widget.expense_category_breakdown.view');
+        $canViewEnrollmentTrend = (bool) $user?->hasPermissionTo('dashboard.widget.enrollment_trend.view');
+        $canViewChequeAlerts = (bool) (($user?->hasPermissionTo('dashboard.widget.notifications.view') ?? false) || ($user?->hasPermissionTo('revenue.manage') ?? false));
+
         $today = Carbon::today();
         [$rangeKey, $rangeLabel, $rangeStart, $rangeEnd] = $this->resolveRange($request, $today);
 
@@ -333,6 +341,7 @@ class DashboardController extends Controller
             'pendingChequeTotal' => $pendingChequeTotal,
             'pendingCheques' => $pendingCheques,
             'chequeAutoPassDays' => $chequeAutoPassDays,
+            'canViewChequeAlerts' => $canViewChequeAlerts,
             'dueStudents' => $dueStudents,
             'dueTeachers' => $dueTeachers,
             'dueTeachersTotal' => $dueTeachersTotal,
@@ -359,11 +368,21 @@ class DashboardController extends Controller
                 'to' => $rangeEnd->toDateString(),
             ],
             'dashboardData' => [
-                'cashFlow' => ['labels' => $cashFlowLabels, 'data' => $cashFlowData],
-                'monthly' => ['labels' => $trendLabels, 'revenue' => $trendRevenue, 'expense' => $trendExpense],
-                'revCats' => ['labels' => $revCatLabels, 'data' => $revCatData],
-                'expCats' => ['labels' => $expCatLabels, 'data' => $expCatData],
-                'enroll' => ['labels' => $enrollLabels, 'data' => $enrollData],
+                'cashFlow' => $canViewCashFlow
+                    ? ['labels' => $cashFlowLabels, 'data' => $cashFlowData]
+                    : ['labels' => [], 'data' => []],
+                'monthly' => $canViewRevenueVsExpense
+                    ? ['labels' => $trendLabels, 'revenue' => $trendRevenue, 'expense' => $trendExpense]
+                    : ['labels' => [], 'revenue' => [], 'expense' => []],
+                'revCats' => $canViewRevenueBreakdown
+                    ? ['labels' => $revCatLabels, 'data' => $revCatData]
+                    : ['labels' => [], 'data' => []],
+                'expCats' => $canViewExpenseBreakdown
+                    ? ['labels' => $expCatLabels, 'data' => $expCatData]
+                    : ['labels' => [], 'data' => []],
+                'enroll' => $canViewEnrollmentTrend
+                    ? ['labels' => $enrollLabels, 'data' => $enrollData]
+                    : ['labels' => [], 'data' => []],
             ],
         ]);
     }

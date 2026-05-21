@@ -1,9 +1,6 @@
 <?php
 
-$queueConnection = env('QUEUE_CONNECTION', 'database');
-if (env('APP_ENV') === 'production' && $queueConnection === 'sync') {
-    $queueConnection = 'database';
-}
+$queueConnection = env('QUEUE_CONNECTION', 'sync');
 return [
 
     /*

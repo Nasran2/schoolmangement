@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 use App\Models\Revenue;
@@ -114,6 +115,11 @@ class Student extends Model
         return $this->hasMany(StudentMonthlyFeeOverride::class);
     }
 
+    public function monthlyFeeCredits(): HasMany
+    {
+        return $this->hasMany(StudentMonthlyFeeCredit::class);
+    }
+
     /**
      * Compute current net due for monthly fees based on fee_start_date cycles and payments.
      */
@@ -171,8 +177,9 @@ class Student extends Model
 
         $paidNet = max(0.0, $paidGross - $refunds);
         $holdNet = (float) $this->monthlyFeeHoldAmount();
+        $creditNet = (float) $this->monthlyFeeCreditAmount();
         $expectedNet = max(0.0, $expectedBase - $waivers);
-        return max(0.0, $expectedNet - $paidNet - $holdNet);
+        return max(0.0, $expectedNet - $paidNet - $holdNet - $creditNet);
     }
 
     public function getComputedDueAmountAttribute(): float
@@ -277,6 +284,17 @@ class Student extends Model
             })
             ->where('revenue_adjustments.type', 'waiver')
             ->sum('revenue_adjustments.amount');
+    }
+
+    public function monthlyFeeCreditAmount(): float
+    {
+        if (! Schema::hasTable('student_month_fee_credits')) {
+            return 0.0;
+        }
+
+        return (float) StudentMonthlyFeeCredit::query()
+            ->where('student_id', $this->id)
+            ->sum('amount');
     }
 
     public function monthlyFeeHoldAmount(): float

@@ -33,6 +33,7 @@
         <div style="display:flex; gap:16px; font-size:12px;">
             <div>Expected: <strong>{{ number_format($summary['expectedDue'] ?? 0, 2) }}</strong></div>
             <div>Paid: <strong>{{ number_format($summary['paidMonthlyFee'] ?? 0, 2) }}</strong></div>
+            <div>Credits: <strong>{{ number_format($summary['creditMonthlyFee'] ?? 0, 2) }}</strong></div>
             <div>Balance: <strong>{{ number_format($summary['netDue'] ?? 0, 2) }}</strong></div>
         </div>
     </div>
