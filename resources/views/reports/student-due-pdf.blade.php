@@ -31,7 +31,9 @@
         </thead>
         <tbody>
             @foreach($rows as $row)
-                @php($s = $row['student'])
+                @php
+                    $s = $row['student'];
+                @endphp
                 <tr>
                     <td>{{ $s->admission_number }}</td>
                     <td>{{ $s->name }}</td>

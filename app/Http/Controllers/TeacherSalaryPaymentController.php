@@ -3,19 +3,25 @@
 namespace App\Http\Controllers;
 
 use App\Mail\TeacherPayslipMail;
+use App\Models\Expense;
 use App\Models\Teacher;
+use App\Models\TeacherSalaryAdvance;
+use App\Models\TeacherSalaryAdvanceSettlement;
 use App\Models\TeacherSalaryPayment;
 use App\Services\SettingsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class TeacherSalaryPaymentController extends Controller
 {
+    private const ADVANCE_DEDUCTION_REASON = 'Advance Adjustment';
+
     /**
      * Salary due/upcoming summary by month.
      */
@@ -31,7 +37,7 @@ class TeacherSalaryPaymentController extends Controller
         $monthEnd = $monthStart->copy()->endOfMonth();
 
         $payments = TeacherSalaryPayment::query()
-            ->with(['teacher'])
+            ->with(['teacher', 'advanceSettlements'])
             ->whereBetween('paid_at', [$monthStart, $monthEnd])
             ->orderByDesc('paid_at')
             ->get();
@@ -44,6 +50,7 @@ class TeacherSalaryPaymentController extends Controller
                 return [
                     'payment' => $first,
                     'total_paid' => (float) $rows->sum('amount'),
+                    'total_salary_settled' => (float) $rows->sum('base_salary'),
                 ];
             });
 
@@ -51,6 +58,7 @@ class TeacherSalaryPaymentController extends Controller
             ->where('active', true)
             ->orderBy('name')
             ->get();
+        $pendingAdvanceByTeacherId = $this->pendingAdvanceMap($teachers->pluck('id')->all());
 
         $dueTeachers = $teachers->filter(function (Teacher $t) use ($paidByTeacherId) {
             if ((float) ($t->salary_amount ?? 0) <= 0) return false;
@@ -63,6 +71,7 @@ class TeacherSalaryPaymentController extends Controller
 
         $dueTotal = (float) $dueTeachers->sum(fn (Teacher $t) => (float) ($t->salary_amount ?? 0));
         $paidTotal = (float) $payments->sum('amount');
+        $salarySettledTotal = (float) $payments->sum('base_salary');
 
         $settings = app(SettingsService::class);
         $deadlineDay = (int) ($settings->get('salary.payment_deadline_day', '25') ?: 25);
@@ -88,8 +97,11 @@ class TeacherSalaryPaymentController extends Controller
             'paidTeachers' => $paidTeachers,
             'dueTotal' => $dueTotal,
             'paidTotal' => $paidTotal,
+            'salarySettledTotal' => $salarySettledTotal,
             'nextMonthLabel' => $nextMonthLabel,
             'nextMonthTotalExpected' => $nextMonthTotalExpected,
+            'pendingAdvanceByTeacherId' => $pendingAdvanceByTeacherId,
+            'pendingAdvanceTotal' => collect($pendingAdvanceByTeacherId)->sum('total'),
         ]);
     }
 
@@ -98,7 +110,7 @@ class TeacherSalaryPaymentController extends Controller
      */
     public function index(Request $request): View
     {
-        $query = TeacherSalaryPayment::query()->with('teacher');
+        $query = TeacherSalaryPayment::query()->with(['teacher', 'advanceSettlements']);
 
         if ($request->filled('teacher_id')) {
             $query->where('teacher_id', $request->string('teacher_id'));
@@ -114,11 +126,26 @@ class TeacherSalaryPaymentController extends Controller
         }
 
         $query->orderByDesc('paid_at');
+        $advanceQuery = TeacherSalaryAdvance::query()
+            ->with(['teacher'])
+            ->withSum('settlements as settled_amount', 'amount');
+
+        if ($request->filled('teacher_id')) {
+            $advanceQuery->where('teacher_id', $request->string('teacher_id'));
+        }
+        if ($request->filled('from')) {
+            $advanceQuery->whereDate('paid_at', '>=', $request->string('from'));
+        }
+        if ($request->filled('to')) {
+            $advanceQuery->whereDate('paid_at', '<=', $request->string('to'));
+        }
 
         return view('teacher-salary-payments.index', [
             'payments' => $query->paginate(20)->withQueryString(),
             'teachers' => Teacher::query()->orderBy('name')->get(),
             'filters' => $request->only(['teacher_id', 'from', 'to', 'month']),
+            'advances' => $advanceQuery->orderByDesc('paid_at')->paginate(10, ['*'], 'advances_page')->withQueryString(),
+            'pendingAdvanceTotal' => collect($this->pendingAdvanceMap())->sum('total'),
         ]);
     }
 
@@ -129,6 +156,7 @@ class TeacherSalaryPaymentController extends Controller
     {
         $teachers = Teacher::query()->orderBy('name')->get();
         $deductionTypes = $this->getDeductionTypes(app(SettingsService::class));
+        $pendingAdvanceByTeacherId = $this->pendingAdvanceMap($teachers->pluck('id')->all());
 
         $prefillTeacherId = null;
         if ($request->filled('teacher_id')) {
@@ -142,6 +170,7 @@ class TeacherSalaryPaymentController extends Controller
             'teachers' => $teachers,
             'deductionTypes' => $deductionTypes,
             'prefillTeacherId' => $prefillTeacherId,
+            'pendingAdvanceByTeacherId' => $pendingAdvanceByTeacherId,
         ]);
     }
 
@@ -242,29 +271,56 @@ class TeacherSalaryPaymentController extends Controller
             ? round($epfBaseSalary * ($employerEtfPercent / 100), 2)
             : 0.0;
 
+        $deductions = $this->withoutAdvanceAdjustmentRows($deductions);
+
+        $nonAdvanceDeductions = (float) collect($deductions)->sum('amount');
+        $advanceDeductionAmount = $this->advanceDeductionAmount(
+            (int) $validated['teacher_id'],
+            $totalSalary,
+            $nonAdvanceDeductions
+        );
+
+        if ($advanceDeductionAmount > 0) {
+            $deductions[] = [
+                'reason' => self::ADVANCE_DEDUCTION_REASON,
+                'amount' => $advanceDeductionAmount,
+            ];
+        }
+
         $totalDeductions = collect($deductions)->sum('amount');
         $finalAmount = $totalSalary - $totalDeductions;
 
-        $payment = TeacherSalaryPayment::create([
-            'teacher_id' => (int) $validated['teacher_id'],
-            'base_salary' => $validated['base_salary'],
-            'deductions' => $deductions,
-            'total_deductions' => $totalDeductions,
-            'employee_epf_amount' => $employeeEpfAmount,
-            'employer_epf_amount' => $employerEpfAmount,
-            'employer_etf_amount' => $employerEtfAmount,
-            'amount' => $finalAmount,
-            'paid_at' => $validated['paid_at'],
-            'payment_month' => $validated['payment_month'],
-            'payment_method' => $validated['payment_method'] ?? null,
-            'bank_name' => $request->string('bank_name')->toString() ?: null,
-            'bank_branch' => $request->string('bank_branch')->toString() ?: null,
-            'bank_account_no' => $request->string('bank_account_no')->toString() ?: null,
-            'notes' => $validated['notes'] ?? null,
-            'created_by' => $request->user()?->id,
-        ]);
+        $payment = DB::transaction(function () use ($validated, $deductions, $totalDeductions, $employeeEpfAmount, $employerEpfAmount, $employerEtfAmount, $finalAmount, $request, $advanceDeductionAmount) {
+            $payment = TeacherSalaryPayment::create([
+                'teacher_id' => (int) $validated['teacher_id'],
+                'base_salary' => $validated['base_salary'],
+                'deductions' => $deductions,
+                'total_deductions' => $totalDeductions,
+                'employee_epf_amount' => $employeeEpfAmount,
+                'employer_epf_amount' => $employerEpfAmount,
+                'employer_etf_amount' => $employerEtfAmount,
+                'amount' => $finalAmount,
+                'paid_at' => $validated['paid_at'],
+                'payment_month' => $validated['payment_month'],
+                'payment_method' => $validated['payment_method'] ?? null,
+                'bank_name' => $request->string('bank_name')->toString() ?: null,
+                'bank_branch' => $request->string('bank_branch')->toString() ?: null,
+                'bank_account_no' => $request->string('bank_account_no')->toString() ?: null,
+                'notes' => $validated['notes'] ?? null,
+                'created_by' => $request->user()?->id,
+            ]);
+
+            if ($advanceDeductionAmount > 0) {
+                $this->settleSalaryAdvances($payment, $advanceDeductionAmount);
+            }
+
+            return $payment;
+        });
 
         $status = 'Salary payment recorded successfully.';
+        if ($advanceDeductionAmount > 0) {
+            $status .= ' Advance deduction applied: Rs '.number_format($advanceDeductionAmount, 2).'.';
+        }
 
         // Optionally email payslip automatically
         $autoEmail = (string) $settings->get('salary.auto_email_payslip', '0');
@@ -318,12 +374,55 @@ class TeacherSalaryPaymentController extends Controller
         return redirect()->route('teacher-salary-payments.show', $payment)->with('status', $status);
     }
 
+    public function storeAdvance(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'teacher_id' => ['required', 'exists:teachers,id'],
+            'paid_at' => ['required', 'date'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $teacher = Teacher::query()->findOrFail((int) $validated['teacher_id']);
+        $paidAt = Carbon::parse($validated['paid_at'])->toDateString();
+        $amount = (float) $validated['amount'];
+        $notes = $validated['notes'] ?? null;
+        $category = $this->salaryExpenseCategory();
+
+        DB::transaction(function () use ($teacher, $paidAt, $amount, $notes, $category, $request) {
+            $expenseNotes = 'Teacher salary advance - '.$teacher->name;
+            if ($notes) {
+                $expenseNotes .= ' - '.$notes;
+            }
+
+            $expense = Expense::create([
+                'expense_category_id' => $category->id,
+                'amount' => $amount,
+                'payment_method' => 'cash',
+                'expense_date' => $paidAt,
+                'notes' => $expenseNotes,
+                'created_by' => $request->user()?->id,
+            ]);
+
+            TeacherSalaryAdvance::create([
+                'teacher_id' => $teacher->id,
+                'expense_id' => $expense->id,
+                'amount' => $amount,
+                'paid_at' => $paidAt,
+                'notes' => $notes,
+                'created_by' => $request->user()?->id,
+            ]);
+        });
+
+        return back()->with('status', 'Advance salary payment recorded and added to expenses.');
+    }
+
     /**
      * Display the specified resource.
      */
     public function show(TeacherSalaryPayment $teacherSalaryPayment): View
     {
-        $teacherSalaryPayment->load('teacher', 'creator');
+        $teacherSalaryPayment->load('teacher', 'creator', 'advanceSettlements.advance');
 
         return view('teacher-salary-payments.show', [
             'payment' => $teacherSalaryPayment,
@@ -335,7 +434,7 @@ class TeacherSalaryPaymentController extends Controller
      */
     public function receipt(TeacherSalaryPayment $teacherSalaryPayment)
     {
-        $teacherSalaryPayment->load('teacher');
+        $teacherSalaryPayment->load('teacher', 'advanceSettlements.advance');
 
         $html = view('teacher-salary-payments.receipt', [
             'payment' => $teacherSalaryPayment,
@@ -356,7 +455,7 @@ class TeacherSalaryPaymentController extends Controller
      */
     public function payslip(TeacherSalaryPayment $teacherSalaryPayment)
     {
-        $teacherSalaryPayment->load('teacher', 'creator');
+        $teacherSalaryPayment->load('teacher', 'creator', 'advanceSettlements.advance');
 
         $html = view('teacher-salary-payments.payslip', [
             'payment' => $teacherSalaryPayment,
@@ -377,7 +476,7 @@ class TeacherSalaryPaymentController extends Controller
      */
     public function emailPayslip(Request $request, TeacherSalaryPayment $teacherSalaryPayment): RedirectResponse
     {
-        $teacherSalaryPayment->load('teacher', 'creator');
+        $teacherSalaryPayment->load('teacher', 'creator', 'advanceSettlements.advance');
 
         $teacher = $teacherSalaryPayment->teacher;
         if (! $teacher || ! $teacher->email) {
@@ -603,9 +702,120 @@ class TeacherSalaryPaymentController extends Controller
      */
     public function destroy(TeacherSalaryPayment $teacherSalaryPayment): RedirectResponse
     {
-        $teacherSalaryPayment->delete();
+        DB::transaction(function () use ($teacherSalaryPayment) {
+            $teacherSalaryPayment->advanceSettlements()->delete();
+            $teacherSalaryPayment->delete();
+        });
 
         return redirect()->route('teacher-salary-payments.index')->with('status', 'Salary payment deleted.');
+    }
+
+    /**
+     * @param array<int,array{reason:string,amount:float}> $deductions
+     * @return array<int,array{reason:string,amount:float}>
+     */
+    private function withoutAdvanceAdjustmentRows(array $deductions): array
+    {
+        return array_values(array_filter($deductions, function ($deduction) {
+            return strtolower(trim((string) ($deduction['reason'] ?? ''))) !== strtolower(self::ADVANCE_DEDUCTION_REASON);
+        }));
+    }
+
+    private function advanceDeductionAmount(int $teacherId, float $salary, float $existingDeductions): float
+    {
+        $available = max(0.0, $salary - $existingDeductions);
+        if ($available <= 0) {
+            return 0.0;
+        }
+
+        return round(min($available, $this->pendingAdvanceTotalForTeacher($teacherId)), 2);
+    }
+
+    private function pendingAdvanceTotalForTeacher(int $teacherId): float
+    {
+        $map = $this->pendingAdvanceMap([$teacherId]);
+
+        return (float) ($map[$teacherId]['total'] ?? 0);
+    }
+
+    /**
+     * @param array<int> $teacherIds
+     * @return array<int,array{total:float,items:array<int,array<string,mixed>>}>
+     */
+    private function pendingAdvanceMap(array $teacherIds = []): array
+    {
+        $query = TeacherSalaryAdvance::query()
+            ->with(['settlements'])
+            ->orderBy('paid_at')
+            ->orderBy('id');
+
+        if ($teacherIds !== []) {
+            $query->whereIn('teacher_id', $teacherIds);
+        }
+
+        $map = [];
+        foreach ($query->get() as $advance) {
+            $settled = (float) $advance->settlements->sum('amount');
+            $balance = round((float) $advance->amount - $settled, 2);
+            if ($balance <= 0) {
+                continue;
+            }
+
+            $teacherId = (int) $advance->teacher_id;
+            if (! isset($map[$teacherId])) {
+                $map[$teacherId] = ['total' => 0.0, 'items' => []];
+            }
+
+            $map[$teacherId]['total'] = round($map[$teacherId]['total'] + $balance, 2);
+            $map[$teacherId]['items'][] = [
+                'id' => $advance->id,
+                'date' => optional($advance->paid_at)->toDateString(),
+                'amount' => (float) $advance->amount,
+                'settled' => $settled,
+                'balance' => $balance,
+                'notes' => $advance->notes,
+            ];
+        }
+
+        return $map;
+    }
+
+    private function settleSalaryAdvances(TeacherSalaryPayment $payment, float $amount): void
+    {
+        $remaining = round($amount, 2);
+        if ($remaining <= 0) {
+            return;
+        }
+
+        $advances = TeacherSalaryAdvance::query()
+            ->with('settlements')
+            ->where('teacher_id', $payment->teacher_id)
+            ->orderBy('paid_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($advances as $advance) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $settled = (float) $advance->settlements->sum('amount');
+            $balance = round((float) $advance->amount - $settled, 2);
+            if ($balance <= 0) {
+                continue;
+            }
+
+            $applied = round(min($balance, $remaining), 2);
+
+            TeacherSalaryAdvanceSettlement::create([
+                'teacher_salary_advance_id' => $advance->id,
+                'teacher_salary_payment_id' => $payment->id,
+                'amount' => $applied,
+            ]);
+
+            $remaining = round($remaining - $applied, 2);
+        }
     }
 
     /**

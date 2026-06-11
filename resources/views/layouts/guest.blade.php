@@ -15,8 +15,10 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
-        @php($loginBg = app('settings')->get('ui.login.background'))
-        @php($loginBgUrl = $loginBg ? url('/storage/'.$loginBg) : null)
+        @php
+            $loginBg = app('settings')->get('ui.login.background');
+            $loginBgUrl = $loginBg ? url('/storage/'.$loginBg) : null;
+        @endphp
         <div class="relative min-h-screen flex items-center justify-center overflow-hidden" style="{{ $loginBgUrl ? 'background-image:url('.$loginBgUrl.');background-size:cover;background-position:center;' : '' }}">
             @if(!$loginBgUrl)
                 <div class="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600"></div>

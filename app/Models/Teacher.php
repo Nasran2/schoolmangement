@@ -39,4 +39,9 @@ class Teacher extends Model
     {
         return $this->hasMany(TeacherSalaryPayment::class);
     }
+
+    public function salaryAdvances(): HasMany
+    {
+        return $this->hasMany(TeacherSalaryAdvance::class);
+    }
 }

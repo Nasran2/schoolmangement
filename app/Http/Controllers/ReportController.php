@@ -2867,11 +2867,13 @@ class ReportController extends Controller
             $expected = max(0.0, $expectedBase - $waivers);
             $due = max(0.0, $expected - $paidNet);
 
+            $unpaidMonths = $monthlyFee > 0 ? ceil($due / $monthlyFee) : 0;
+
             $computed[] = [
                 'student' => $student,
                 'class_room' => $student->classRoom,
                 'monthly_fee' => $monthlyFee,
-                'months_due' => $monthsDue,
+                'months_due' => $unpaidMonths,
                 'expected' => $expected,
                 'paid' => $paidNet,
                 'due' => $due,

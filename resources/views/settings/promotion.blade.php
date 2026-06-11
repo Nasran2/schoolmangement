@@ -30,7 +30,9 @@
                                 <div>
                                     <select name="month" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                         <option value="">Select month</option>
-                                        @php($months = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'])
+                                        @php
+                                            $months = [1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December'];
+                                        @endphp
                                         @foreach($months as $value => $label)
                                             <option value="{{ $value }}" {{ (int) old('month', $month) === (int) $value ? 'selected' : '' }}>{{ $label }}</option>
                                         @endforeach

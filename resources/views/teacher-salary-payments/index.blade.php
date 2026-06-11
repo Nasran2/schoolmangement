@@ -5,17 +5,39 @@
                 <h2 class="font-bold text-2xl text-gray-900">Teacher Salary Payments</h2>
                 <p class="text-gray-600 text-sm mt-1">Manage all teacher salary payments and payslips</p>
             </div>
-            <a class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition" href="{{ route('teacher-salary-payments.create') }}">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                New Payment
-            </a>
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="openAdvancePaymentModal()"
+                    class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z"></path>
+                        <path fill-rule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM5 13a1 1 0 011-1h1a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    Advance Payment
+                </button>
+                <a class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition" href="{{ route('teacher-salary-payments.create') }}">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    New Payment
+                </a>
+            </div>
         </div>
     </x-slot>
 
     <div class="py-12 bg-gray-50 min-h-screen">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            @php
+                $salarySettledTotal = (float) $payments->sum('base_salary');
+                $paidOnSalaryDateTotal = (float) $payments->sum('amount');
+                $advanceSettledTotal = (float) $payments->sum(fn($payment) => $payment->advanceSettlements->sum('amount'));
+            @endphp
+            @if (session('status'))
+                <div class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-800">{{ session('status') }}</div>
+            @endif
+            @if ($errors->any())
+                <div class="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>
+            @endif
+
             <!-- Filters Card -->
             <div class="bg-white rounded-lg shadow-lg border border-gray-100 mb-8">
                 <div class="border-b border-gray-200 px-6 py-6 bg-gradient-to-r from-green-50 to-emerald-50">
@@ -96,7 +118,7 @@
             </div>
 
             <!-- Summary Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 <div class="bg-white rounded-lg shadow-lg border border-gray-100 p-6">
                     <div class="flex items-center justify-between">
                         <div>
@@ -115,8 +137,8 @@
                 <div class="bg-white rounded-lg shadow-lg border border-gray-100 p-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-600 font-medium">Total Amount Paid</p>
-                            <p class="text-3xl font-bold text-green-600 mt-2">Rs {{ number_format($payments->sum('amount'), 2) }}</p>
+                            <p class="text-sm text-gray-600 font-medium">Salary Settled</p>
+                            <p class="text-3xl font-bold text-green-600 mt-2">Rs {{ number_format($salarySettledTotal, 2) }}</p>
                         </div>
                         <div class="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
                             <svg class="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -124,6 +146,23 @@
                             </svg>
                         </div>
                     </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg border border-gray-100 p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 font-medium">Paid On Salary Date</p>
+                            <p class="text-3xl font-bold text-blue-600 mt-2">Rs {{ number_format($paidOnSalaryDateTotal, 2) }}</p>
+                        </div>
+                        <div class="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.5 2.5a1 1 0 001.414-1.414L11 9.586V6z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    @if($advanceSettledTotal > 0)
+                        <p class="mt-2 text-xs font-semibold text-amber-700">Advance already paid: Rs {{ number_format($advanceSettledTotal, 2) }}</p>
+                    @endif
                 </div>
 
                 <div class="bg-white rounded-lg shadow-lg border border-gray-100 p-6">
@@ -140,6 +179,12 @@
                     </div>
                 </div>
             </div>
+
+            @if(($pendingAdvanceTotal ?? 0) > 0)
+                <div class="mb-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    Pending teacher salary advances to deduct from future salary payments: <span class="font-bold">Rs {{ number_format($pendingAdvanceTotal, 2) }}</span>
+                </div>
+            @endif
 
             <!-- Payments Table -->
             <div class="bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
@@ -158,12 +203,16 @@
                                 <th class="px-6 py-3 text-left font-semibold text-gray-700">Date</th>
                                 <th class="px-6 py-3 text-right font-semibold text-gray-700">Total Salary</th>
                                 <th class="px-6 py-3 text-right font-semibold text-gray-700">Deductions</th>
-                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Net Amount</th>
+                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Advance Paid</th>
+                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Paid This Date</th>
                                 <th class="px-6 py-3 text-center font-semibold text-gray-700">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($payments as $payment)
+                                @php
+                                    $advanceSettled = (float) $payment->advanceSettlements->sum('amount');
+                                @endphp
                                 <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
                                     <td class="px-6 py-3 font-medium text-gray-900">{{ $payment->receipt_number }}</td>
                                     <td class="px-6 py-3 text-gray-600">{{ $payment->teacher?->name ?? 'N/A' }}</td>
@@ -175,6 +224,7 @@
                                     <td class="px-6 py-3 text-gray-600">{{ optional($payment->paid_at)->format('M d, Y') }}</td>
                                     <td class="px-6 py-3 text-right font-semibold text-gray-900">Rs {{ number_format($payment->base_salary, 2) }}</td>
                                     <td class="px-6 py-3 text-right font-semibold text-red-600">Rs {{ number_format($payment->total_deductions, 2) }}</td>
+                                    <td class="px-6 py-3 text-right font-semibold text-amber-700">Rs {{ number_format($advanceSettled, 2) }}</td>
                                     <td class="px-6 py-3 text-right font-semibold text-green-600">Rs {{ number_format($payment->amount, 2) }}</td>
                                     <td class="px-6 py-3">
                                         <div class="flex items-center justify-center gap-2">
@@ -206,7 +256,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                                    <td colspan="9" class="px-6 py-8 text-center text-gray-500">
                                         <svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>
@@ -224,6 +274,56 @@
                     {{ $payments->links() }}
                 </div>
             </div>
+
+            <div class="mt-8 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden">
+                <div class="border-b border-gray-200 px-6 py-6 bg-gradient-to-r from-amber-50 to-yellow-50">
+                    <h3 class="text-lg font-semibold text-gray-800">Advance Salary Payments</h3>
+                    <p class="text-sm text-gray-600 mt-1">Advance amounts are stored as expenses and deducted from the next full salary payment.</p>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-200 bg-gray-50">
+                                <th class="px-6 py-3 text-left font-semibold text-gray-700">Date</th>
+                                <th class="px-6 py-3 text-left font-semibold text-gray-700">Teacher</th>
+                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Advance</th>
+                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Settled</th>
+                                <th class="px-6 py-3 text-right font-semibold text-gray-700">Pending</th>
+                                <th class="px-6 py-3 text-left font-semibold text-gray-700">Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if($advances->count() === 0)
+                                <tr>
+                                    <td colspan="6" class="px-6 py-8 text-center text-gray-500">No advance salary payments found.</td>
+                                </tr>
+                            @else
+                                @foreach($advances as $salaryAdvance)
+                                    @php
+                                        $settled = (float) ($salaryAdvance->settled_amount ?? 0);
+                                        $balance = max(0, (float) $salaryAdvance->amount - $settled);
+                                    @endphp
+                                    <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
+                                        <td class="px-6 py-3 text-gray-600">{{ optional($salaryAdvance->paid_at)->format('M d, Y') }}</td>
+                                        <td class="px-6 py-3 font-medium text-gray-900">{{ $salaryAdvance->teacher?->name ?? 'N/A' }}</td>
+                                        <td class="px-6 py-3 text-right font-semibold text-gray-900">Rs {{ number_format($salaryAdvance->amount, 2) }}</td>
+                                        <td class="px-6 py-3 text-right font-semibold text-blue-600">Rs {{ number_format($settled, 2) }}</td>
+                                        <td class="px-6 py-3 text-right font-semibold {{ $balance > 0 ? 'text-amber-700' : 'text-green-600' }}">Rs {{ number_format($balance, 2) }}</td>
+                                        <td class="px-6 py-3 text-gray-600">{{ $salaryAdvance->notes ?: '-' }}</td>
+                                    </tr>
+                                @endforeach
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="border-t border-gray-200 px-6 py-4 bg-gray-50">
+                    {{ $advances->links() }}
+                </div>
+            </div>
         </div>
     </div>
+
+    @include('teacher-salary-payments._advance-payment-modal', ['teachers' => $teachers])
 </x-app-layout>

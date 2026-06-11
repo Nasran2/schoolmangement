@@ -16,4 +16,15 @@ abstract class Controller
             ]
         );
     }
+
+    protected function salaryExpenseCategory(): ExpenseCategory
+    {
+        return ExpenseCategory::firstOrCreate(
+            ['name' => 'Salaries'],
+            [
+                'description' => 'Teacher and staff salaries',
+                'active' => true,
+            ]
+        );
+    }
 }

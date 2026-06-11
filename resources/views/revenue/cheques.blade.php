@@ -135,7 +135,9 @@
                                         <div class="text-xs text-gray-700">Bank: <span class="font-semibold">{{ data_get($item->payment_meta, 'bank') ?? '—' }}</span></div>
                                     </td>
                                     <td class="px-4 py-3">
-                                        @php($st = $item->payment_status ?? 'confirmed')
+                                        @php
+                                            $st = $item->payment_status ?? 'confirmed';
+                                        @endphp
                                         @if(in_array($st, ['hold', 'pending'], true))
                                             <span class="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">On Hold</span>
                                         @elseif($st === 'confirmed')

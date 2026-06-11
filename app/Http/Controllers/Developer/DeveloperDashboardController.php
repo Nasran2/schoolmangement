@@ -643,8 +643,14 @@ class DeveloperDashboardController extends Controller
         $startedAt = now()->toDateTimeString();
 
         try {
-            $exitCode = Artisan::call($command);
-            $output = trim(Artisan::output());
+            if (trim($command) === 'storage:link') {
+                $storageResult = $this->createStorageLinkWithoutExec();
+                $exitCode = $storageResult['exit_code'];
+                $output = $storageResult['output'];
+            } else {
+                $exitCode = Artisan::call($command);
+                $output = trim(Artisan::output());
+            }
         } catch (\Throwable $e) {
             $exitCode = 1;
             $output = 'Exception: '.$e->getMessage();
@@ -658,5 +664,73 @@ class DeveloperDashboardController extends Controller
             'started_at' => $startedAt,
             'ended_at' => now()->toDateTimeString(),
         ];
+    }
+
+    /**
+     * Laravel's built-in storage:link can fail on shared hosting when PHP exec()
+     * is disabled. This keeps the developer dashboard useful on cPanel servers.
+     *
+     * @return array{exit_code:int,output:string}
+     */
+    private function createStorageLinkWithoutExec(): array
+    {
+        $target = storage_path('app/public');
+        $link = public_path('storage');
+
+        File::ensureDirectoryExists($target);
+
+        if (is_link($link)) {
+            return [
+                'exit_code' => 0,
+                'output' => "Storage link already exists.\nLink: {$link}\nTarget: {$target}",
+            ];
+        }
+
+        if (file_exists($link) && ! is_dir($link)) {
+            return [
+                'exit_code' => 1,
+                'output' => "Cannot create storage link because a file already exists at {$link}. Delete or rename that file first.",
+            ];
+        }
+
+        if (! file_exists($link) && function_exists('symlink')) {
+            if (@symlink($target, $link)) {
+                return [
+                    'exit_code' => 0,
+                    'output' => "Storage symlink created successfully.\nLink: {$link}\nTarget: {$target}",
+                ];
+            }
+        }
+
+        $this->copyDirectoryContents($target, $link);
+
+        return [
+            'exit_code' => 0,
+            'output' => "PHP exec/symlink is unavailable on this server, so files were copied instead.\nFrom: {$target}\nTo: {$link}\nNote: New uploads are also served by the app's /storage/{path} fallback route.",
+        ];
+    }
+
+    private function copyDirectoryContents(string $from, string $to): void
+    {
+        File::ensureDirectoryExists($to);
+
+        $items = scandir($from) ?: [];
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $source = $from.DIRECTORY_SEPARATOR.$item;
+            $destination = $to.DIRECTORY_SEPARATOR.$item;
+
+            if (is_dir($source)) {
+                $this->copyDirectoryContents($source, $destination);
+                continue;
+            }
+
+            if (! @copy($source, $destination)) {
+                throw new RuntimeException('Unable to copy storage file: '.$source);
+            }
+        }
     }
 }

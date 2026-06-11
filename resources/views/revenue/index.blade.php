@@ -122,7 +122,9 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-sm text-gray-800">
                             @forelse ($items as $item)
-                                @php($isCancelled = method_exists($item, 'isCancelled') ? $item->isCancelled() : (($item->payment_status ?? null) === 'cancelled'))
+                                @php
+                                    $isCancelled = method_exists($item, 'isCancelled') ? $item->isCancelled() : (($item->payment_status ?? null) === 'cancelled');
+                                @endphp
                                 <tr class="{{ $isCancelled ? 'bg-red-50/60 text-red-900 hover:bg-red-50' : 'hover:bg-slate-50' }}">
                                     <td class="px-4 py-3 font-medium {{ $isCancelled ? 'text-red-700' : 'text-gray-900' }}">
                                         {{ $item->bill_no ?? '-' }}

@@ -95,6 +95,9 @@
 
             <!-- Salary Breakdown Card -->
             <div class="bg-white rounded-lg shadow-lg border border-gray-100 mb-6">
+                @php
+                    $advanceSettledTotal = (float) $payment->advanceSettlements->sum('amount');
+                @endphp
                 <div class="border-b border-gray-200 px-8 py-6 bg-gradient-to-r from-blue-50 to-indigo-50">
                     <h3 class="text-xl font-bold text-gray-800">Salary Breakdown</h3>
                 </div>
@@ -105,6 +108,13 @@
                             <span class="text-gray-700 font-medium">Total Salary</span>
                             <span class="text-xl font-bold text-gray-900">Rs {{ number_format($payment->base_salary, 2) }}</span>
                         </div>
+
+                        @if($advanceSettledTotal > 0)
+                            <div class="flex justify-between items-center py-3 border-b border-gray-200">
+                                <span class="text-gray-700 font-medium">Advance Already Paid</span>
+                                <span class="text-xl font-bold text-amber-700">Rs {{ number_format($advanceSettledTotal, 2) }}</span>
+                            </div>
+                        @endif
 
                         @if($payment->deductions && count($payment->deductions) > 0)
                             <div class="bg-red-50 rounded-lg p-4 border border-red-200">
@@ -131,8 +141,30 @@
                             </div>
                         @endif
 
+                        @if($payment->advanceSettlements && $payment->advanceSettlements->count() > 0)
+                            <div class="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                                <h4 class="text-sm font-semibold text-amber-800 mb-3">Advance Payments Settled</h4>
+                                @foreach($payment->advanceSettlements as $settlement)
+                                    <div class="flex justify-between items-center py-2 text-sm">
+                                        <span class="text-amber-800">
+                                            {{ optional($settlement->advance?->paid_at)->format('M d, Y') ?? 'Advance' }}
+                                            @if($settlement->advance?->notes)
+                                                - {{ $settlement->advance->notes }}
+                                            @endif
+                                        </span>
+                                        <span class="font-semibold text-amber-800">Rs {{ number_format($settlement->amount, 2) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <div class="flex justify-between items-center py-4 bg-blue-50 rounded-lg px-4 border-2 border-blue-300 mt-4">
+                            <span class="text-lg font-bold text-blue-800">Total Salary Payment Settled</span>
+                            <span class="text-2xl font-bold text-blue-600">Rs {{ number_format($payment->base_salary, 2) }}</span>
+                        </div>
+
                         <div class="flex justify-between items-center py-4 bg-green-50 rounded-lg px-4 border-2 border-green-300 mt-4">
-                            <span class="text-lg font-bold text-green-800">Net Amount Paid</span>
+                            <span class="text-lg font-bold text-green-800">Paid This Date</span>
                             <span class="text-2xl font-bold text-green-600">Rs {{ number_format($payment->amount, 2) }}</span>
                         </div>
                     </div>

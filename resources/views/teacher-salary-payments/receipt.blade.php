@@ -127,6 +127,9 @@
     </style>
 </head>
 <body>
+    @php
+        $advanceSettledTotal = (float) $payment->advanceSettlements->sum('amount');
+    @endphp
     <div class="container">
         <!-- Header -->
         <div class="header">
@@ -223,9 +226,19 @@
                 <span class="summary-label">Total Deductions:</span>
                 <span class="summary-value red">-Rs {{ number_format($payment->total_deductions, 2) }}</span>
             </div>
-            <div class="summary-row total">
-                <span class="summary-label">Net Amount Paid:</span>
+            @if($advanceSettledTotal > 0)
+                <div class="summary-row">
+                    <span class="summary-label">Advance Already Paid:</span>
+                    <span class="summary-value">Rs {{ number_format($advanceSettledTotal, 2) }}</span>
+                </div>
+            @endif
+            <div class="summary-row">
+                <span class="summary-label">Paid This Date:</span>
                 <span class="summary-value green">Rs {{ number_format($payment->amount, 2) }}</span>
+            </div>
+            <div class="summary-row total">
+                <span class="summary-label">Total Salary Payment Settled:</span>
+                <span class="summary-value green">Rs {{ number_format($payment->base_salary, 2) }}</span>
             </div>
         </div>
 

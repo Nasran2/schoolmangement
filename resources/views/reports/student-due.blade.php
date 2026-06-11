@@ -100,7 +100,9 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($items as $row)
-                                @php($s = $row['student'])
+                                @php
+                                    $s = $row['student'];
+                                @endphp
                                 <tr>
                                     <td class="px-6 py-4 text-sm text-gray-900">{{ $s->admission_number }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-900">{{ $s->name }}</td>

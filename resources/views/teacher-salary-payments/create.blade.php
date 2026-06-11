@@ -82,6 +82,18 @@
                                                     </p>
                                                 </div>
                                             </div>
+                                            <div id="advance_breakdown" style="display: none; margin-top: 8px; padding: 8px; background-color: #fffbeb; border-radius: 0.375rem; border: 1px solid #f59e0b;">
+                                                <p style="font-size: 12px; font-weight: 700; color: #92400e; margin: 0 0 6px 0; text-transform: uppercase;">
+                                                    Pending Salary Advances
+                                                </p>
+                                                <div id="advance_components_list" style="font-size: 12px; color: #78350f; line-height: 1.6;"></div>
+                                                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #f59e0b;">
+                                                    <p style="font-size: 13px; font-weight: 700; color: #92400e; margin: 0; display: flex; justify-content: space-between;">
+                                                        <span>Total Pending:</span>
+                                                        <span>Rs <span id="teacher_card_pending_advance">0.00</span></span>
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                         <button type="button" id="teacher_clear_btn" onclick="clearTeacher()"
                                             style="padding: 4px; background: none; border: none; cursor: pointer; color: #1e40af;">
@@ -218,7 +230,7 @@
                             Payment Summary
                         </h4>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div class="bg-white rounded-lg p-4 border border-gray-200">
                                 <p class="text-sm text-gray-600 font-medium">Total Salary</p>
                                 <p class="text-2xl font-bold text-blue-600 mt-1" id="display-base-salary">Rs 0.00</p>
@@ -227,8 +239,12 @@
                                 <p class="text-sm text-gray-600 font-medium">Total Deductions</p>
                                 <p class="text-2xl font-bold text-red-600 mt-1" id="display-deductions">Rs 0.00</p>
                             </div>
+                            <div class="bg-white rounded-lg p-4 border border-amber-200 bg-amber-50">
+                                <p class="text-sm text-amber-700 font-medium">Advance Deduction</p>
+                                <p class="text-2xl font-bold text-amber-600 mt-1" id="display-advance-deduction">Rs 0.00</p>
+                            </div>
                             <div class="bg-white rounded-lg p-4 border border-green-200 bg-green-50">
-                                <p class="text-sm text-green-700 font-medium">Net Amount Payable</p>
+                                <p class="text-sm text-green-700 font-medium">Paid This Date</p>
                                 <p class="text-2xl font-bold text-green-600 mt-1" id="display-net-amount">Rs 0.00</p>
                             </div>
                         </div>
@@ -295,6 +311,7 @@
                         'amount',
                         0
                     );
+                    $advanceInfo = $pendingAdvanceByTeacherId[$teacher->id] ?? ['total' => 0, 'items' => []];
                 @endphp
                 {
                 id: {{ $teacher->id }},
@@ -304,7 +321,9 @@
                 basic_salary: {{ $basicSalaryAmount }},
                 epf_enabled: {{ ($teacher->epf_enabled === null || $teacher->epf_enabled) ? 'true' : 'false' }},
                 etf_enabled: {{ ($teacher->etf_enabled === null || $teacher->etf_enabled) ? 'true' : 'false' }},
-                salary_components: {!! json_encode($teacher->salary_components ?? []) !!}
+                salary_components: {!! json_encode($teacher->salary_components ?? []) !!},
+                pending_advance_total: {{ (float) ($advanceInfo['total'] ?? 0) }},
+                pending_advances: {!! json_encode($advanceInfo['items'] ?? []) !!}
                 }{{ !$loop->last ? ',' : '' }}
             @endforeach
 ];
@@ -373,6 +392,7 @@
 
         let currentTeacherEpfEnabled = false;
         let currentTeacherEtfEnabled = false;
+        let currentPendingAdvanceTotal = 0;
         let userEditedEpf = false;
         let epfIndex = null;
 
@@ -391,8 +411,10 @@
             displayTeacher(teacher);
             currentTeacherEpfEnabled = !!teacher.epf_enabled;
             currentTeacherEtfEnabled = !!teacher.etf_enabled;
+            currentPendingAdvanceTotal = parseFloat(teacher.pending_advance_total || 0) || 0;
             userEditedEpf = false;
             syncStatutoryRows();
+            syncAdvanceDeductionRow();
 
             if (setBaseSalary) {
                 const salaryFromField = parseFloat(teacher.salary || 0) || 0;
@@ -432,6 +454,9 @@
             const phoneEl = document.getElementById('teacher_card_phone');
             const salaryEl = document.getElementById('teacher_card_salary');
             const componentsList = document.getElementById('salary_components_list');
+            const advanceBox = document.getElementById('advance_breakdown');
+            const advanceList = document.getElementById('advance_components_list');
+            const pendingAdvanceEl = document.getElementById('teacher_card_pending_advance');
 
             if (card && nameEl && phoneEl && salaryEl) {
                 nameEl.textContent = teacher.name;
@@ -455,6 +480,25 @@
                         </div>
                     `;
                 }
+
+                const pendingAdvanceTotal = parseFloat(teacher.pending_advance_total || 0) || 0;
+                if (advanceBox && advanceList && pendingAdvanceEl) {
+                    if (pendingAdvanceTotal > 0) {
+                        const items = Array.isArray(teacher.pending_advances) ? teacher.pending_advances : [];
+                        advanceList.innerHTML = items.map(item => `
+                            <div style="display: flex; justify-content: space-between; gap: 8px; padding: 2px 0;">
+                                <span>${item.date || 'Advance'}:</span>
+                                <span style="font-weight: 600;">Rs ${parseFloat(item.balance || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                        `).join('');
+                        pendingAdvanceEl.textContent = pendingAdvanceTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        advanceBox.style.display = 'block';
+                    } else {
+                        advanceList.innerHTML = '';
+                        pendingAdvanceEl.textContent = '0.00';
+                        advanceBox.style.display = 'none';
+                    }
+                }
                 
                 card.style.display = 'block';
             }
@@ -477,8 +521,10 @@
 
             currentTeacherEpfEnabled = false;
             currentTeacherEtfEnabled = false;
+            currentPendingAdvanceTotal = 0;
             userEditedEpf = false;
             removeStatutoryRows();
+            removeAdvanceDeductionRow();
 
             calculateTotal();
         }
@@ -628,6 +674,47 @@
             epfIndex = null;
         }
 
+        function syncAdvanceDeductionRow() {
+            const container = document.getElementById('deductions-container');
+            if (!container) return;
+
+            const existing = document.getElementById('advance-row');
+            if (currentPendingAdvanceTotal <= 0) {
+                if (existing) existing.remove();
+                return;
+            }
+
+            if (!existing) {
+                const idx = deductionIndex;
+                const html = `
+                    <div id="advance-row" class="deduction-row flex gap-3 items-start bg-amber-50 p-4 rounded-lg border border-amber-200">
+                        <div class="flex-1">
+                            <div class="inline-flex items-center gap-2">
+                                <span class="px-2 py-1 text-xs font-semibold rounded bg-amber-100 text-amber-800">Advance Adjustment</span>
+                                <input type="hidden" name="deductions[${idx}][reason]" value="Advance Adjustment" />
+                                <span class="text-xs text-amber-700">Auto-deducted from pending advances</span>
+                            </div>
+                        </div>
+                        <div class="w-40">
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-gray-500 text-sm">Rs</span>
+                                <input type="number" name="deductions[${idx}][amount]" step="0.01" min="0"
+                                       data-advance-deduction="1"
+                                       readonly
+                                       class="block w-full pl-10 border-amber-300 bg-white rounded-lg shadow-sm text-sm" />
+                            </div>
+                        </div>
+                    </div>`;
+                container.insertAdjacentHTML('afterbegin', html);
+                deductionIndex++;
+            }
+        }
+
+        function removeAdvanceDeductionRow() {
+            const row = document.getElementById('advance-row');
+            if (row) row.remove();
+        }
+
         function calculateTotal() {
             const baseSalary = parseFloat(document.getElementById('base_salary').value) || 0;
             const basicSalary = parseFloat(document.getElementById('basic_salary_for_epf')?.value || '') || 0;
@@ -646,15 +733,26 @@
                 }
             }
 
-            // Sum all deduction inputs (includes EPF/ETF rows if present)
-            let totalDeductions = 0;
+            let nonAdvanceDeductions = 0;
             document.querySelectorAll('.deduction-row input[type="number"]').forEach(input => {
-                totalDeductions += parseFloat(input.value) || 0;
+                if (!input.dataset.advanceDeduction) {
+                    nonAdvanceDeductions += parseFloat(input.value) || 0;
+                }
             });
 
+            let advanceDeduction = 0;
+            const advanceInput = document.querySelector('input[data-advance-deduction]');
+            if (advanceInput) {
+                advanceDeduction = Math.min(currentPendingAdvanceTotal, Math.max(0, baseSalary - nonAdvanceDeductions));
+                advanceDeduction = Math.round(advanceDeduction * 100) / 100;
+                advanceInput.value = advanceDeduction.toFixed(2);
+            }
+
+            const totalDeductions = nonAdvanceDeductions + advanceDeduction;
             const netAmount = baseSalary - totalDeductions;
             document.getElementById('display-base-salary').textContent = `Rs ${baseSalary.toFixed(2)}`;
             document.getElementById('display-deductions').textContent = `Rs ${totalDeductions.toFixed(2)}`;
+            document.getElementById('display-advance-deduction').textContent = `Rs ${advanceDeduction.toFixed(2)}`;
             document.getElementById('display-net-amount').textContent = `Rs ${netAmount.toFixed(2)}`;
         }
 

@@ -589,6 +589,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:teachers.salary.pay|teachers.salary.summary.view')
         ->name('teacher-salary-payments.summary');
 
+    Route::post('teacher-salary-payments/advance', [TeacherSalaryPaymentController::class, 'storeAdvance'])
+        ->middleware('permission:teachers.salary.pay')
+        ->name('teacher-salary-payments.advance.store');
+
     Route::resource('teacher-salary-payments', TeacherSalaryPaymentController::class)
         ->middleware('permission:teachers.salary.pay')
         ->whereNumber('teacher_salary_payment');

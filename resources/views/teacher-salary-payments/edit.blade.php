@@ -203,7 +203,7 @@
                                 <p class="text-2xl font-bold text-red-600 mt-1" id="display-deductions">Rs 0.00</p>
                             </div>
                             <div class="bg-white rounded-lg p-4 border border-green-200 bg-green-50">
-                                <p class="text-sm text-green-700 font-medium">Net Amount Payable</p>
+                                <p class="text-sm text-green-700 font-medium">Paid This Date</p>
                                 <p class="text-2xl font-bold text-green-600 mt-1" id="display-net-amount">Rs 0.00</p>
                             </div>
                         </div>

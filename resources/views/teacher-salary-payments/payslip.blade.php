@@ -66,9 +66,14 @@
 			$epfAmount = $payment->employee_epf_amount !== null
 				? (float) $payment->employee_epf_amount
 				: ($epfEntry ? (float) ($epfEntry['amount'] ?? 0) : 0.0);
-			$otherDeductions = $deductions->filter(fn($d) => strtolower($d['reason'] ?? '') !== 'epf');
+			$advanceSettledTotal = (float) $payment->advanceSettlements->sum('amount');
+			$advanceEntryTotal = (float) $deductions
+				->filter(fn($d) => strtolower($d['reason'] ?? '') === 'advance adjustment')
+				->sum('amount');
+			$advanceTotal = $advanceSettledTotal > 0 ? $advanceSettledTotal : $advanceEntryTotal;
+			$otherDeductions = $deductions->filter(fn($d) => ! in_array(strtolower($d['reason'] ?? ''), ['epf', 'advance adjustment'], true));
 			$otherTotal = (float) $otherDeductions->sum('amount');
-			$totalDeductions = $epfAmount + $otherTotal;
+			$totalDeductions = $epfAmount + $otherTotal + $advanceTotal;
 			$netAmount = $base - $totalDeductions;
 			$periodText = $payment->payment_month;
 			try {
@@ -93,6 +98,9 @@
 				<div class="box-header">DEDUCTIONS</div>
 				<div class="box-body">
 					<div class="row"><div>Employee EPF</div><div class="amount">LKR {{ number_format($epfAmount, 2) }}</div></div>
+					@if($advanceTotal > 0)
+					<div class="row"><div>Advance Already Paid</div><div class="amount">LKR {{ number_format($advanceTotal, 2) }}</div></div>
+					@endif
 					@if($otherTotal > 0)
 					<div class="row"><div>Other Deductions</div><div class="amount">LKR {{ number_format($otherTotal, 2) }}</div></div>
 					@endif
@@ -102,7 +110,7 @@
 			</div>
 		</div>
 
-		<div class="net">NET SALARY PAYABLE: LKR {{ number_format($netAmount, 2) }}</div>
+		<div class="net">PAID THIS DATE: LKR {{ number_format($netAmount, 2) }} &nbsp; | &nbsp; TOTAL SALARY SETTLED: LKR {{ number_format($base, 2) }}</div>
 
 		@php
 			$n = (int) round($netAmount);
@@ -127,7 +135,7 @@
 			}
 			$amountWords = number_to_words($n) . ' Rupees and ' . sprintf('%.0f', ($netAmount - floor($netAmount)) * 100) . ' Cents';
 		@endphp
-		<div class="words">Amount in Words: <strong>{{ $amountWords }}</strong></div>
+		<div class="words">Paid This Date in Words: <strong>{{ $amountWords }}</strong></div>
 
 		@php $method = strtolower((string)($payment->payment_method ?? '')); @endphp
 		<div class="method">
