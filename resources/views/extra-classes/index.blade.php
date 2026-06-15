@@ -58,12 +58,13 @@
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900">{{ $extra->name }}</div>
-                                            <!-- Teacher logic if added later -->
                                             <div class="text-xs text-gray-500">
                                                 @if($extra->visitingTeacher)
-                                                    {{ $extra->visitingTeacher->name }}
+                                                    {{ $extra->visitingTeacher->name }} (Visiting)
+                                                @elseif($extra->teacher)
+                                                    {{ $extra->teacher->name }}
                                                 @else
-                                                    Internal
+                                                    Not assigned
                                                 @endif
                                             </div>
                                         </div>
@@ -81,12 +82,16 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                      <div class="text-sm text-gray-900 flex items-center gap-1.5">
-                                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                        {{ $extra->date?->format('M d, Y') }}
-                                    </div>
-                                    <div class="text-xs text-gray-500 mt-1 ml-5">
-                                        {{ $extra->start_time }} {{ $extra->end_time ? '- '.$extra->end_time : '' }}
-                                    </div>
+                                         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                         @if($extra->payment_type === 'monthly')
+                                             {{ $extra->week_days ? implode(', ', $extra->week_days) : 'No days' }}
+                                         @else
+                                             {{ $extra->date?->format('M d, Y') }}
+                                         @endif
+                                     </div>
+                                     <div class="text-xs text-gray-500 mt-1 ml-5">
+                                         {{ $extra->start_time }} {{ $extra->end_time ? '- '.$extra->end_time : '' }}
+                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex justify-end items-center gap-3">

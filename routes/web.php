@@ -674,6 +674,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/{extraClass}/payments/{enrollment}/toggle', [\App\Http\Controllers\ExtraClassController::class, 'togglePayment'])->name('payments.toggle');
         Route::delete('/{extraClass}/enrollments/{enrollment}', [\App\Http\Controllers\ExtraClassController::class, 'removeEnrollment'])->name('enrollments.destroy');
         Route::post('/{extraClass}/pay-daily', [\App\Http\Controllers\ExtraClassController::class, 'payDaily'])->name('pay-daily');
+        Route::post('/{extraClass}/pay-monthly', [\App\Http\Controllers\ExtraClassController::class, 'payMonthly'])->name('pay-monthly');
+        Route::post('/{extraClass}/enrollments/{enrollment}/cancel-monthly', [\App\Http\Controllers\ExtraClassController::class, 'cancelMonthlyPayment'])->name('pay-monthly.cancel');
         Route::post('/{extraClass}/teacher-payments', [\App\Http\Controllers\ExtraClassController::class, 'storeTeacherPayment'])->name('teacher-payments.store');
         Route::delete('/{extraClass}/teacher-payments/{payment}', [\App\Http\Controllers\ExtraClassController::class, 'destroyTeacherPayment'])->name('teacher-payments.destroy');
     });

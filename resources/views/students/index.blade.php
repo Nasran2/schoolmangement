@@ -103,26 +103,44 @@
                                 </div>
                                 <input id="q" name="q" type="text" class="pl-10 block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value="{{ $filters['q'] ?? '' }}" placeholder="Search by name, admission no, phone, or class..." />
                             </div>
-                            <div class="sm:w-56">
+                            <div class="sm:w-52">
                                 @php $status = $filters['status'] ?? 'all'; @endphp
                                 <select name="status" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="all" {{ $status==='all' ? 'selected' : '' }}>All</option>
+                                    <option value="all" {{ $status==='all' ? 'selected' : '' }}>All Status</option>
                                     <option value="active" {{ $status==='active' ? 'selected' : '' }}>Active</option>
                                     <option value="inactive" {{ $status==='inactive' ? 'selected' : '' }}>Inactive</option>
                                     <option value="alumni" {{ $status==='alumni' ? 'selected' : '' }}>Alumni</option>
                                 </select>
                             </div>
-                            @php $paymentFilter = $filters['payment_filter'] ?? 'all'; @endphp
-                            <label class="inline-flex min-h-[42px] items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50">
-                                <input type="checkbox" name="payment_filter" value="never_paid" @checked($paymentFilter === 'never_paid') class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                                Never Paid
-                            </label>
+                            <div class="sm:w-52">
+                                @php $paymentStart = $filters['payment_start'] ?? 'all'; @endphp
+                                <select name="payment_start" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="all" {{ $paymentStart==='all' ? 'selected' : '' }}>All Payment Starts</option>
+                                    <option value="set" {{ $paymentStart==='set' ? 'selected' : '' }}>Payment Start Set</option>
+                                    <option value="not_set" {{ $paymentStart==='not_set' ? 'selected' : '' }}>Payment Start Not Set</option>
+                                </select>
+                            </div>
+                            <div class="sm:w-52">
+                                @php $paymentFilter = $filters['payment_filter'] ?? 'all'; @endphp
+                                <select name="payment_filter" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="all" {{ $paymentFilter==='all' ? 'selected' : '' }}>All Dues/Payments</option>
+                                    <option value="never_paid" {{ $paymentFilter==='never_paid' ? 'selected' : '' }}>Never Paid</option>
+                                    <option value="with_due" {{ $paymentFilter==='with_due' ? 'selected' : '' }}>With Due</option>
+                                    <option value="no_due" {{ $paymentFilter==='no_due' ? 'selected' : '' }}>No Due</option>
+                                </select>
+                            </div>
                             <div class="flex gap-2">
                                 <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-sm text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                                     Search
                                 </button>
                                 <a href="{{ route('students.index') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-sm text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors">
                                     Reset
+                                </a>
+                                <a href="{{ route('students.index', array_merge(request()->query(), ['pdf' => 1])) }}" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 border border-transparent rounded-lg font-semibold text-sm text-white shadow-sm hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                    </svg>
+                                    PDF
                                 </a>
                             </div>
                         </form>

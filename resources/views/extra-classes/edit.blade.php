@@ -7,9 +7,12 @@
     <form action="{{ route('extra-classes.update', $extraClass) }}" method="POST" class="py-6 max-w-7xl mx-auto"
           x-data="{
               extraStudents: {{ \Illuminate\Support\Js::from(old('student_ids', $enrolled)) }},
+              extraClassrooms: {{ \Illuminate\Support\Js::from(old('class_room_ids', $extraClass->class_room_ids ?? [])) }},
               paymentType: '{{ old('payment_type', $extraClass->payment_type) }}',
               addStudent() { this.extraStudents.push('') },
-              removeStudent(index) { this.extraStudents.splice(index, 1) }
+              removeStudent(index) { this.extraStudents.splice(index, 1) },
+              addClassroom() { this.extraClassrooms.push('') },
+              removeClassroom(index) { this.extraClassrooms.splice(index, 1) }
           }">
         @csrf @method('PUT')
 
@@ -50,9 +53,25 @@
                         <p class="text-xs text-gray-500 mt-1">If this class pays a visiting teacher, set it here.</p>
                     </div>
 
-                    <div>
+                    <div x-show="paymentType !== 'monthly'">
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Date</label>
                         <input type="date" name="date" value="{{ old('date', $extraClass->date?->format('Y-m-d')) }}" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
+                    </div>
+
+                    <div x-show="paymentType === 'monthly'" x-cloak class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Weekly Class Days <span class="text-gray-400 font-normal">(Select one or more)</span></label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                            @php
+                                $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            @endphp
+                            @foreach($days as $day)
+                                <label class="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                                    <input type="checkbox" name="week_days[]" value="{{ $day }}" @checked(in_array($day, old('week_days', $extraClass->week_days ?? []))) class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                                    <span class="text-sm text-gray-700 font-medium">{{ $day }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Select the days on which the class is held each week.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -67,24 +86,73 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Classroom <span class="text-gray-400 font-normal">(Optional)</span></label>
-                        <select name="class_room_id" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
-                            <option value="">-- No Specific Class --</option>
-                            @foreach($classRooms as $cr)
-                                <option value="{{ $cr->id }}" @selected(old('class_room_id', $extraClass->class_room_id)==$cr->id)>{{ $cr->name }}</option>
-                            @endforeach
-                        </select>
-                        <p class="text-xs text-gray-500 mt-1">Students from this class are auto-enrolled.</p>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Classrooms <span class="text-gray-400 font-normal">(Optional)</span></label>
+                        <div class="space-y-2">
+                            <select name="class_room_id" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
+                                <option value="">-- Select Primary Class --</option>
+                                @foreach($classRooms as $cr)
+                                    <option value="{{ $cr->id }}" @selected(old('class_room_id', $extraClass->class_room_id)==$cr->id)>{{ $cr->name }}</option>
+                                @endforeach
+                            </select>
+                            
+                            <template x-for="(cid, index) in extraClassrooms" :key="'cr-'+index">
+                                <div class="flex items-center gap-2 mt-1">
+                                    <select :name="'class_room_ids[]'" x-model="extraClassrooms[index]" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow" required>
+                                        <option value="">-- Select Additional Class --</option>
+                                        @foreach($classRooms as $cr)
+                                            <option value="{{ $cr->id }}">{{ $cr->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" @click="removeClassroom(index)" class="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-full transition-colors" title="Remove">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </template>
+                            
+                            <button type="button" @click="addClassroom()" class="inline-flex items-center gap-1 px-3 py-1 bg-white border border-gray-300 rounded-md text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 transition-colors shadow-sm mt-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Add Additional Class
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Students from all selected classes will be enrolled.</p>
                     </div>
 
-                    <div>
-                         <label class="block text-sm font-semibold text-gray-700 mb-1">Visiting Teacher <span class="text-gray-400 font-normal">(Optional)</span></label>
-                        <select name="visiting_teacher_id" data-searchable-select class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
-                            <option value="">-- Select Teacher --</option>
-                            @foreach($visitingTeachers as $vt)
-                                <option value="{{ $vt->id }}" @selected(old('visiting_teacher_id', $extraClass->visiting_teacher_id)==$vt->id)>{{ $vt->name }}</option>
-                            @endforeach
-                        </select>
+                    <div class="space-y-4" x-data="{ instType: '{{ old('teacher_id', $extraClass->teacher_id) ? 'internal' : (old('visiting_teacher_id', $extraClass->visiting_teacher_id) ? 'visiting' : 'internal') }}' }">
+                        <label class="block text-sm font-semibold text-gray-700">Instructor Type</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                                <input type="radio" name="instructor_type" value="internal" x-model="instType" class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="text-sm text-gray-700 font-medium">School Teacher</span>
+                            </label>
+                            <label class="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors">
+                                <input type="radio" name="instructor_type" value="visiting" x-model="instType" class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="text-sm text-gray-700 font-medium">Visiting Teacher</span>
+                            </label>
+                        </div>
+
+                        <div x-show="instType === 'internal'" class="mt-2">
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Select School Teacher <span class="text-gray-400 font-normal">(Optional)</span></label>
+                            <select name="teacher_id" data-searchable-select class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
+                                <option value="">-- Select School Teacher --</option>
+                                @foreach($teachers as $t)
+                                    <option value="{{ $t->id }}" @selected(old('teacher_id', $extraClass->teacher_id)==$t->id)>{{ $t->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div x-show="instType === 'visiting'" class="mt-2" x-cloak>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">Select Visiting Teacher <span class="text-gray-400 font-normal">(Optional)</span></label>
+                            <select name="visiting_teacher_id" data-searchable-select class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow">
+                                <option value="">-- Select Visiting Teacher --</option>
+                                @foreach($visitingTeachers as $vt)
+                                    <option value="{{ $vt->id }}" @selected(old('visiting_teacher_id', $extraClass->visiting_teacher_id)==$vt->id)>{{ $vt->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     </div>
 
                     <div class="md:col-span-2" x-show="paymentType === 'monthly'">
@@ -117,7 +185,7 @@
                         <template x-for="(st, index) in extraStudents" :key="'st-'+index">
                             <div class="flex items-center gap-2">
                                 <div class="relative flex-grow max-w-md">
-                                    <select :name="'student_ids[]'" x-model="extraStudents[index]" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow" required>
+                                    <select :name="'student_ids[]'" x-model="extraStudents[index]" data-searchable-select x-init="$nextTick(() => { window.initSearchableSelects ? window.initSearchableSelects($el.parentNode) : null })" class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring focus:ring-indigo-200 transition-shadow" required>
                                         <option value="">-- Select Student --</option>
                                         @foreach($students as $st)
                                             <option value="{{ $st->id }}">{{ $st->name }} ({{ $st->admission_number }})</option>

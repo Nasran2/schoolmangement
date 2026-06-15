@@ -19,6 +19,7 @@ use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class StudentController extends Controller
 {
@@ -192,7 +193,7 @@ class StudentController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         $query = Student::query()->with('classRoom');
 
@@ -232,6 +233,42 @@ class StudentController extends Controller
                             ->orWhere('payment_status', 'confirmed');
                     });
             });
+        } elseif ($paymentFilter === 'with_due') {
+            $query->where('due_amount', '>', 0);
+        } elseif ($paymentFilter === 'no_due') {
+            $query->where(function ($sub) {
+                $sub->whereNull('due_amount')
+                    ->orWhere('due_amount', '<=', 0);
+            });
+        }
+
+        $paymentStart = (string) $request->query('payment_start', 'all');
+        if ($paymentStart === 'set') {
+            $query->whereNotNull('fee_start_date');
+        } elseif ($paymentStart === 'not_set') {
+            $query->whereNull('fee_start_date');
+        }
+
+        if ($request->boolean('pdf')) {
+            $rows = $query->orderBy('name')->get();
+            $html = view('students.index-pdf', [
+                'items' => $rows,
+                'filters' => [
+                    'q' => $request->string('q'),
+                    'status' => $status,
+                    'payment_start' => $paymentStart,
+                    'payment_filter' => $paymentFilter,
+                ],
+            ])->render();
+
+            $pdf = Pdf::loadHTML($html)
+                ->setPaper('a4', 'landscape')
+                ->setOption('margin-top', 10)
+                ->setOption('margin-bottom', 10)
+                ->setOption('margin-left', 10)
+                ->setOption('margin-right', 10);
+
+            return $pdf->download('students-list-' . now()->format('Y-m-d') . '.pdf');
         }
 
         $students = (clone $query)->orderBy('name')->paginate(15)->withQueryString();
@@ -278,7 +315,11 @@ class StudentController extends Controller
 
         return view('students.index', [
             'students' => $students,
-            'filters' => $request->only(['q']) + ['status' => $status, 'payment_filter' => $paymentFilter],
+            'filters' => $request->only(['q']) + [
+                'status' => $status,
+                'payment_filter' => $paymentFilter,
+                'payment_start' => $paymentStart,
+            ],
             'totalStudents' => $totalStudents,
             'activeStudents' => $activeStudents,
             'studentsWithDueCount' => $studentsWithDueCount,

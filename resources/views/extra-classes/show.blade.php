@@ -10,7 +10,15 @@
                     </span>
                 </div>
                 <p class="text-sm text-gray-500 mt-1">
-                    {{ $extraClass->date?->format('F d, Y') }} • {{ $extraClass->start_time }} - {{ $extraClass->end_time }}
+                    @if($extraClass->payment_type === 'monthly')
+                        Weekly: {{ $extraClass->week_days ? implode(', ', $extraClass->week_days) : 'No days selected' }}
+                        @if($extraClass->payment_start_date)
+                            (Starts: {{ $extraClass->payment_start_date->format('M Y') }})
+                        @endif
+                    @else
+                        {{ $extraClass->date?->format('F d, Y') }}
+                    @endif
+                    • {{ $extraClass->start_time }} - {{ $extraClass->end_time }}
                 </p>
             </div>
             <div class="flex items-center gap-3">
@@ -28,22 +36,18 @@
             $allEnrollments = $extraClass->students()->get(); 
             $totalEnrollments = $allEnrollments->count();
             
+            // Query all settled revenue collected for this class
+            $totalRevenue = \App\Models\Revenue::query()
+                ->where('payment_meta->extra_class_id', $extraClass->id)
+                ->where('payment_status', '!=', 'cancelled')
+                ->sum('amount');
+
             if ($extraClass->payment_type === 'daily') {
                 $paidCount = $allEnrollments->filter(fn($e) => $e->due_days <= 0)->count();
-                // Total revenue collected for this class in Revenues table
-                $category = \App\Models\RevenueCategory::where('name', 'Extra Class Fee')->first();
-                $totalRevenue = 0;
-                if ($category) {
-                    $totalRevenue = \App\Models\Revenue::where('revenue_category_id', $category->id)
-                        ->whereIn('student_id', $allEnrollments->pluck('student_id'))
-                        ->where('notes', 'like', "Payment for {$extraClass->name}%")
-                        ->sum('amount');
-                }
                 $pendingRevenue = $allEnrollments->sum('due_amount');
             } else {
-                $paidCount = $allEnrollments->where('paid', 1)->count();
-                $totalRevenue = $allEnrollments->where('paid', 1)->sum('amount');
-                $pendingRevenue = $allEnrollments->where('paid', 0)->sum('amount');
+                $paidCount = count($paidStudentIds ?? []);
+                $pendingRevenue = max(0, $totalEnrollments - $paidCount) * ($extraClass->fee);
             }
 
             $collectionRate = $totalEnrollments > 0 ? round(($paidCount / $totalEnrollments) * 100) : 0;
@@ -100,9 +104,7 @@
                      <span class="text-xs text-gray-500">students</span>
                 </div>
                 <div class="text-xs text-gray-500 mt-1">Fee per student: {{ number_format($feeAmount, 2) }}</div>
-            </div>
-
-             <!-- Teacher (Box placeholder) -->
+            </div>              <!-- Teacher (Box placeholder) -->
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-sm font-medium text-gray-500">Instructor</h3>
@@ -114,9 +116,12 @@
                      @if($extraClass->visitingTeacher)
                         <div class="text-lg font-bold text-gray-800 truncate">{{ $extraClass->visitingTeacher->name }}</div>
                         <div class="text-xs text-gray-500">Visiting Teacher</div>
+                    @elseif($extraClass->teacher)
+                        <div class="text-lg font-bold text-gray-800 truncate">{{ $extraClass->teacher->name }}</div>
+                        <div class="text-xs text-gray-500">School Teacher</div>
                     @else
-                        <div class="text-lg font-bold text-gray-800">Internal</div>
-                         <div class="text-xs text-gray-500">School Staff</div>
+                        <div class="text-lg font-bold text-gray-800">Not assigned</div>
+                         <div class="text-xs text-gray-500">Staff</div>
                     @endif
                 </div>
             </div>
@@ -214,14 +219,23 @@
         <div class="bg-white shadow-sm rounded-xl border border-gray-100 overflow-hidden" x-data="{ 
             search: '',
             showPayModal: false,
+            showMonthlyPayModal: false,
             payingStudent: null,
             payDays: 1,
             amountPerDay: 0,
+            monthlyFee: 0,
+            selectedMonth: {{ $selectedMonth ?? now()->month }},
+            selectedYear: {{ $selectedYear ?? now()->year }},
             openPayModal(student) {
                 this.payingStudent = student;
                 this.payDays = student.due_days;
                 this.amountPerDay = student.fee_per_day;
                 this.showPayModal = true;
+            },
+            openMonthlyPayModal(student) {
+                this.payingStudent = student;
+                this.monthlyFee = student.fee;
+                this.showMonthlyPayModal = true;
             }
         }">
             <!-- Pay Modal -->
@@ -342,8 +356,159 @@
                 </div>
             </div>
 
+            <!-- Monthly Pay Modal -->
+            <div x-show="showMonthlyPayModal" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;">
+                <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                    <div x-show="showMonthlyPayModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 transition-opacity" aria-hidden="true">
+                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                    </div>
+
+                    <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                    <div x-show="showMonthlyPayModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title-monthly">
+                                    Record Monthly Payment - <span x-text="payingStudent ? payingStudent.name : ''"></span>
+                                </h3>
+                                <div class="mt-4 space-y-4">
+                                    <form :action="'/extra-classes/{{ $extraClass->id }}/pay-monthly'" method="POST" id="monthlyPayForm">
+                                        @csrf
+                                        <input type="hidden" name="extra_class_student_id" :value="payingStudent ? payingStudent.enrollment_id : ''">
+                                        
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Month</label>
+                                                <select name="month" x-model="selectedMonth" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                    @for($m = 1; $m <= 12; $m++)
+                                                        <option value="{{ $m }}">{{ Carbon\Carbon::create()->month($m)->format('F') }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700">Year</label>
+                                                <select name="year" x-model="selectedYear" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                    @for($y = now()->year - 2; $y <= now()->year + 2; $y++)
+                                                        <option value="{{ $y }}">{{ $y }}</option>
+                                                    @endfor
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        @php
+                                            $pm = old('payment_method', 'cash');
+                                        @endphp
+
+                                        <div class="mt-4" x-data="{ pm: '{{ $pm }}' }">
+                                            <label class="block text-sm font-medium text-gray-700">Payment Method</label>
+                                            <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='cash' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                                    <input type="radio" name="payment_method" value="cash" class="mt-1" x-model="pm">
+                                                    <div>
+                                                        <div class="text-xs font-semibold text-gray-800">Cash</div>
+                                                        <div class="text-[11px] text-gray-500">No extra details</div>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='bank_transfer' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                                    <input type="radio" name="payment_method" value="bank_transfer" class="mt-1" x-model="pm">
+                                                    <div>
+                                                        <div class="text-xs font-semibold text-gray-800">Bank Transfer</div>
+                                                        <div class="text-[11px] text-gray-500">Ref no + Bank</div>
+                                                    </div>
+                                                </label>
+                                                <label class="flex items-start gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 cursor-pointer" :class="pm==='cheque' ? 'ring-2 ring-indigo-200 border-indigo-400' : ''">
+                                                    <input type="radio" name="payment_method" value="cheque" class="mt-1" x-model="pm">
+                                                    <div>
+                                                        <div class="text-xs font-semibold text-gray-800">Cheque</div>
+                                                        <div class="text-[11px] text-gray-500">Cheque details</div>
+                                                    </div>
+                                                </label>
+                                            </div>
+
+                                            <div x-show="pm === 'bank_transfer'" x-cloak class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <div>
+                                                    <input type="text" name="bank_name" value="{{ old('bank_name') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Bank name">
+                                                    @error('bank_name')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                                <div>
+                                                    <input type="text" name="bank_ref_no" value="{{ old('bank_ref_no') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Reference no (optional)">
+                                                    @error('bank_ref_no')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+
+                                            <div x-show="pm === 'cheque'" x-cloak class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                <div>
+                                                    <input type="date" name="cheque_date" value="{{ old('cheque_date') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                                    @error('cheque_date')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                                <div>
+                                                    <input type="text" name="cheque_number" value="{{ old('cheque_number') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Cheque number">
+                                                    @error('cheque_number')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                                <div>
+                                                    <input type="text" name="cheque_bank" value="{{ old('cheque_bank') }}" class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Bank">
+                                                    @error('cheque_bank')
+                                                        <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
+                                                    @enderror
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="bg-gray-50 p-3 rounded-lg flex justify-between items-center mt-4">
+                                            <span class="text-sm text-gray-600">Total Amount:</span>
+                                            <span class="text-lg font-bold text-gray-900" x-text="new Number(monthlyFee).toLocaleString(undefined, {minimumFractionDigits: 2})"></span>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                            <button type="submit" form="monthlyPayForm" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                Confirm Payment
+                            </button>
+                            <button @click="showMonthlyPayModal = false" type="button" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <h2 class="text-lg font-bold text-gray-800">Registered Students</h2>
+                <div class="flex flex-wrap items-center gap-4">
+                    <h2 class="text-lg font-bold text-gray-800">Registered Students</h2>
+                    @if($extraClass->payment_type === 'monthly')
+                        <form action="" method="GET" class="flex items-center gap-2">
+                            <select name="month" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200">
+                                @for($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" @selected($m == $selectedMonth)>
+                                        {{ Carbon\Carbon::create()->month($m)->format('F') }}
+                                    </option>
+                                @endfor
+                            </select>
+                            <select name="year" onchange="this.form.submit()" class="rounded-lg border-gray-300 text-sm focus:border-indigo-500 focus:ring focus:ring-indigo-200">
+                                @for($y = now()->year - 2; $y <= now()->year + 2; $y++)
+                                    <option value="{{ $y }}" @selected($y == $selectedYear)>
+                                        {{ $y }}
+                                    </option>
+                                @endfor
+                            </select>
+                        </form>
+                    @endif
+                </div>
                  <div class="relative">
                      <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -417,7 +582,7 @@
                                             </span>
                                         @endif
                                     @else
-                                        @if($row->paid)
+                                        @if(in_array($row->student_id, $paidStudentIds ?? []))
                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">
                                                 Paid
                                             </span>
@@ -442,7 +607,7 @@
                                 </td>
                                 @if($extraClass->payment_type !== 'daily')
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $row->paid ? 'Paid' : 'Unpaid' }}
+                                        {{ in_array($row->student_id, $paidStudentIds ?? []) ? 'Paid' : 'Unpaid' }}
                                     </td>
                                 @endif
                                 <td class="px-6 py-4 whitespace-nowrap space-y-2">
@@ -459,12 +624,27 @@
                                             Payment received
                                         </button>
                                     @else
-                                        <form action="{{ route('extra-classes.payments.toggle', [$extraClass, $row]) }}" method="POST">
-                                            @csrf
-                                            <button type="submit" class="w-full inline-flex justify-center rounded-full border border-gray-200 {{ $row->paid ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }} text-xs font-semibold px-3 py-1 focus:outline-none">
-                                                {{ $row->paid ? 'Mark unpaid' : 'Payment received' }}
+                                        @if(in_array($row->student_id, $paidStudentIds ?? []))
+                                            <form action="{{ route('extra-classes.pay-monthly.cancel', [$extraClass, $row]) }}" method="POST" onsubmit="return confirm('Cancel payment for this student for the selected month?');">
+                                                @csrf
+                                                <input type="hidden" name="month" value="{{ $selectedMonth }}">
+                                                <input type="hidden" name="year" value="{{ $selectedYear }}">
+                                                <button type="submit" class="w-full inline-flex justify-center rounded-full border border-gray-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold px-3 py-1 focus:outline-none">
+                                                    Mark unpaid
+                                                </button>
+                                            </form>
+                                        @else
+                                            <button type="button"
+                                                    @click="openMonthlyPayModal({
+                                                        id: {{ $row->student_id }},
+                                                        enrollment_id: {{ $row->id }},
+                                                        name: '{{ addslashes($row->student?->name) }}',
+                                                        fee: {{ $row->amount ?: $extraClass->fee }}
+                                                    })"
+                                                    class="w-full inline-flex justify-center rounded-full border border-gray-200 bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs font-semibold px-3 py-1 focus:outline-none">
+                                                Payment received
                                             </button>
-                                        </form>
+                                        @endif
                                     @endif
                                     <form action="{{ route('extra-classes.enrollments.destroy', [$extraClass, $row]) }}" method="POST" onsubmit="return confirm('Remove {{ addslashes($row->student?->name ?? 'student') }} from this extra class?');">
                                         @csrf

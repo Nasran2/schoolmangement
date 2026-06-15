@@ -12,6 +12,7 @@ class ExtraClass extends Model
     protected $fillable = [
         'name',
         'date',
+        'week_days',
         'start_time',
         'end_time',
         'payment_type',
@@ -19,12 +20,15 @@ class ExtraClass extends Model
         'teacher_payment',
         'payment_start_date',
         'class_room_id',
+        'class_room_ids',
+        'teacher_id',
         'visiting_teacher_id',
         'active',
     ];
 
     protected $casts = [
         'date' => 'date',
+        'week_days' => 'array',
         'start_time' => 'datetime:H:i:s',
         'end_time' => 'datetime:H:i:s',
         'fee' => 'decimal:2',
@@ -32,6 +36,8 @@ class ExtraClass extends Model
         'payment_start_date' => 'date',
         'active' => 'boolean',
         'class_room_id' => 'integer',
+        'class_room_ids' => 'array',
+        'teacher_id' => 'integer',
         'visiting_teacher_id' => 'integer',
     ];
 
@@ -48,6 +54,11 @@ class ExtraClass extends Model
     public function visitingTeacher(): BelongsTo
     {
         return $this->belongsTo(VisitingTeacher::class);
+    }
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class);
     }
 
     public function teacherPayments(): HasMany

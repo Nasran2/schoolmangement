@@ -11,6 +11,7 @@ import { initSearchableSelects } from './searchableSelect';
 
 window.Alpine = Alpine;
 window.teacherPicker = teacherPicker;
+window.initSearchableSelects = initSearchableSelects;
 
 Alpine.start();
 
