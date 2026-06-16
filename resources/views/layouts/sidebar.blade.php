@@ -78,7 +78,7 @@
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg>
                 <span>Opening Balance</span>
             </a>
-        @endcan
+        @endif
 
         @if(auth()->user()?->hasRole('Developer'))
             <a href="{{ route('developer.dashboard') }}"
@@ -442,6 +442,28 @@
             </a>
         @endif
 
+        @if($canManageRevenue)
+            <a href="{{ route('opening-balance.create') }}"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('opening-balance.create') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg>
+                <span>Opening Balance</span>
+            </a>
+        @endif
+
+        @if(auth()->user()?->hasRole('Developer'))
+            <a href="{{ route('developer.dashboard') }}"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ $isDeveloper ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.75 3.75h4.5v3h-4.5z"/><path d="M4.5 9.75h15v10.5h-15z"/><path d="M9 14.25h6"/><path d="M12 11.25v6"/></svg>
+                <span>Developer Console</span>
+            </a>
+
+            <div class="mt-1 space-y-1 pl-8">
+                <a href="{{ route('developer.students') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperStudents ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Students</a>
+                <a href="{{ route('developer.teachers') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Teachers</a>
+                <a href="{{ route('developer.users') }}" class="block px-3 py-2 rounded-md text-sm {{ $isDeveloperUsers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">Users</a>
+            </div>
+        @endif
+
         @if($canAddRevenue || $canManageRevenue || $canManageRevenueCategories)
             <div class="mt-3">
                 <button type="button" @click="menus.revenue = !menus.revenue" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isRevenue ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -469,14 +491,6 @@
             </div>
         @endif
 
-        @if($canViewActivityLogs)
-            <div class="mt-2">
-                <a href="{{ route('audit_logs.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('audit_logs.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
-                    <span>Activity Logs</span>
-                </a>
-            </div>
-        @endif
 
         @if($canAddExpense || $canManageExpense || $canManageExpenseCategories)
             <div class="mt-2">
@@ -741,6 +755,15 @@
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('rbac.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('rbac.roles.index') }}">Roles & Permissions</a>
                     @endif
                 </div>
+            </div>
+        @endif
+
+        @if($canViewActivityLogs)
+            <div class="mt-2">
+                <a href="{{ route('audit_logs.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('audit_logs.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
+                    <span>Activity Logs</span>
+                </a>
             </div>
         @endif
 
