@@ -386,15 +386,43 @@
                                 {{-- Amount and Date --}}
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div>
-                                        <label class="block text-sm font-semibold text-gray-800 mb-3">Amount</label>
+                                        <label class="block text-sm font-semibold text-gray-800 mb-3" x-text="isAdmissionFee() ? 'Base Amount' : 'Amount'">Amount</label>
                                         <div class="relative">
                                             <span
                                                 class="absolute inset-y-0 left-0 pl-4 flex items-center text-gray-600 font-semibold">Rs</span>
-                                            <input type="number" id="amount_input" name="amount" step="0.01" min="0.01"
+                                            <input type="number" id="amount_input" name="base_amount" step="0.01" min="0.01"
                                                 class="block w-full pl-12 pr-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="0.00" value="{{ $defaultAmount }}"
                                                 x-model="formData.amount"
                                                 x-on:input="updateAllocationPreview()" required>
+                                        </div>
+                                        <input type="hidden" name="amount" :value="finalPayableAmount()">
+                                        
+                                        {{-- Discount Section for Admission Fee --}}
+                                        <div x-show="isAdmissionFee()" x-cloak class="mt-4 p-4 border border-indigo-100 bg-indigo-50/50 rounded-xl transition-all">
+                                            <label class="block text-sm font-semibold text-gray-800 mb-3">Discount (Optional)</label>
+                                            <div class="flex gap-3">
+                                                <div class="w-2/5">
+                                                    <select name="discount_type" x-model="discountType" x-on:change="updateAllocationPreview()"
+                                                        class="block w-full px-3 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all text-sm">
+                                                        <option value="percentage">Percentage (%)</option>
+                                                        <option value="fixed">Fixed Amount</option>
+                                                    </select>
+                                                </div>
+                                                <div class="w-3/5 relative">
+                                                    <input type="number" name="discount_value" step="0.01" min="0"
+                                                        class="block w-full px-3 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 transition-all text-sm"
+                                                        placeholder="Discount value" x-model="discountValue" x-on:input="updateAllocationPreview()">
+                                                </div>
+                                            </div>
+                                            <div class="mt-3 flex justify-between items-center text-sm" x-show="discountValue > 0">
+                                                <span class="font-medium text-gray-600">Discount Amount</span>
+                                                <span class="font-bold text-red-500">- Rs <span x-text="formatMoney(calculatedDiscountAmount())"></span></span>
+                                            </div>
+                                            <div class="mt-2 pt-2 border-t border-indigo-200 flex justify-between items-center text-sm" x-show="discountValue > 0">
+                                                <span class="font-semibold text-gray-800">Final Payable</span>
+                                                <span class="font-bold text-indigo-700">Rs <span x-text="formatMoney(finalPayableAmount())"></span></span>
+                                            </div>
                                         </div>
                                         <p class="mt-2 text-xs text-gray-500" x-show="categoryType === 'monthly' && selectedCategoryIsMonthlyFee">If you pay extra, it will automatically go to next months.</p>
                                         <div class="mt-2 text-xs" x-show="categoryType === 'monthly' && selectedCategoryIsMonthlyFee && selectedStudentId && Number(formData.amount||0) > 0" x-cloak>
@@ -661,7 +689,7 @@
                                     <div class="flex items-baseline justify-center gap-1">
                                         <span class="text-sm font-medium text-indigo-700">Rs</span>
                                         <span class="text-3xl font-bold text-indigo-600"
-                                            x-text="Number(formData.amount || 0).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
+                                            x-text="Number(finalPayableAmount() || 0).toLocaleString('en', {minimumFractionDigits: 2, maximumFractionDigits: 2})"></span>
                                     </div>
                                 </div>
                             </div>
@@ -845,8 +873,30 @@
                     yearlyFeeRows: [],
                     yearlyFeeRowSeq: 0,
                     yearlyFeePreviewTimer: null,
+                    discountType: 'percentage',
+                    discountValue: '',
                     allocation: { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } },
                     isAllocationLoading: false,
+
+                    isAdmissionFee() {
+                        return this.categoryName && this.categoryName.toLowerCase().includes('admission fee');
+                    },
+                    calculatedDiscountAmount() {
+                        let amt = parseFloat(this.formData.amount) || 0;
+                        if (!this.isAdmissionFee() || !this.discountValue || parseFloat(this.discountValue) <= 0) return 0;
+                        
+                        let dVal = parseFloat(this.discountValue);
+                        if (this.discountType === 'percentage') {
+                            return amt * (dVal / 100);
+                        } else {
+                            return dVal;
+                        }
+                    },
+                    finalPayableAmount() {
+                        let amt = parseFloat(this.formData.amount) || 0;
+                        let discount = this.calculatedDiscountAmount();
+                        return Math.max(0, amt - discount).toFixed(2);
+                    },
 
                     init() {
                         try {

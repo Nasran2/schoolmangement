@@ -163,11 +163,11 @@ class RevenueController extends Controller
         }
 
         $range = $request->input('range', 'all');
-        
+
         if ($range !== 'all') {
             $start = null;
             $end = null;
-            
+
             if ($range === 'today') {
                 $start = now()->startOfDay();
                 $end = now()->endOfDay();
@@ -284,12 +284,16 @@ class RevenueController extends Controller
         $advRaw = $request->input('advance_months');
         if (is_string($advRaw)) {
             $parsed = json_decode($advRaw, true);
-            if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
+            if (is_array($parsed)) {
+                $request->merge(['advance_months' => $parsed]);
+            }
         }
         $overrideRaw = $request->input('monthly_fee_overrides');
         if (is_string($overrideRaw)) {
             $parsed = json_decode($overrideRaw, true);
-            if (is_array($parsed)) { $request->merge(['monthly_fee_overrides' => $parsed]); }
+            if (is_array($parsed)) {
+                $request->merge(['monthly_fee_overrides' => $parsed]);
+            }
         }
         $validated = $request->validate([
             'revenue_category_id' => ['required', 'exists:revenue_categories,id'],
@@ -308,6 +312,9 @@ class RevenueController extends Controller
                 ? ['nullable', 'string', 'max:50']
                 : ['nullable', 'string', 'max:50', 'unique:revenues,bill_no'],
             'notes' => ['nullable', 'string'],
+            'base_amount' => ['nullable', 'numeric', 'min:0.01'],
+            'discount_type' => ['nullable', 'in:percentage,fixed'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
             // Allocation inputs (optional): array of future months {month,year}
             'advance_months' => ['nullable', 'array'],
             'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
@@ -394,6 +401,13 @@ class RevenueController extends Controller
                 'bank' => $validated['cheque_bank'] ?? null,
                 'student_name' => $validated['cheque_student_name'] ?? null,
             ];
+        }
+
+        if (!empty($validated['discount_value']) && $validated['discount_value'] > 0) {
+            $paymentMeta = $paymentMeta ?? [];
+            $paymentMeta['base_amount'] = $validated['base_amount'] ?? null;
+            $paymentMeta['discount_type'] = $validated['discount_type'] ?? null;
+            $paymentMeta['discount_value'] = $validated['discount_value'] ?? null;
         }
 
         $revenue = DB::transaction(function () use ($request, $validated, $billNo, $paymentMethod, $paymentStatus, $paymentMeta, $chequeDate, $confirmedAt, $notes, $student, $result, $feeOverrides) {
@@ -528,12 +542,16 @@ class RevenueController extends Controller
         $advRaw = $request->input('advance_months');
         if (is_string($advRaw)) {
             $parsed = json_decode($advRaw, true);
-            if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
+            if (is_array($parsed)) {
+                $request->merge(['advance_months' => $parsed]);
+            }
         }
         $overrideRaw = $request->input('monthly_fee_overrides');
         if (is_string($overrideRaw)) {
             $parsed = json_decode($overrideRaw, true);
-            if (is_array($parsed)) { $request->merge(['monthly_fee_overrides' => $parsed]); }
+            if (is_array($parsed)) {
+                $request->merge(['monthly_fee_overrides' => $parsed]);
+            }
         }
 
         $validated = $request->validate([
@@ -551,8 +569,11 @@ class RevenueController extends Controller
             // When auto-generate is enabled, keep existing bill number unless settings are changed.
             'bill_no' => $autogenerate
                 ? ['nullable', 'string', 'max:50']
-                : ['nullable', 'string', 'max:50', 'unique:revenues,bill_no,'.$item->id],
+                : ['nullable', 'string', 'max:50', 'unique:revenues,bill_no,' . $item->id],
             'notes' => ['nullable', 'string'],
+            'base_amount' => ['nullable', 'numeric', 'min:0.01'],
+            'discount_type' => ['nullable', 'in:percentage,fixed'],
+            'discount_value' => ['nullable', 'numeric', 'min:0'],
             'advance_months' => ['nullable', 'array'],
             'advance_months.*.month' => ['required_with:advance_months', 'integer', 'min:1', 'max:12'],
             'advance_months.*.year' => ['required_with:advance_months', 'integer', 'min:2000'],
@@ -622,6 +643,13 @@ class RevenueController extends Controller
                 'bank' => $validated['cheque_bank'] ?? null,
                 'student_name' => $validated['cheque_student_name'] ?? null,
             ];
+        }
+
+        if (!empty($validated['discount_value']) && $validated['discount_value'] > 0) {
+            $paymentMeta = $paymentMeta ?? [];
+            $paymentMeta['base_amount'] = $validated['base_amount'] ?? null;
+            $paymentMeta['discount_type'] = $validated['discount_type'] ?? null;
+            $paymentMeta['discount_value'] = $validated['discount_value'] ?? null;
         }
 
         DB::transaction(function () use ($request, $item, $validated, $autogenerate, $paymentMethod, $paymentStatus, $paymentMeta, $chequeDate, $confirmedAt, $student, $result, $feeOverrides) {
@@ -760,10 +788,10 @@ class RevenueController extends Controller
         $logoPath = (string) $settings->get('school.logo', '');
         $logoDataUri = null;
         if ($logoPath !== '') {
-            $abs = storage_path('app/public/'.$logoPath);
+            $abs = storage_path('app/public/' . $logoPath);
             if (is_file($abs)) {
                 $mime = @mime_content_type($abs) ?: 'image/png';
-                $logoDataUri = 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($abs));
+                $logoDataUri = 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($abs));
             }
         }
 
@@ -784,12 +812,16 @@ class RevenueController extends Controller
         $advRaw = $request->input('advance_months');
         if (is_string($advRaw)) {
             $parsed = json_decode($advRaw, true);
-            if (is_array($parsed)) { $request->merge(['advance_months' => $parsed]); }
+            if (is_array($parsed)) {
+                $request->merge(['advance_months' => $parsed]);
+            }
         }
         $overrideRaw = $request->input('monthly_fee_overrides');
         if (is_string($overrideRaw)) {
             $parsed = json_decode($overrideRaw, true);
-            if (is_array($parsed)) { $request->merge(['monthly_fee_overrides' => $parsed]); }
+            if (is_array($parsed)) {
+                $request->merge(['monthly_fee_overrides' => $parsed]);
+            }
         }
         $validated = $request->validate([
             'student_id' => ['required', 'exists:students,id'],

@@ -41,7 +41,7 @@ $amountWords = ucwords(numberToWords($amount)) . ' Rupees Only';
 // Fee type helpers based on category.payment_type
 $paymentType = strtolower($category->payment_type ?? '');
 $isMonthly = !empty($category?->interval_months) || $paymentType === 'monthly';
-$isAdmission = $paymentType === 'admission';
+$isAdmission = $paymentType === 'admission' || stripos($category->name ?? '', 'admission') !== false;
 $isFacilities = $paymentType === 'facilities';
 $isTerm = in_array($paymentType, ['term','semester','term_fee']);
 $studentMonthlyFee = (float) ($student?->monthly_fee ?? $student?->classRoom?->monthly_fee ?? 0);
@@ -389,7 +389,21 @@ if (empty($studentAddress) && $student) {
         <div class="grid grid-cols-2 gap-6">
             <div class="space-y-2">
                 @if($isAdmission)
-                    <div class="flex justify-between"><span>I. Admission fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                    @php
+                        $baseAmount = $revenue->payment_meta['base_amount'] ?? $amount;
+                        $discountValue = $revenue->payment_meta['discount_value'] ?? 0;
+                        $discountType = $revenue->payment_meta['discount_type'] ?? 'percentage';
+                        $discountAmount = 0;
+                        if ($discountValue > 0) {
+                            $discountAmount = $discountType === 'percentage' ? ((float)$baseAmount * ((float)$discountValue / 100)) : (float)$discountValue;
+                        }
+                    @endphp
+                    @if($discountValue > 0)
+                        <div class="flex justify-between"><span>I. Admission fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($baseAmount,2) }}</span></div>
+                        <div class="flex justify-between text-sm"><span> &nbsp; Discount ({{ $discountType === 'percentage' ? $discountValue . '%' : 'Fixed' }}) :</span><span class="inline-block min-w-[140px] text-right">- Rs {{ number_format($discountAmount,2) }}</span></div>
+                    @else
+                        <div class="flex justify-between"><span>I. Admission fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                    @endif
                 @endif
                 @if($isMonthly)
                     <div class="flex justify-between"><span>{{ $isAdmission ? 'II.' : 'I.' }} Monthly fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($singleMonthlyReceiptAmount,2) }}</span></div>

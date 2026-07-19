@@ -256,109 +256,109 @@ class ReportController extends Controller
             [
                 'name' => 'Revenue Report',
                 'perm' => ['reports.revenue.view'],
-                'call' => fn () => $this->revenue($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->revenue($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '01-revenue.pdf',
             ],
             [
                 'name' => 'Expense Report',
                 'perm' => ['reports.expense.view'],
-                'call' => fn () => $this->expense($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'include_salary' => (int) $request->boolean('include_salary')])),
+                'call' => fn() => $this->expense($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'include_salary' => (int) $request->boolean('include_salary')])),
                 'file' => '02-expense.pdf',
             ],
             [
                 'name' => 'All Outflows',
                 'perm' => ['reports.outflows.view'],
-                'call' => fn () => $this->outflows($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'method' => (string) $request->query('method', 'all')])),
+                'call' => fn() => $this->outflows($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'method' => (string) $request->query('method', 'all')])),
                 'file' => '02b-all-outflows.pdf',
             ],
             [
                 'name' => 'Financial Summary',
                 'perm' => ['reports.financial.view'],
-                'call' => fn () => $this->financial($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->financial($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '03-financial.pdf',
             ],
             [
                 'name' => 'Daily Ledger',
                 'perm' => ['reports.daily_ledger.view'],
-                'call' => fn () => $this->dailyLedger($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->dailyLedger($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '04-daily-ledger.pdf',
             ],
             [
                 'name' => 'Cash Transactions',
                 'perm' => ['reports.cash_transactions.view'],
-                'call' => fn () => $this->cashTransactions($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->cashTransactions($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '05-cash-transactions.pdf',
             ],
             [
                 'name' => 'Bank Transactions',
                 'perm' => ['reports.bank_transactions.view'],
-                'call' => fn () => $this->bankTransactions($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'include_pending_cheques' => (int) $request->boolean('include_pending_cheques')])),
+                'call' => fn() => $this->bankTransactions($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'include_pending_cheques' => (int) $request->boolean('include_pending_cheques')])),
                 'file' => '06-bank-transactions.pdf',
             ],
             [
                 'name' => 'Cheque History',
                 'perm' => ['reports.cheque_history.view'],
-                'call' => fn () => $this->chequeHistory($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'status' => (string) $request->query('status', 'all'), 'type' => (string) $request->query('type', 'all')])),
+                'call' => fn() => $this->chequeHistory($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'status' => (string) $request->query('status', 'all'), 'type' => (string) $request->query('type', 'all')])),
                 'file' => '07-cheque-history.pdf',
             ],
             [
                 'name' => 'Teacher EPF',
                 'perm' => ['reports.teacher_epf.view'],
-                'call' => fn () => $this->teacherEpf($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->teacherEpf($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '08-teacher-epf.pdf',
             ],
             [
                 'name' => 'Company EPF',
                 'perm' => ['reports.company_epf.view'],
-                'call' => fn () => $this->companyEpf($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->companyEpf($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '09-company-epf.pdf',
             ],
             [
                 'name' => 'Company ETF',
                 'perm' => ['reports.teacher_etf.view'],
-                'call' => fn () => $this->teacherEtf($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->teacherEtf($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '10-company-etf.pdf',
             ],
             [
                 'name' => 'EPF/ETF Totals',
                 'perm' => ['reports.epf_etf_totals.view'],
-                'call' => fn () => $this->epfEtfTotals($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->epfEtfTotals($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '11-epf-etf-totals.pdf',
             ],
             [
                 'name' => 'Students Report',
                 'perm' => ['reports.view'],
-                'call' => fn () => $this->students($this->internalRequest($request, ['pdf' => 1, 'class_room_id' => $request->query('class_room_id')])),
+                'call' => fn() => $this->students($this->internalRequest($request, ['pdf' => 1, 'class_room_id' => $request->query('class_room_id')])),
                 'file' => '11b-students.pdf',
             ],
             [
                 'name' => 'Student Due',
                 'perm' => ['reports.student_due.view'],
-                'call' => fn () => $this->studentDue($this->internalRequest($request, ['pdf' => 1])),
+                'call' => fn() => $this->studentDue($this->internalRequest($request, ['pdf' => 1])),
                 'file' => '12-student-due.pdf',
             ],
             [
                 'name' => 'Fee Collection Summary',
                 'perm' => ['reports.fee_collection_summary.view'],
-                'call' => fn () => $this->feeCollectionSummary($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'group' => (string) $request->query('group', 'day')])),
+                'call' => fn() => $this->feeCollectionSummary($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to, 'group' => (string) $request->query('group', 'day')])),
                 'file' => '13-fee-collection-summary.pdf',
             ],
             [
                 'name' => 'Fee Collection by Class',
                 'perm' => ['reports.fee_collection_by_class.view'],
-                'call' => fn () => $this->feeCollectionByClass($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->feeCollectionByClass($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '14-fee-collection-by-class.pdf',
             ],
             [
                 'name' => 'Fee Collection by Category',
                 'perm' => ['reports.fee_collection_by_category.view'],
-                'call' => fn () => $this->feeCollectionByCategory($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->feeCollectionByCategory($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '15-fee-collection-by-category.pdf',
             ],
             [
                 'name' => 'Collected vs Expected',
                 'perm' => ['reports.fee_collection_vs_expected.view'],
-                'call' => fn () => $this->feeCollectionVsExpected($this->internalRequest($request, [
+                'call' => fn() => $this->feeCollectionVsExpected($this->internalRequest($request, [
                     'pdf' => 1,
                     'from_month' => $preset['from_month'] ?: now()->format('Y-m'),
                     'to_month' => $preset['to_month'] ?: now()->format('Y-m'),
@@ -369,37 +369,37 @@ class ReportController extends Controller
             [
                 'name' => 'Student Due Aging',
                 'perm' => ['reports.student_due_aging.view'],
-                'call' => fn () => $this->studentDueAging($this->internalRequest($request, ['pdf' => 1, 'only_active' => (string) $request->query('only_active', '1')])),
+                'call' => fn() => $this->studentDueAging($this->internalRequest($request, ['pdf' => 1, 'only_active' => (string) $request->query('only_active', '1')])),
                 'file' => '17-student-due-aging.pdf',
             ],
             [
                 'name' => 'Top Due Students',
                 'perm' => ['reports.student_top_due.view'],
-                'call' => fn () => $this->studentTopDue($this->internalRequest($request, ['pdf' => 1, 'limit' => (int) $request->query('limit', 20)])),
+                'call' => fn() => $this->studentTopDue($this->internalRequest($request, ['pdf' => 1, 'limit' => (int) $request->query('limit', 20)])),
                 'file' => '18-top-due-students.pdf',
             ],
             [
                 'name' => 'Discount/Waiver Report',
                 'perm' => ['reports.fee_discounts.view'],
-                'call' => fn () => $this->feeDiscounts($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->feeDiscounts($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '19-waivers.pdf',
             ],
             [
                 'name' => 'Refund Report',
                 'perm' => ['reports.fee_refunds.view'],
-                'call' => fn () => $this->feeRefunds($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->feeRefunds($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '20-refunds.pdf',
             ],
             [
                 'name' => 'Seminars Collection',
                 'perm' => ['reports.seminars_collection.view', 'reports.view'],
-                'call' => fn () => $this->seminarsCollection($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->seminarsCollection($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '21-seminars-collection.pdf',
             ],
             [
                 'name' => 'Extra Classes Collection',
                 'perm' => ['reports.extra_classes_collection.view', 'reports.view'],
-                'call' => fn () => $this->extraClassesCollection($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
+                'call' => fn() => $this->extraClassesCollection($this->internalRequest($request, ['pdf' => 1, 'from' => $from, 'to' => $to])),
                 'file' => '22-extra-classes-collection.pdf',
             ],
         ];
@@ -467,7 +467,7 @@ class ReportController extends Controller
     private function internalRequest(Request $original, array $query): Request
     {
         $r = Request::create('/', 'GET', $query);
-        $r->setUserResolver(fn () => $original->user());
+        $r->setUserResolver(fn() => $original->user());
         return $r;
     }
 
@@ -574,7 +574,7 @@ class ReportController extends Controller
             $this->authorizeDownload($request);
             $rows = $query->get();
             $totalAmount = $rows->sum('amount');
-            
+
             $html = view('reports.revenue-pdf', [
                 'items' => $rows,
                 'totalAmount' => $totalAmount,
@@ -667,7 +667,7 @@ class ReportController extends Controller
             $rows = $query->get();
             $salaryRows = $includeSalary ? $salaryQuery->get() : collect();
             $totalAmount = (float) $rows->sum('amount') + (float) $salaryRows->sum('amount');
-            
+
             $html = view('reports.expense-pdf', [
                 'items' => $rows,
                 'salaryPayments' => $salaryRows,
@@ -807,21 +807,28 @@ class ReportController extends Controller
                     ->whereDate('revenues.paid_at', $dateStr)
                     ->orderBy('revenues.paid_at')
                     ->select([
-                        'revenues.id', 'revenues.bill_no', 'revenues.amount', 'revenues.notes',
-                        'students.name as student_name', 'revenue_categories.name as category_name',
+                        'revenues.id',
+                        'revenues.bill_no',
+                        'revenues.amount',
+                        'revenues.notes',
+                        'students.name as student_name',
+                        'revenue_categories.name as category_name',
                         'revenues.payment_method',
-                    ])
-                    ;
+                    ]);
                 $incomeQuery = $applyPaymentFilter($incomeQuery, 'revenues.payment_method');
 
                 $incomes = $incomeQuery->get()
                     ->map(function ($r) use ($isBankMethod) {
                         $desc = $r->student_name ? $r->student_name : ($r->category_name ?: 'Income');
-                        if (!empty($r->notes)) { $desc .= ' - ' . $r->notes; }
+                        if (!empty($r->notes)) {
+                            $desc .= ' - ' . $r->notes;
+                        }
 
                         $pm = (string) ($r->payment_method ?? 'cash');
                         $isBank = $isBankMethod($pm);
-                        if ($isBank) { $desc .= ' (BANK)'; }
+                        if ($isBank) {
+                            $desc .= ' (BANK)';
+                        }
 
                         return [
                             'ref' => $r->bill_no ?: '—',
@@ -845,7 +852,9 @@ class ReportController extends Controller
                         $pm = (string) ($r->payment_method ?? 'cash');
                         $isBank = $isBankMethod($pm);
                         $desc = 'Refund';
-                        if ($isBank) { $desc .= ' (BANK)'; }
+                        if ($isBank) {
+                            $desc .= ' (BANK)';
+                        }
                         return [
                             'ref' => $r->bill_no ?: '—',
                             'description' => $desc,
@@ -860,18 +869,21 @@ class ReportController extends Controller
                     ->leftJoin('expense_categories', 'expense_categories.id', '=', 'expenses.expense_category_id')
                     ->whereDate('expenses.expense_date', $dateStr)
                     ->orderBy('expenses.expense_date')
-                    ->select(['expenses.id', 'expenses.amount', 'expenses.notes', 'expenses.payment_method', 'expense_categories.name as category_name'])
-                    ;
+                    ->select(['expenses.id', 'expenses.amount', 'expenses.notes', 'expenses.payment_method', 'expense_categories.name as category_name']);
                 $expenseQuery = $applyPaymentFilter($expenseQuery, 'expenses.payment_method');
 
                 $expenses = $expenseQuery->get()
                     ->map(function ($e) use ($isBankMethod) {
                         $desc = $e->category_name ?: 'Expense';
-                        if (!empty($e->notes)) { $desc .= ' - ' . $e->notes; }
+                        if (!empty($e->notes)) {
+                            $desc .= ' - ' . $e->notes;
+                        }
 
                         $pm = (string) ($e->payment_method ?? 'cash');
                         $isBank = $isBankMethod($pm);
-                        if ($isBank) { $desc .= ' (BANK)'; }
+                        if ($isBank) {
+                            $desc .= ' (BANK)';
+                        }
 
                         return [
                             'description' => $desc,
@@ -882,17 +894,17 @@ class ReportController extends Controller
                     })
                     ->all();
 
-                $incomeCash = array_sum(array_map(fn ($i) => ($i['account'] ?? 'cash') === 'cash' ? (float) $i['amount'] : 0.0, $incomes));
-                $incomeBank = array_sum(array_map(fn ($i) => ($i['account'] ?? 'cash') === 'bank' ? (float) $i['amount'] : 0.0, $incomes));
+                $incomeCash = array_sum(array_map(fn($i) => ($i['account'] ?? 'cash') === 'cash' ? (float) $i['amount'] : 0.0, $incomes));
+                $incomeBank = array_sum(array_map(fn($i) => ($i['account'] ?? 'cash') === 'bank' ? (float) $i['amount'] : 0.0, $incomes));
 
-                $refundOutCash = array_sum(array_map(fn ($i) => ($i['account'] ?? 'cash') === 'cash' ? abs((float) $i['amount']) : 0.0, $refunds));
-                $refundOutBank = array_sum(array_map(fn ($i) => ($i['account'] ?? 'cash') === 'bank' ? abs((float) $i['amount']) : 0.0, $refunds));
+                $refundOutCash = array_sum(array_map(fn($i) => ($i['account'] ?? 'cash') === 'cash' ? abs((float) $i['amount']) : 0.0, $refunds));
+                $refundOutBank = array_sum(array_map(fn($i) => ($i['account'] ?? 'cash') === 'bank' ? abs((float) $i['amount']) : 0.0, $refunds));
 
-                $expenseCash = array_sum(array_map(fn ($i) => ($i['account'] ?? 'cash') === 'cash' ? (float) $i['amount'] : 0.0, $expenses)) + $refundOutCash;
-                $expenseBank = array_sum(array_map(fn ($i) => ($i['account'] ?? 'cash') === 'bank' ? (float) $i['amount'] : 0.0, $expenses)) + $refundOutBank;
+                $expenseCash = array_sum(array_map(fn($i) => ($i['account'] ?? 'cash') === 'cash' ? (float) $i['amount'] : 0.0, $expenses)) + $refundOutCash;
+                $expenseBank = array_sum(array_map(fn($i) => ($i['account'] ?? 'cash') === 'bank' ? (float) $i['amount'] : 0.0, $expenses)) + $refundOutBank;
 
-                $incomeTotal = array_sum(array_map(fn ($i) => (float) $i['amount'], array_merge($incomes, $refunds)));
-                $expenseTotal = array_sum(array_map(fn ($c) => (float) $c['amount'], $expenses));
+                $incomeTotal = array_sum(array_map(fn($i) => (float) $i['amount'], array_merge($incomes, $refunds)));
+                $expenseTotal = array_sum(array_map(fn($c) => (float) $c['amount'], $expenses));
                 $closing = $runningOpening + $incomeTotal - $expenseTotal;
 
                 $bbfDate = $cursor->copy()->subDay()->format('M d, Y');
@@ -920,8 +932,7 @@ class ReportController extends Controller
             // Aggregated ledger for whole range
             $revenueQ = Revenue::query()
                 ->whereDate('paid_at', '>=', $start->toDateString())
-                ->whereDate('paid_at', '<=', $end->toDateString())
-                ;
+                ->whereDate('paid_at', '<=', $end->toDateString());
             $revenueQ = $applyPaymentFilter($revenueQ, 'payment_method');
             $revenueSum = (float) $revenueQ->sum('amount');
 
@@ -929,15 +940,13 @@ class ReportController extends Controller
                 ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
                 ->where('revenue_adjustments.type', 'refund')
                 ->whereDate('revenues.paid_at', '>=', $start->toDateString())
-                ->whereDate('revenues.paid_at', '<=', $end->toDateString())
-                ;
+                ->whereDate('revenues.paid_at', '<=', $end->toDateString());
             $refundQ = $applyPaymentFilter($refundQ, 'revenues.payment_method');
             $refundSum = (float) $refundQ->sum('revenue_adjustments.amount');
 
             $expenseQ = Expense::query()
                 ->whereDate('expense_date', '>=', $start->toDateString())
-                ->whereDate('expense_date', '<=', $end->toDateString())
-                ;
+                ->whereDate('expense_date', '<=', $end->toDateString());
             $expenseQ = $applyPaymentFilter($expenseQ, 'payment_method');
             $expenseSum = (float) $expenseQ->sum('amount');
 
@@ -1076,7 +1085,7 @@ class ReportController extends Controller
                 'financial-summary-' . now()->format('Y-m-d'),
                 ['Date', 'Opening', 'Income Total', 'Expense Total', 'Closing', 'Income Cash', 'Income Bank', 'Expense Cash', 'Expense Bank'],
                 $rows,
-                fn ($r) => [
+                fn($r) => [
                     $r['date'],
                     $r['opening'],
                     $r['income_total'],
@@ -1144,7 +1153,7 @@ class ReportController extends Controller
                     ->pluck('expense_id')
             )
             ->filter()
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
             ->values();
 
@@ -1325,7 +1334,7 @@ class ReportController extends Controller
                 'all-outflows-' . now()->format('Y-m-d'),
                 ['Date', 'Type', 'Category', 'Party', 'Method', 'Amount', 'Notes'],
                 $rows,
-                fn ($r) => [
+                fn($r) => [
                     $r['date'] ?? '',
                     $r['type'] ?? '',
                     $r['category'] ?? '',
@@ -1343,7 +1352,7 @@ class ReportController extends Controller
             'summary' => [
                 'total_count' => (int) $rows->count(),
                 'total_amount' => $totalAmount,
-                'by_type' => $rows->groupBy('type')->map(fn ($g) => (float) $g->sum('amount')),
+                'by_type' => $rows->groupBy('type')->map(fn($g) => (float) $g->sum('amount')),
             ],
         ]);
     }
@@ -1374,7 +1383,7 @@ class ReportController extends Controller
             [$from, $to] = [$to, $from];
         }
 
-        $isBankMethod = fn (?string $method): bool => in_array($method ?? 'cash', ['bank_transfer', 'cheque'], true);
+        $isBankMethod = fn(?string $method): bool => in_array($method ?? 'cash', ['bank_transfer', 'cheque'], true);
 
         $revenueEffectiveDateSql = $this->sqlEffectiveDate('paid_at', 'payment_method', 'cheque_date', 'payment_status');
         $revenueEffectiveDateSqlQualified = $this->sqlEffectiveDate('revenues.paid_at', 'revenues.payment_method', 'revenues.cheque_date', 'revenues.payment_status');
@@ -1436,6 +1445,11 @@ class ReportController extends Controller
             $meta = is_string($r->payment_meta) ? json_decode($r->payment_meta, true) : $r->payment_meta;
             if (! is_array($meta)) {
                 $meta = [];
+            }
+
+            if (!empty($meta['discount_value']) && $meta['discount_value'] > 0) {
+                $discountStr = ($meta['discount_type'] ?? 'percentage') === 'percentage' ? $meta['discount_value'] . '%' : 'Rs ' . number_format($meta['discount_value'], 2);
+                $desc .= ' (Discount: ' . $discountStr . ')';
             }
 
             $methodLabel = $this->paymentMethodLabel($pm);
@@ -1758,7 +1772,7 @@ class ReportController extends Controller
                 'daily-ledger-' . now()->format('Y-m-d'),
                 ['Section', 'Date', 'Ref', 'Student', 'Category', 'Description', 'Method', 'Status', 'Cheque Date', 'Amount In', 'Amount Out'],
                 $rows,
-                fn ($row) => [
+                fn($row) => [
                     $row['Section'] ?? null,
                     $row['Date'] ?? ($row['A'] ?? null),
                     $row['Ref'] ?? ($row['B'] ?? null),
@@ -1889,7 +1903,7 @@ class ReportController extends Controller
         }
 
         $rows = $rows
-            ->sortByDesc(fn ($r) => $r['date']?->timestamp ?? 0)
+            ->sortByDesc(fn($r) => $r['date']?->timestamp ?? 0)
             ->values();
 
         $totalIn = (float) $rows->sum('in');
@@ -1916,7 +1930,7 @@ class ReportController extends Controller
                 'cash-transactions-' . now()->format('Y-m-d'),
                 ['Date', 'Type', 'Ref', 'Description', 'Method', 'Amount In', 'Amount Out'],
                 $rows,
-                fn ($r) => [
+                fn($r) => [
                     $r['date']?->format('Y-m-d'),
                     $r['type'],
                     $r['ref'],
@@ -1990,8 +2004,8 @@ class ReportController extends Controller
                 'method' => (($r->payment_status ?? null) === 'cancelled')
                     ? 'Cancelled'
                     : (($r->payment_method === 'cheque')
-                    ? ($this->paymentMethodLabel($r->payment_method) . (($includePendingCheques && ($r->payment_status ?? null) === 'pending') ? ' (Pending)' : ((($r->payment_status ?? null) === 'rejected') ? ' (Returned)' : ' (Passed)')))
-                    : $this->paymentMethodLabel($r->payment_method)),
+                        ? ($this->paymentMethodLabel($r->payment_method) . (($includePendingCheques && ($r->payment_status ?? null) === 'pending') ? ' (Pending)' : ((($r->payment_status ?? null) === 'rejected') ? ' (Returned)' : ' (Passed)')))
+                        : $this->paymentMethodLabel($r->payment_method)),
                 'status' => (string) ($r->payment_status ?? ''),
                 'in' => (float) $r->amount,
                 'out' => 0.0,
@@ -2064,7 +2078,7 @@ class ReportController extends Controller
         }
 
         $rows = $rows
-            ->sortByDesc(fn ($r) => $r['date']?->timestamp ?? 0)
+            ->sortByDesc(fn($r) => $r['date']?->timestamp ?? 0)
             ->values();
 
         $totalIn = (float) $rows->sum('in');
@@ -2091,7 +2105,7 @@ class ReportController extends Controller
                 'bank-transactions-' . now()->format('Y-m-d'),
                 ['Date', 'Type', 'Ref', 'Description', 'Method', 'Amount In', 'Amount Out'],
                 $rows,
-                fn ($r) => [
+                fn($r) => [
                     $r['date']?->format('Y-m-d'),
                     $r['type'],
                     $r['ref'],
@@ -2242,7 +2256,7 @@ class ReportController extends Controller
         }
 
         $rows = $rows
-            ->sortByDesc(fn ($r) => $r['date']?->timestamp ?? 0)
+            ->sortByDesc(fn($r) => $r['date']?->timestamp ?? 0)
             ->values();
 
         if ($request->boolean('pdf')) {
@@ -2269,7 +2283,7 @@ class ReportController extends Controller
                 'cheque-history-' . now()->format('Y-m-d'),
                 ['Date', 'Direction', 'Ref', 'Party', 'Description', 'Cheque No', 'Bank', 'Status', 'Cheque Date', 'Passed Date', 'In', 'Out'],
                 $rows,
-                fn ($r) => [
+                fn($r) => [
                     $r['date']?->format('Y-m-d'),
                     $r['direction'],
                     $r['ref'],
@@ -2337,9 +2351,9 @@ class ReportController extends Controller
         if ($request->filled('teacher_status')) {
             $status = $request->string('teacher_status');
             if ($status === '1') {
-                $query->whereHas('teacher', fn ($q) => $q->where('active', true));
+                $query->whereHas('teacher', fn($q) => $q->where('active', true));
             } elseif ($status === '0') {
-                $query->whereHas('teacher', fn ($q) => $q->where('active', false));
+                $query->whereHas('teacher', fn($q) => $q->where('active', false));
             }
         }
 
@@ -2428,7 +2442,7 @@ class ReportController extends Controller
         }
 
         $teacherTotals = array_values($teacherTotals);
-        usort($teacherTotals, fn ($a, $b) => ($b['total'] <=> $a['total']) ?: strcmp((string) ($a['teacher']?->name ?? ''), (string) ($b['teacher']?->name ?? '')));
+        usort($teacherTotals, fn($a, $b) => ($b['total'] <=> $a['total']) ?: strcmp((string) ($a['teacher']?->name ?? ''), (string) ($b['teacher']?->name ?? '')));
 
         if ($request->boolean('pdf')) {
             $this->authorizeDownload($request);
@@ -2488,7 +2502,7 @@ class ReportController extends Controller
                 'epf-etf-totals-' . now()->format('Y-m-d'),
                 ['Group', 'Teacher/Month', 'Payments', 'Employee EPF', 'Employer EPF', 'Employer ETF', 'Total'],
                 $exportRows,
-                fn ($r) => [
+                fn($r) => [
                     $r['group'],
                     $r['key'],
                     $r['payments'],
@@ -2547,16 +2561,16 @@ class ReportController extends Controller
         $base = $query
             ->leftJoinSub($teacherPaidSub, 'spaid', 'spaid.seminar_id', '=', 'seminars.id')
             ->selectRaw(
-                'seminars.id as seminar_id, seminars.name as seminar_name, seminars.date as date,'.
-                ' COUNT(seminar_students.id) as total,'.
-                ' SUM(CASE WHEN seminar_students.paid = 1 THEN 1 ELSE 0 END) as paid_count,'.
-                ' SUM(COALESCE(seminar_students.amount, seminars.fee_per_student)) as expected,'.
-                ' SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END) as collected,'.
-                ' (SUM(COALESCE(seminar_students.amount, seminars.fee_per_student)) - SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END)) as due_amount,'.
-                ' seminars.teacher_payment as teacher_payment,'.
-                ' COALESCE(spaid.teacher_paid, 0) as teacher_paid,'.
-                ' (seminars.teacher_payment - COALESCE(spaid.teacher_paid, 0)) as teacher_due,'.
-                ' (SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END) - seminars.teacher_payment) as net_margin'
+                'seminars.id as seminar_id, seminars.name as seminar_name, seminars.date as date,' .
+                    ' COUNT(seminar_students.id) as total,' .
+                    ' SUM(CASE WHEN seminar_students.paid = 1 THEN 1 ELSE 0 END) as paid_count,' .
+                    ' SUM(COALESCE(seminar_students.amount, seminars.fee_per_student)) as expected,' .
+                    ' SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END) as collected,' .
+                    ' (SUM(COALESCE(seminar_students.amount, seminars.fee_per_student)) - SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END)) as due_amount,' .
+                    ' seminars.teacher_payment as teacher_payment,' .
+                    ' COALESCE(spaid.teacher_paid, 0) as teacher_paid,' .
+                    ' (seminars.teacher_payment - COALESCE(spaid.teacher_paid, 0)) as teacher_due,' .
+                    ' (SUM(CASE WHEN seminar_students.paid = 1 THEN COALESCE(seminar_students.amount, seminars.fee_per_student) ELSE 0 END) - seminars.teacher_payment) as net_margin'
             )
             ->groupBy('seminars.id', 'seminars.name', 'seminars.date', 'seminars.fee_per_student', 'seminars.teacher_payment', 'spaid.teacher_paid')
             ->orderByDesc('seminars.date');
@@ -2566,7 +2580,7 @@ class ReportController extends Controller
             $all = (clone $base)->get();
             $html = view('reports.seminars-collection-pdf', [
                 'rows' => $all,
-                'filters' => $request->only(['from','to','class_room_id','visiting_teacher_id','q']),
+                'filters' => $request->only(['from', 'to', 'class_room_id', 'visiting_teacher_id', 'q']),
             ])->render();
             $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
             return $pdf->download('seminars-collection-' . now()->format('Y-m-d') . '.pdf');
@@ -2580,7 +2594,7 @@ class ReportController extends Controller
                 'seminars-collection-' . now()->format('Y-m-d'),
                 ['Date', 'Seminar', 'Students', 'Paid', 'Expected', 'Collected', 'Due', 'Teacher Payment', 'Teacher Paid', 'Teacher Due', 'Net Margin'],
                 $all,
-                fn ($r) => [
+                fn($r) => [
                     (string) $r->date,
                     (string) $r->seminar_name,
                     (int) $r->total,
@@ -2602,7 +2616,7 @@ class ReportController extends Controller
 
         return view('reports.seminars-collection', [
             'rows' => $rows,
-            'filters' => $request->only(['from','to','class_room_id','visiting_teacher_id','q']),
+            'filters' => $request->only(['from', 'to', 'class_room_id', 'visiting_teacher_id', 'q']),
             'classRooms' => \App\Models\ClassRoom::query()->orderBy('name')->get(),
             'visitingTeachers' => \App\Models\VisitingTeacher::query()->orderBy('name')->get(),
         ]);
@@ -2636,14 +2650,14 @@ class ReportController extends Controller
 
         $base = $query
             ->selectRaw(
-                'extra_classes.id as class_id, extra_classes.name as class_name, extra_classes.date as date, extra_classes.payment_type as type,'.
-                ' COUNT(extra_class_students.id) as total,'.
-                ' SUM(CASE WHEN extra_class_students.paid = 1 THEN 1 ELSE 0 END) as paid_count,'.
-                ' SUM(COALESCE(extra_class_students.amount, extra_classes.fee)) as expected,'.
-                ' SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END) as collected,'.
-                ' (SUM(COALESCE(extra_class_students.amount, extra_classes.fee)) - SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END)) as due_amount,'.
-                ' COALESCE(extra_classes.teacher_payment, 0) as teacher_payment,'.
-                ' (SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END) - COALESCE(extra_classes.teacher_payment, 0)) as net_margin'
+                'extra_classes.id as class_id, extra_classes.name as class_name, extra_classes.date as date, extra_classes.payment_type as type,' .
+                    ' COUNT(extra_class_students.id) as total,' .
+                    ' SUM(CASE WHEN extra_class_students.paid = 1 THEN 1 ELSE 0 END) as paid_count,' .
+                    ' SUM(COALESCE(extra_class_students.amount, extra_classes.fee)) as expected,' .
+                    ' SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END) as collected,' .
+                    ' (SUM(COALESCE(extra_class_students.amount, extra_classes.fee)) - SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END)) as due_amount,' .
+                    ' COALESCE(extra_classes.teacher_payment, 0) as teacher_payment,' .
+                    ' (SUM(CASE WHEN extra_class_students.paid = 1 THEN COALESCE(extra_class_students.amount, extra_classes.fee) ELSE 0 END) - COALESCE(extra_classes.teacher_payment, 0)) as net_margin'
             )
             ->groupBy('extra_classes.id', 'extra_classes.name', 'extra_classes.date', 'extra_classes.payment_type', 'extra_classes.fee', 'extra_classes.teacher_payment')
             ->orderByDesc('extra_classes.date');
@@ -2653,7 +2667,7 @@ class ReportController extends Controller
             $all = (clone $base)->get();
             $html = view('reports.extra-classes-collection-pdf', [
                 'rows' => $all,
-                'filters' => $request->only(['from','to','class_room_id','visiting_teacher_id','type','q']),
+                'filters' => $request->only(['from', 'to', 'class_room_id', 'visiting_teacher_id', 'type', 'q']),
             ])->render();
             $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
             return $pdf->download('extra-classes-collection-' . now()->format('Y-m-d') . '.pdf');
@@ -2667,7 +2681,7 @@ class ReportController extends Controller
                 'extra-classes-collection-' . now()->format('Y-m-d'),
                 ['Date', 'Class', 'Type', 'Students', 'Paid', 'Expected', 'Collected', 'Due', 'Teacher Payment', 'Net Margin'],
                 $all,
-                fn ($r) => [
+                fn($r) => [
                     (string) $r->date,
                     (string) $r->class_name,
                     (string) $r->type,
@@ -2688,7 +2702,7 @@ class ReportController extends Controller
 
         return view('reports.extra-classes-collection', [
             'rows' => $rows,
-            'filters' => $request->only(['from','to','class_room_id','visiting_teacher_id','type','q']),
+            'filters' => $request->only(['from', 'to', 'class_room_id', 'visiting_teacher_id', 'type', 'q']),
             'classRooms' => \App\Models\ClassRoom::query()->orderBy('name')->get(),
             'visitingTeachers' => \App\Models\VisitingTeacher::query()->orderBy('name')->get(),
         ]);
@@ -2706,7 +2720,7 @@ class ReportController extends Controller
         if ($request->boolean('pdf')) {
             $this->authorizeDownload($request);
             $rows = $query->orderBy('name')->get();
-            
+
             $html = view('reports.students-pdf', [
                 'items' => $rows,
                 'filters' => [
@@ -2785,8 +2799,8 @@ class ReportController extends Controller
 
         $studentIds = $students->pluck('id')->all();
         $categoryIds = $students
-            ->map(fn (Student $s) => $s->monthlyFeeCategoryId())
-            ->filter(fn ($id) => $id !== null)
+            ->map(fn(Student $s) => $s->monthlyFeeCategoryId())
+            ->filter(fn($id) => $id !== null)
             ->unique()
             ->values()
             ->all();
@@ -2883,13 +2897,13 @@ class ReportController extends Controller
         // Post-compute filters
         $onlyWithDue = $request->input('only_with_due', '1');
         if ($onlyWithDue === '1') {
-            $computed = array_values(array_filter($computed, fn ($r) => (float) $r['due'] > 0));
+            $computed = array_values(array_filter($computed, fn($r) => (float) $r['due'] > 0));
         }
 
         $minDue = $request->input('min_due', '');
         if ($minDue !== '' && is_numeric($minDue)) {
             $min = (float) $minDue;
-            $computed = array_values(array_filter($computed, fn ($r) => (float) $r['due'] >= $min));
+            $computed = array_values(array_filter($computed, fn($r) => (float) $r['due'] >= $min));
         }
 
         usort($computed, function ($a, $b) {
@@ -2901,7 +2915,7 @@ class ReportController extends Controller
         // PDF Download
         if ($request->boolean('pdf')) {
             $this->authorizeDownload($request);
-            $totalDue = array_sum(array_map(fn ($r) => (float) $r['due'], $computed));
+            $totalDue = array_sum(array_map(fn($r) => (float) $r['due'], $computed));
             $html = view('reports.student-due-pdf', [
                 'rows' => $computed,
                 'totalDue' => $totalDue,
@@ -2954,8 +2968,8 @@ class ReportController extends Controller
             'query' => $request->query(),
         ]);
 
-        $totalDue = array_sum(array_map(fn ($r) => (float) $r['due'], $computed));
-        $totalStudentsWithDue = count(array_filter($computed, fn ($r) => (float) $r['due'] > 0));
+        $totalDue = array_sum(array_map(fn($r) => (float) $r['due'], $computed));
+        $totalStudentsWithDue = count(array_filter($computed, fn($r) => (float) $r['due'] > 0));
 
         return view('reports.student-due', [
             'items' => $paginator,
@@ -3026,7 +3040,7 @@ class ReportController extends Controller
                 'fee-collection-summary',
                 [ucfirst((string) $group), 'Payments', 'Total'],
                 $rows,
-                fn ($r) => [$r->grp, (int) $r->payments, (float) $r->total_amount]
+                fn($r) => [$r->grp, (int) $r->payments, (float) $r->total_amount]
             );
         }
 
@@ -3095,7 +3109,7 @@ class ReportController extends Controller
                 'fee-collection-by-class',
                 ['Class', 'Payments', 'Total'],
                 $rows,
-                fn ($r) => [$r->class_name, (int) $r->payments, (float) $r->total_amount]
+                fn($r) => [$r->class_name, (int) $r->payments, (float) $r->total_amount]
             );
         }
 
@@ -3161,7 +3175,7 @@ class ReportController extends Controller
                 'fee-collection-by-category',
                 ['Category', 'Payments', 'Total'],
                 $rows,
-                fn ($r) => [$r->category_name, (int) $r->payments, (float) $r->total_amount]
+                fn($r) => [$r->category_name, (int) $r->payments, (float) $r->total_amount]
             );
         }
 
@@ -3220,7 +3234,7 @@ class ReportController extends Controller
                 ->whereIn('student_id', $studentIds)
                 ->where(function ($q) use ($fromDate, $toDate) {
                     $q->whereRaw('(year > ? OR (year = ? AND month >= ?))', [$fromDate->year, $fromDate->year, $fromDate->month])
-                      ->whereRaw('(year < ? OR (year = ? AND month <= ?))', [$toDate->year, $toDate->year, $toDate->month]);
+                        ->whereRaw('(year < ? OR (year = ? AND month <= ?))', [$toDate->year, $toDate->year, $toDate->month]);
                 })
                 ->groupBy('year', 'month')
                 ->get();
@@ -3273,9 +3287,9 @@ class ReportController extends Controller
         }
 
         $totals = [
-            'expected' => array_sum(array_map(fn ($r) => (float) $r['expected'], $months)),
-            'collected' => array_sum(array_map(fn ($r) => (float) $r['collected'], $months)),
-            'due' => array_sum(array_map(fn ($r) => (float) $r['due'], $months)),
+            'expected' => array_sum(array_map(fn($r) => (float) $r['expected'], $months)),
+            'collected' => array_sum(array_map(fn($r) => (float) $r['collected'], $months)),
+            'due' => array_sum(array_map(fn($r) => (float) $r['due'], $months)),
         ];
 
         if ($request->boolean('pdf')) {
@@ -3296,7 +3310,7 @@ class ReportController extends Controller
                 'collected-vs-expected',
                 ['Month', 'Expected', 'Collected', 'Due'],
                 $months,
-                fn ($r) => [$r['month'], (float) $r['expected'], (float) $r['collected'], (float) $r['due']]
+                fn($r) => [$r['month'], (float) $r['expected'], (float) $r['collected'], (float) $r['due']]
             );
         }
 
@@ -3364,7 +3378,7 @@ class ReportController extends Controller
             ];
         }
 
-        usort($rows, fn ($a, $b) => ($b['due'] <=> $a['due']) ?: strcmp((string) ($a['student']->name ?? ''), (string) ($b['student']->name ?? '')));
+        usort($rows, fn($a, $b) => ($b['due'] <=> $a['due']) ?: strcmp((string) ($a['student']->name ?? ''), (string) ($b['student']->name ?? '')));
 
         if ($request->boolean('download') || $request->boolean('excel') || strtolower((string) $request->query('format')) === 'xlsx') {
             $this->authorizeDownload($request);
@@ -3457,9 +3471,9 @@ class ReportController extends Controller
             ];
         }
 
-        usort($computed, fn ($a, $b) => ($b['due'] <=> $a['due']) ?: strcmp((string) ($a['student']->name ?? ''), (string) ($b['student']->name ?? '')));
+        usort($computed, fn($a, $b) => ($b['due'] <=> $a['due']) ?: strcmp((string) ($a['student']->name ?? ''), (string) ($b['student']->name ?? '')));
         $rows = array_slice($computed, 0, $limit);
-        $totalDue = array_sum(array_map(fn ($r) => (float) $r['due'], $rows));
+        $totalDue = array_sum(array_map(fn($r) => (float) $r['due'], $rows));
 
         if ($request->boolean('download') || $request->boolean('excel') || strtolower((string) $request->query('format')) === 'xlsx') {
             $this->authorizeDownload($request);
@@ -3543,12 +3557,12 @@ class ReportController extends Controller
         if ($request->filled('q')) {
             $q = '%' . str_replace('%', '\\%', (string) $request->string('q')) . '%';
             $query->where(function ($sub) use ($q) {
-                $sub->whereHas('revenue', fn ($r) => $r->where('bill_no', 'like', $q))
+                $sub->whereHas('revenue', fn($r) => $r->where('bill_no', 'like', $q))
                     ->orWhereHas('student', function ($s) use ($q) {
                         $s->where('name', 'like', $q)
-                          ->orWhere('admission_number', 'like', $q)
-                          ->orWhere('phone', 'like', $q)
-                          ->orWhere('whatsapp_number', 'like', $q);
+                            ->orWhere('admission_number', 'like', $q)
+                            ->orWhere('phone', 'like', $q)
+                            ->orWhere('whatsapp_number', 'like', $q);
                     });
             });
         }
@@ -3602,7 +3616,7 @@ class ReportController extends Controller
                 $base,
                 ['Date', 'Bill No', 'Student', 'Admission No', 'Class', 'Category', 'Amount', 'Reason', 'By'],
                 $rows,
-                fn ($a) => [
+                fn($a) => [
                     optional($a->created_at)->format('Y-m-d'),
                     $a->revenue?->bill_no,
                     $a->student?->name,
@@ -3637,9 +3651,9 @@ class ReportController extends Controller
         if ($request->filled('teacher_status')) {
             $status = $request->string('teacher_status');
             if ($status === '1') {
-                $query->whereHas('teacher', fn ($q) => $q->where('active', true));
+                $query->whereHas('teacher', fn($q) => $q->where('active', true));
             } elseif ($status === '0') {
-                $query->whereHas('teacher', fn ($q) => $q->where('active', false));
+                $query->whereHas('teacher', fn($q) => $q->where('active', false));
             }
         }
 
@@ -3708,7 +3722,7 @@ class ReportController extends Controller
         }
 
         $teacherSummary = array_values($teacherSummary);
-        usort($teacherSummary, fn ($a, $b) => ($b['total'] <=> $a['total']) ?: strcmp((string) ($a['teacher']?->name ?? ''), (string) ($b['teacher']?->name ?? '')));
+        usort($teacherSummary, fn($a, $b) => ($b['total'] <=> $a['total']) ?: strcmp((string) ($a['teacher']?->name ?? ''), (string) ($b['teacher']?->name ?? '')));
 
         // PDF Download
         [$viewName, $pdfViewName, $routeName, $typeLabel] = $this->contributionViewMeta($kind);
@@ -3751,7 +3765,7 @@ class ReportController extends Controller
                 $filePrefix . '-report',
                 ['Receipt No', 'Payment Month', 'Paid At', 'Teacher', 'Basic Salary', $typeLabel],
                 $allRows,
-                fn ($row) => [
+                fn($row) => [
                     $row->receipt_number,
                     $row->payment_month,
                     optional($row->paid_at)->format('Y-m-d'),
