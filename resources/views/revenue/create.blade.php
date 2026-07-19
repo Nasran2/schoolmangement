@@ -1,24 +1,24 @@
 @php
-    $isEdit = isset($item);
-    $pageTitle = $isEdit ? 'Edit Revenue' : 'Add Revenue';
-    $pageSubtitle = $isEdit ? 'Update payment transaction details' : 'Complete your payment transaction';
-    $formAction = $isEdit ? route('revenue.items.update', $item) : route('revenue.items.store');
-    $selectedCategoryId = old('revenue_category_id', $preselectedCategoryId ?? ($isEdit ? $item->revenue_category_id : null));
-    $defaultAmount = old('amount', $isEdit ? (string) $item->amount : '');
-    $defaultPaidAt = old('paid_at', $isEdit ? optional($item->paid_at)->format('d-m-Y') : date('d-m-Y'));
-    $paymentMeta = $isEdit && is_array($item->payment_meta ?? null) ? $item->payment_meta : [];
-    $defaultPaymentMethod = old('payment_method', $isEdit ? ($item->payment_method ?: 'cash') : 'cash');
-    $defaultBankName = old('bank_name', (string) ($paymentMeta['bank'] ?? ''));
-    $defaultBankRefNo = old('bank_ref_no', (string) ($paymentMeta['ref_no'] ?? ''));
-    $defaultChequeDate = old('cheque_date', $isEdit ? optional($item->cheque_date)->format('Y-m-d') : '');
-    $defaultChequeNumber = old('cheque_number', (string) ($paymentMeta['cheque_number'] ?? ''));
-    $defaultChequeBank = old('cheque_bank', $defaultPaymentMethod === 'cheque' ? (string) ($paymentMeta['bank'] ?? '') : '');
-    $defaultChequeStudentName = old('cheque_student_name', (string) ($paymentMeta['student_name'] ?? ''));
-    $defaultBillNo = old('bill_no', $isEdit ? ($item->bill_no ?? '') : ($nextBillNumberPreview ?? ''));
-    $billNoDisplay = $isEdit ? ($item->bill_no ?: 'Auto-generated') : ($nextBillNumberPreview ?: 'Auto-generated');
-    $defaultNotes = old('notes', $isEdit ? ($item->notes ?? '') : '');
-    $submitLabel = $isEdit ? 'Update Payment' : 'Save Payment';
-    $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $item->student_id : ''));
+$isEdit = isset($item);
+$pageTitle = $isEdit ? 'Edit Revenue' : 'Add Revenue';
+$pageSubtitle = $isEdit ? 'Update payment transaction details' : 'Complete your payment transaction';
+$formAction = $isEdit ? route('revenue.items.update', $item) : route('revenue.items.store');
+$selectedCategoryId = old('revenue_category_id', $preselectedCategoryId ?? ($isEdit ? $item->revenue_category_id : null));
+$defaultAmount = old('amount', $isEdit ? (string) $item->amount : '');
+$defaultPaidAt = old('paid_at', $isEdit ? optional($item->paid_at)->format('d-m-Y') : date('d-m-Y'));
+$paymentMeta = $isEdit && is_array($item->payment_meta ?? null) ? $item->payment_meta : [];
+$defaultPaymentMethod = old('payment_method', $isEdit ? ($item->payment_method ?: 'cash') : 'cash');
+$defaultBankName = old('bank_name', (string) ($paymentMeta['bank'] ?? ''));
+$defaultBankRefNo = old('bank_ref_no', (string) ($paymentMeta['ref_no'] ?? ''));
+$defaultChequeDate = old('cheque_date', $isEdit ? optional($item->cheque_date)->format('Y-m-d') : '');
+$defaultChequeNumber = old('cheque_number', (string) ($paymentMeta['cheque_number'] ?? ''));
+$defaultChequeBank = old('cheque_bank', $defaultPaymentMethod === 'cheque' ? (string) ($paymentMeta['bank'] ?? '') : '');
+$defaultChequeStudentName = old('cheque_student_name', (string) ($paymentMeta['student_name'] ?? ''));
+$defaultBillNo = old('bill_no', $isEdit ? ($item->bill_no ?? '') : ($nextBillNumberPreview ?? ''));
+$billNoDisplay = $isEdit ? ($item->bill_no ?: 'Auto-generated') : ($nextBillNumberPreview ?: 'Auto-generated');
+$defaultNotes = old('notes', $isEdit ? ($item->notes ?? '') : '');
+$submitLabel = $isEdit ? 'Update Payment' : 'Save Payment';
+$initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $item->student_id : ''));
 @endphp
 
 <x-app-layout>
@@ -52,7 +52,7 @@
                                 class="space-y-7">
                                 @csrf
                                 @if ($isEdit)
-                                    @method('PUT')
+                                @method('PUT')
                                 @endif
 
                                 {{-- Category with Add Button --}}
@@ -66,10 +66,10 @@
                                                 x-model="formData.category_id" x-on:change="updateSummary(); updateAllocationPreview()">
                                                 <option value="">Select Category</option>
                                                 @foreach ($categories as $cat)
-                                                    <option value="{{ $cat->id }}" data-name="{{ $cat->name }}"
-                                                        data-type="{{ $cat->payment_type }}" @selected((string) $selectedCategoryId === (string) $cat->id)>
-                                                        {{ $cat->name }}
-                                                    </option>
+                                                <option value="{{ $cat->id }}" data-name="{{ $cat->name }}"
+                                                    data-type="{{ $cat->payment_type }}" @selected((string) $selectedCategoryId===(string) $cat->id)>
+                                                    {{ $cat->name }}
+                                                </option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -101,7 +101,7 @@
                                         </span>
                                     </div>
                                     @error('revenue_category_id')
-                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                    <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                     @enderror
                                 </div>
 
@@ -164,7 +164,7 @@
                                                 x-model="classRoomId" x-on:change="search()">
                                                 <option value="">All Classes</option>
                                                 @foreach ($classRooms as $cr)
-                                                    <option value="{{ $cr->id }}">{{ $cr->name }}</option>
+                                                <option value="{{ $cr->id }}">{{ $cr->name }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
@@ -172,7 +172,7 @@
 
                                     <input type="hidden" name="student_id" :value="selected?.id || ''">
                                     @error('student_id')
-                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                    <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                     @enderror
 
                                     <div x-show="selected" x-cloak
@@ -222,7 +222,7 @@
                                                         <span class="font-semibold" x-text="studentHoldChequeNumbers.join(', ')"></span>
                                                     </p>
                                                 </div>
-                                                
+
                                                 {{-- Due Months (auto allocated oldest-first) --}}
                                                 <div x-show="studentDueMonths.length > 0" class="mt-3">
                                                     <p class="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-2">Due months (auto allocated oldest-first):</p>
@@ -326,7 +326,7 @@
                                                 <p class="text-xs text-amber-600" x-show="!studentName">Select a student to enable</p>
                                             </div>
                                         </div>
-                                        
+
                                         <button type="button"
                                             @click="if(!studentName) return; advanceMode = !advanceMode; if(!advanceMode){ selectedAdvanceMonths=[]; selectedAdvanceLabels=[]; updateAllocationPreview(); }"
                                             :disabled="!studentName"
@@ -339,11 +339,11 @@
                                 </div>
 
                                 {{-- Advance Months selector --}}
-                                <div x-show="categoryType === 'monthly' && studentName && selectedCategoryIsMonthlyFee && advanceMode" 
+                                <div x-show="categoryType === 'monthly' && studentName && selectedCategoryIsMonthlyFee && advanceMode"
                                     x-transition:enter="transition ease-out duration-200"
                                     x-transition:enter-start="opacity-0 -translate-y-2"
                                     x-transition:enter-end="opacity-100 translate-y-0"
-                                    x-cloak 
+                                    x-cloak
                                     class="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                                     <div class="flex items-center justify-between mb-4">
                                         <div>
@@ -397,7 +397,7 @@
                                                 x-on:input="updateAllocationPreview()" required>
                                         </div>
                                         <input type="hidden" name="amount" :value="finalPayableAmount()">
-                                        
+
                                         {{-- Discount Section for Admission Fee --}}
                                         <div x-show="isAdmissionFee()" x-cloak class="mt-4 p-4 border border-indigo-100 bg-indigo-50/50 rounded-xl transition-all">
                                             <label class="block text-sm font-semibold text-gray-800 mb-3">Discount (Optional)</label>
@@ -429,7 +429,7 @@
                                             <p class="text-amber-700" x-show="allocationFlowText()" x-text="allocationFlowText()"></p>
                                         </div>
                                         @error('amount')
-                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
                                     </div>
                                     <div>
@@ -441,7 +441,7 @@
                                             x-model="formData.date"
                                             x-on:input="formData.date = $event.target.value" required>
                                         @error('paid_at')
-                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                         @enderror
                                     </div>
                                 </div>
@@ -481,7 +481,7 @@
                                         </label>
                                     </div>
                                     @error('payment_method')
-                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                    <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                     @enderror
 
                                     {{-- Bank Transfer Fields --}}
@@ -492,7 +492,7 @@
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="Bank name" value="{{ $defaultBankName }}">
                                             @error('bank_name')
-                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
                                         </div>
                                         <div>
@@ -501,7 +501,7 @@
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="Transaction reference" value="{{ $defaultBankRefNo }}">
                                             @error('bank_ref_no')
-                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
                                         </div>
                                     </div>
@@ -514,7 +514,7 @@
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 value="{{ $defaultChequeDate }}">
                                             @error('cheque_date')
-                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
                                         </div>
                                         <div>
@@ -523,7 +523,7 @@
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="Cheque number" value="{{ $defaultChequeNumber }}">
                                             @error('cheque_number')
-                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
                                         </div>
                                         <div>
@@ -532,7 +532,7 @@
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="Bank name" value="{{ $defaultChequeBank }}">
                                             @error('cheque_bank')
-                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
                                         </div>
                                         <div>
@@ -541,7 +541,7 @@
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                                 placeholder="Student name (as on cheque)" value="{{ $defaultChequeStudentName }}">
                                             @error('cheque_student_name')
-                                                <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                            <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                             @enderror
                                         </div>
                                         <div class="sm:col-span-2">
@@ -595,25 +595,25 @@
                                     <label class="block text-sm font-semibold text-gray-800 mb-3">Bill Number <span
                                             class="font-normal text-gray-500">(optional)</span></label>
                                     @if($autogenerate)
-                                        <input type="text"
-                                            class="block w-full px-4 py-2.5 rounded-lg border-gray-300 bg-gray-100 text-gray-600 shadow-sm"
-                                            value="{{ $billNoDisplay }}" disabled readonly>
-                                        <p class="mt-2 text-xs text-gray-500">
-                                            {{ $isEdit ? 'This bill number is managed automatically from Settings.' : 'Next bill number preview. Final value is assigned when you save.' }}
-                                            To enter/edit it manually, disable
-                                            <span class="font-semibold">Auto-generate bill number</span> in Settings.
-                                        </p>
+                                    <input type="text"
+                                        class="block w-full px-4 py-2.5 rounded-lg border-gray-300 bg-gray-100 text-gray-600 shadow-sm"
+                                        value="{{ $billNoDisplay }}" disabled readonly>
+                                    <p class="mt-2 text-xs text-gray-500">
+                                        {{ $isEdit ? 'This bill number is managed automatically from Settings.' : 'Next bill number preview. Final value is assigned when you save.' }}
+                                        To enter/edit it manually, disable
+                                        <span class="font-semibold">Auto-generate bill number</span> in Settings.
+                                    </p>
                                     @else
-                                        <input type="text" name="bill_no"
-                                            class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                            placeholder="Enter bill number" value="{{ $defaultBillNo }}"
-                                            x-model="formData.bill_no">
-                                        <p class="mt-2 text-xs text-gray-500">
-                                            Suggested next bill: <span class="font-semibold">{{ $nextBillNumberPreview }}</span> (you can change it).
-                                        </p>
+                                    <input type="text" name="bill_no"
+                                        class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
+                                        placeholder="Enter bill number" value="{{ $defaultBillNo }}"
+                                        x-model="formData.bill_no">
+                                    <p class="mt-2 text-xs text-gray-500">
+                                        Suggested next bill: <span class="font-semibold">{{ $nextBillNumberPreview }}</span> (you can change it).
+                                    </p>
                                     @endif
                                     @error('bill_no')
-                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                    <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                     @enderror
                                 </div>
 
@@ -625,7 +625,7 @@
                                         class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
                                         placeholder="Add any additional notes...">{{ $defaultNotes }}</textarea>
                                     @error('notes')
-                                        <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
+                                    <p class="mt-2 text-sm text-red-600 font-medium">{{ $message }}</p>
                                     @enderror
                                 </div>
 
@@ -805,10 +805,10 @@
                                     <div class="text-xs font-semibold text-gray-600">Select applicable classes:</div>
                                     <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 max-h-40 overflow-auto pr-1">
                                         @foreach ($classRooms as $cr)
-                                            <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                                                <input type="checkbox" name="class_room_ids[]" value="{{ $cr->id }}" class="rounded border-gray-300">
-                                                <span>{{ $cr->level !== null ? ('Level '.$cr->level.' - ') : '' }}{{ $cr->name }}</span>
-                                            </label>
+                                        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                                            <input type="checkbox" name="class_room_ids[]" value="{{ $cr->id }}" class="rounded border-gray-300">
+                                            <span>{{ $cr->level !== null ? ('Level '.$cr->level.' - ') : '' }}{{ $cr->name }}</span>
+                                        </label>
                                         @endforeach
                                     </div>
                                 </div>
@@ -839,682 +839,762 @@
     </div>
 
     @push('scripts')
-        <script>
-            document.addEventListener('alpine:init', () => {
-                Alpine.data('revenueForm', () => ({
-                    formData: {
-                        category_id: '{{ $selectedCategoryId }}',
-                        amount: '{{ $defaultAmount }}',
-                        date: '{{ $defaultPaidAt }}',
-                        bill_no: '{{ $autogenerate ? '' : $defaultBillNo }}',
-                        payment_method: '{{ $defaultPaymentMethod }}',
-                    },
-                    editingRevenueId: '{{ $isEdit ? (int) $item->id : '' }}',
-                    categories: @json($categories),
-                    categoryName: '',
-                    categoryType: '',
-                    selectedCategoryIsMonthlyFee: false,
-                    studentName: '',
-                    studentDueAmount: 0,
-                    studentMonthlyFee: 0,
-                    studentDueMonths: [],
-                    studentHoldAmount: 0,
-                    studentHoldChequeNumbers: [],
-                    showCategoryModal: false,
-                    selectedStudentId: '{{ $initialSelectedStudentId }}',
-                    monthlyCatId: '{{ $monthlyCatId ?? '' }}',
-                    advanceEnabled: false,
-                    advanceMode: false,
-                    advanceOptions: [],
-                    futureMonths: [],
-                    selectedAdvanceKeys: new Set(),
-                    selectedAdvanceMonths: [],
-                    selectedAdvanceLabels: [],
-                    yearlyFeeRows: [],
-                    yearlyFeeRowSeq: 0,
-                    yearlyFeePreviewTimer: null,
-                    discountType: 'percentage',
-                    discountValue: '',
-                    allocation: { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } },
-                    isAllocationLoading: false,
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('revenueForm', () => ({
+                formData: {
+                    category_id: '{{ $selectedCategoryId }}',
+                    amount: '{{ $defaultAmount }}',
+                    date: '{{ $defaultPaidAt }}',
+                    bill_no: '{{ $autogenerate ? '
+                    ' : $defaultBillNo }}',
+                    payment_method: '{{ $defaultPaymentMethod }}',
+                },
+                editingRevenueId: '{{ $isEdit ? (int) $item->id : '
+                ' }}',
+                categories: @json($categories),
+                categoryName: '',
+                categoryType: '',
+                selectedCategoryIsMonthlyFee: false,
+                studentName: '',
+                studentDueAmount: 0,
+                studentMonthlyFee: 0,
+                studentDueMonths: [],
+                studentHoldAmount: 0,
+                studentHoldChequeNumbers: [],
+                showCategoryModal: false,
+                selectedStudentId: '{{ $initialSelectedStudentId }}',
+                monthlyCatId: '{{ $monthlyCatId ?? '
+                ' }}',
+                advanceEnabled: false,
+                advanceMode: false,
+                advanceOptions: [],
+                futureMonths: [],
+                selectedAdvanceKeys: new Set(),
+                selectedAdvanceMonths: [],
+                selectedAdvanceLabels: [],
+                yearlyFeeRows: [],
+                yearlyFeeRowSeq: 0,
+                yearlyFeePreviewTimer: null,
+                discountType: 'percentage',
+                discountValue: '',
+                allocation: {
+                    allocations: [],
+                    summary: {
+                        total_applied: 0,
+                        unallocated_balance: 0,
+                        paid_due_months: [],
+                        advance_months: [],
+                        errors: []
+                    }
+                },
+                isAllocationLoading: false,
 
-                    isAdmissionFee() {
-                        return this.categoryName && this.categoryName.toLowerCase().includes('admission fee');
-                    },
-                    calculatedDiscountAmount() {
-                        let amt = parseFloat(this.formData.amount) || 0;
-                        if (!this.isAdmissionFee() || !this.discountValue || parseFloat(this.discountValue) <= 0) return 0;
-                        
-                        let dVal = parseFloat(this.discountValue);
-                        if (this.discountType === 'percentage') {
-                            return amt * (dVal / 100);
-                        } else {
-                            return dVal;
-                        }
-                    },
-                    finalPayableAmount() {
-                        let amt = parseFloat(this.formData.amount) || 0;
-                        let discount = this.calculatedDiscountAmount();
-                        return Math.max(0, amt - discount).toFixed(2);
-                    },
+                isAdmissionFee() {
+                    return this.categoryName && this.categoryName.toLowerCase().includes('admission');
+                },
+                calculatedDiscountAmount() {
+                    let amt = parseFloat(this.formData.amount) || 0;
+                    if (!this.isAdmissionFee() || !this.discountValue || parseFloat(this.discountValue) <= 0) return 0;
 
-                    init() {
-                        try {
-                            window.addEventListener('revenue-category-created', (e) => {
-                                try {
-                                    const cat = e?.detail;
-                                    if (!cat || !cat.id) return;
-                                    if (!Array.isArray(this.categories)) this.categories = [];
-                                    this.categories.push(cat);
-                                    this.formData.category_id = String(cat.id);
-                                    this.showCategoryModal = false;
-                                    this.updateSummary();
-                                    this.updateAllocationPreview();
-                                } catch (err) {
-                                    console.error('Error handling revenue-category-created:', err);
-                                }
-                            });
-                            this.updateSummary();
+                    let dVal = parseFloat(this.discountValue);
+                    if (this.discountType === 'percentage') {
+                        return amt * (dVal / 100);
+                    } else {
+                        return dVal;
+                    }
+                },
+                finalPayableAmount() {
+                    let amt = parseFloat(this.formData.amount) || 0;
+                    let discount = this.calculatedDiscountAmount();
+                    return Math.max(0, amt - discount).toFixed(2);
+                },
 
-                            // Listen for student selection
-                            if (this.$el) {
-                                this.$el.addEventListener('student-selected', (e) => {
-                                    try {
-                                        if (e && e.detail) {
-                                            this.studentName = e.detail.name || '';
-                                            this.studentDueAmount = e.detail.due_amount || 0;
-                                            this.studentDueMonths = e.detail.due_months || [];
-                                            this.studentMonthlyFee = e.detail.monthly_fee || 0;
-                                            this.studentHoldAmount = e.detail.hold_amount || 0;
-                                            this.studentHoldChequeNumbers = Array.isArray(e.detail.hold_cheque_numbers) ? e.detail.hold_cheque_numbers : [];
-                                            this.selectedStudentId = e.detail.id || '';
-                                            this.monthlyCatId = e.detail.monthly_category_id || '';
-                                            this.yearlyFeeRows = this.rowsFromDueMonths(this.studentDueMonths);
-
-                                            // monthlyCatId becomes known only after student selection,
-                                            // so re-evaluate whether the selected category is the student's monthly fee category.
-                                            this.updateSummary();
-                                            
-                                            const adv = Array.isArray(e.detail.advance_months) ? e.detail.advance_months : [];
-                                            if (adv.length > 0) {
-                                                this.advanceOptions = adv.map(m => ({
-                                                    key: m.key,
-                                                    year: m.year,
-                                                    month: m.month,
-                                                    label: m.label,
-                                                    required_amount: Number(m.required_amount ?? 0),
-                                                }));
-                                            } else {
-                                                this.initFutureMonths();
-                                                this.advanceOptions = this.futureMonths;
-                                            }
-                                            this.updateAllocationPreview();
-                                        } else {
-                                            this.studentName = '';
-                                            this.studentDueAmount = 0;
-                                            this.studentDueMonths = [];
-                                            this.yearlyFeeRows = [];
-                                            this.studentHoldAmount = 0;
-                                            this.studentHoldChequeNumbers = [];
-                                            this.selectedStudentId = '';
-                                            this.monthlyCatId = '';
-                                            this.advanceMode = false;
-                                            this.selectedAdvanceKeys.clear();
-                                            this.syncAdvanceSelections();
-                                            this.allocation = { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } };
-                                        }
-                                    } catch (err) {
-                                        console.error('Error in student-selected handler:', err);
-                                    }
-                                });
-                            }
-                            this.initFutureMonths();
-                            this.advanceOptions = this.futureMonths;
+                init() {
+                    try {
+                        window.addEventListener('revenue-category-created', (e) => {
                             try {
-                                this.$watch('advanceMode', (val) => {
-                                    this.advanceEnabled = !!val;
-                                    if (!val) {
+                                const cat = e?.detail;
+                                if (!cat || !cat.id) return;
+                                if (!Array.isArray(this.categories)) this.categories = [];
+                                this.categories.push(cat);
+                                this.formData.category_id = String(cat.id);
+                                this.showCategoryModal = false;
+                                this.updateSummary();
+                                this.updateAllocationPreview();
+                            } catch (err) {
+                                console.error('Error handling revenue-category-created:', err);
+                            }
+                        });
+                        this.updateSummary();
+
+                        // Listen for student selection
+                        if (this.$el) {
+                            this.$el.addEventListener('student-selected', (e) => {
+                                try {
+                                    if (e && e.detail) {
+                                        this.studentName = e.detail.name || '';
+                                        this.studentDueAmount = e.detail.due_amount || 0;
+                                        this.studentDueMonths = e.detail.due_months || [];
+                                        this.studentMonthlyFee = e.detail.monthly_fee || 0;
+                                        this.studentHoldAmount = e.detail.hold_amount || 0;
+                                        this.studentHoldChequeNumbers = Array.isArray(e.detail.hold_cheque_numbers) ? e.detail.hold_cheque_numbers : [];
+                                        this.selectedStudentId = e.detail.id || '';
+                                        this.monthlyCatId = e.detail.monthly_category_id || '';
+                                        this.yearlyFeeRows = this.rowsFromDueMonths(this.studentDueMonths);
+
+                                        // monthlyCatId becomes known only after student selection,
+                                        // so re-evaluate whether the selected category is the student's monthly fee category.
+                                        this.updateSummary();
+
+                                        const adv = Array.isArray(e.detail.advance_months) ? e.detail.advance_months : [];
+                                        if (adv.length > 0) {
+                                            this.advanceOptions = adv.map(m => ({
+                                                key: m.key,
+                                                year: m.year,
+                                                month: m.month,
+                                                label: m.label,
+                                                required_amount: Number(m.required_amount ?? 0),
+                                            }));
+                                        } else {
+                                            this.initFutureMonths();
+                                            this.advanceOptions = this.futureMonths;
+                                        }
+                                        this.updateAllocationPreview();
+                                    } else {
+                                        this.studentName = '';
+                                        this.studentDueAmount = 0;
+                                        this.studentDueMonths = [];
+                                        this.yearlyFeeRows = [];
+                                        this.studentHoldAmount = 0;
+                                        this.studentHoldChequeNumbers = [];
+                                        this.selectedStudentId = '';
+                                        this.monthlyCatId = '';
+                                        this.advanceMode = false;
                                         this.selectedAdvanceKeys.clear();
                                         this.syncAdvanceSelections();
-                                        this.updateAllocationPreview();
+                                        this.allocation = {
+                                            allocations: [],
+                                            summary: {
+                                                total_applied: 0,
+                                                unallocated_balance: 0,
+                                                paid_due_months: [],
+                                                advance_months: [],
+                                                errors: []
+                                            }
+                                        };
                                     }
-                                });
-                            } catch (e) {}
-                            this.updateAllocationPreview();
-                        } catch (err) {
-                            console.error('Error initializing revenueForm:', err);
+                                } catch (err) {
+                                    console.error('Error in student-selected handler:', err);
+                                }
+                            });
                         }
-                    },
-
-                    allocationFlowText() {
-                        const allocs = Array.isArray(this.allocation?.allocations) ? this.allocation.allocations : [];
-                        if (!allocs.length) return '';
-
-                        const parts = allocs.map(a => {
-                            if (!a || !a.year || !a.month) return null;
-                            const label = `${this.shortMonthName(a.month)} ${a.year}`;
-                            const type = a.type === 'due' ? 'due' : (a.type === 'advance' ? 'advance' : '');
-                            if (a.is_partial) {
-                                return `${label} (${type}, partial Rs ${this.formatMoney(a.applied_amount)}; balance Rs ${this.formatMoney(a.remaining_for_month)})`;
-                            }
-                            return `${label} (${type}, full Rs ${this.formatMoney(a.applied_amount)})`;
-                        }).filter(Boolean);
-
-                        return parts.length ? `Allocation: ${parts.join(', ')}` : '';
-                    },
-
-                    updateSummary() {
+                        this.initFutureMonths();
+                        this.advanceOptions = this.futureMonths;
                         try {
-                            const id = this.formData.category_id;
-                            const cat = Array.isArray(this.categories) ? this.categories.find(c => c.id == id) : null;
-                            if (cat) {
-                                this.categoryName = cat.name;
-                                const rawType = (cat.payment_type || '').toString();
-                                const monthlyLike = ['monthly','2_months','3_months','6_months','yearly','custom_months'].includes(rawType);
-                                this.categoryType = monthlyLike ? 'monthly' : rawType;
-                                // If class-wise monthly category is not configured, allow selected monthly category.
-                                this.selectedCategoryIsMonthlyFee = monthlyLike && (!this.monthlyCatId || String(this.monthlyCatId) === String(cat.id));
-                            } else {
-                                this.categoryName = '';
-                                this.categoryType = '';
-                                this.selectedCategoryIsMonthlyFee = false;
-                            }
-                        } catch (err) {
-                            console.error('Error updating summary:', err);
+                            this.$watch('advanceMode', (val) => {
+                                this.advanceEnabled = !!val;
+                                if (!val) {
+                                    this.selectedAdvanceKeys.clear();
+                                    this.syncAdvanceSelections();
+                                    this.updateAllocationPreview();
+                                }
+                            });
+                        } catch (e) {}
+                        this.updateAllocationPreview();
+                    } catch (err) {
+                        console.error('Error initializing revenueForm:', err);
+                    }
+                },
+
+                allocationFlowText() {
+                    const allocs = Array.isArray(this.allocation?.allocations) ? this.allocation.allocations : [];
+                    if (!allocs.length) return '';
+
+                    const parts = allocs.map(a => {
+                        if (!a || !a.year || !a.month) return null;
+                        const label = `${this.shortMonthName(a.month)} ${a.year}`;
+                        const type = a.type === 'due' ? 'due' : (a.type === 'advance' ? 'advance' : '');
+                        if (a.is_partial) {
+                            return `${label} (${type}, partial Rs ${this.formatMoney(a.applied_amount)}; balance Rs ${this.formatMoney(a.remaining_for_month)})`;
                         }
-                    },
-                    initFutureMonths() {
-                        const base = new Date();
-                        base.setDate(1);
-                        this.futureMonths = [];
-                        for (let i = 0; i < 12; i++) {
-                            const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
-                            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                            this.futureMonths.push({ key, year: d.getFullYear(), month: d.getMonth()+1, label: `${this.monthName(d.getMonth()+1)} ${d.getFullYear()}` });
+                        return `${label} (${type}, full Rs ${this.formatMoney(a.applied_amount)})`;
+                    }).filter(Boolean);
+
+                    return parts.length ? `Allocation: ${parts.join(', ')}` : '';
+                },
+
+                updateSummary() {
+                    try {
+                        const id = this.formData.category_id;
+                        const cat = Array.isArray(this.categories) ? this.categories.find(c => c.id == id) : null;
+                        if (cat) {
+                            this.categoryName = cat.name;
+                            const rawType = (cat.payment_type || '').toString();
+                            const monthlyLike = ['monthly', '2_months', '3_months', '6_months', 'yearly', 'custom_months'].includes(rawType);
+                            this.categoryType = monthlyLike ? 'monthly' : rawType;
+                            // If class-wise monthly category is not configured, allow selected monthly category.
+                            this.selectedCategoryIsMonthlyFee = monthlyLike && (!this.monthlyCatId || String(this.monthlyCatId) === String(cat.id));
+                        } else {
+                            this.categoryName = '';
+                            this.categoryType = '';
+                            this.selectedCategoryIsMonthlyFee = false;
                         }
-                    },
-                    toggleAdvanceMonth(m, label) {
-                        if (!this.advanceEnabled) return;
-                        if (Array.isArray(this.studentDueMonths) && this.studentDueMonths.length > 0) {
-                            alert('Cannot select advance months while there are dues pending.');
+                    } catch (err) {
+                        console.error('Error updating summary:', err);
+                    }
+                },
+                initFutureMonths() {
+                    const base = new Date();
+                    base.setDate(1);
+                    this.futureMonths = [];
+                    for (let i = 0; i < 12; i++) {
+                        const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
+                        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                        this.futureMonths.push({
+                            key,
+                            year: d.getFullYear(),
+                            month: d.getMonth() + 1,
+                            label: `${this.monthName(d.getMonth()+1)} ${d.getFullYear()}`
+                        });
+                    }
+                },
+                toggleAdvanceMonth(m, label) {
+                    if (!this.advanceEnabled) return;
+                    if (Array.isArray(this.studentDueMonths) && this.studentDueMonths.length > 0) {
+                        alert('Cannot select advance months while there are dues pending.');
+                        return;
+                    }
+                    let key = m;
+                    if (typeof m === 'object' && m) key = m.key;
+                    if (typeof key !== 'string') return;
+                    if (this.selectedAdvanceKeys.has(key)) {
+                        this.selectedAdvanceKeys.delete(key);
+                    } else {
+                        this.selectedAdvanceKeys.add(key);
+                        const ordered = [...(this.advanceOptions || []).map(f => f.key)].filter(k => this.selectedAdvanceKeys.has(k));
+                        this.selectedAdvanceKeys = new Set(ordered);
+                    }
+                    this.syncAdvanceSelections();
+                    this.updateAllocationPreview();
+                },
+                isAdvanceSelected(key) {
+                    return this.selectedAdvanceKeys.has(key);
+                },
+                syncAdvanceSelections() {
+                    const keys = [...this.selectedAdvanceKeys];
+                    this.selectedAdvanceMonths = keys;
+                    const map = new Map((this.advanceOptions || []).map(o => [o.key, o.label]));
+                    this.selectedAdvanceLabels = keys.map(k => map.get(k)).filter(Boolean);
+                },
+                advanceRequiredAmount() {
+                    const keys = [...this.selectedAdvanceKeys];
+                    if (!keys.length) return 0;
+
+                    const map = new Map((this.advanceOptions || []).map(o => [o.key, o.required_amount]));
+                    let sum = 0;
+                    let allHave = true;
+                    for (const k of keys) {
+                        const v = map.get(k);
+                        if (typeof v !== 'number' || Number.isNaN(v)) {
+                            allHave = false;
+                            break;
+                        }
+                        sum += Number(v);
+                    }
+                    if (allHave) return sum;
+
+                    const fromPreview = Number(this.allocation?.summary?.selected_advance_months_required_amount);
+                    if (!Number.isNaN(fromPreview)) return fromPreview;
+
+                    return keys.length * (Number(this.studentMonthlyFee) || 0);
+                },
+                monthName(m) {
+                    const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                    return names[(m - 1) % 12];
+                },
+                shortMonthName(m) {
+                    return this.monthName(m).slice(0, 3);
+                },
+                formatMoney(v) {
+                    const n = Number(v || 0);
+                    return n.toLocaleString('en', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                },
+                rowsFromDueMonths(months) {
+                    if (!Array.isArray(months)) return [];
+                    const byYear = new Map();
+                    for (const month of months) {
+                        const key = String(month?.month_key || '');
+                        const [year, mo] = key.split('-').map(v => Number(v));
+                        if (!year || !mo) continue;
+                        if (!byYear.has(year)) {
+                            byYear.set(year, Number(month?.due_amount ?? month?.amount ?? 0));
+                        }
+                    }
+
+                    return [...byYear.entries()].map(([year, feeAmount]) => ({
+                        uid: ++this.yearlyFeeRowSeq,
+                        year,
+                        fee_amount: Number(feeAmount || 0).toFixed(2),
+                    }));
+                },
+                addYearlyFeeRow() {
+                    const today = new Date();
+                    this.yearlyFeeRows.push({
+                        uid: ++this.yearlyFeeRowSeq,
+                        year: today.getFullYear(),
+                        fee_amount: Number(this.studentMonthlyFee || 0).toFixed(2),
+                    });
+                    this.yearlyFeeRowsChanged();
+                },
+                removeYearlyFeeRow(index) {
+                    this.yearlyFeeRows.splice(index, 1);
+                    this.yearlyFeeRowsChanged();
+                },
+                yearlyFeeRowsPayload() {
+                    const byKey = new Map();
+                    for (const row of this.yearlyFeeRows || []) {
+                        const year = Number(row.year || 0);
+                        const fee = Number(row.fee_amount || 0);
+                        if (year < 2000 || fee <= 0) continue;
+                        for (let month = 1; month <= 12; month++) {
+                            byKey.set(`${year}-${String(month).padStart(2, '0')}`, {
+                                year,
+                                month,
+                                fee_amount: Number(fee.toFixed(2)),
+                            });
+                        }
+                    }
+                    return [...byKey.values()].sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
+                },
+                yearlyFeeRowsPayableTotal() {
+                    const feeByYear = new Map();
+                    for (const row of this.yearlyFeeRows || []) {
+                        const year = Number(row.year || 0);
+                        const fee = Number(row.fee_amount || 0);
+                        if (year >= 2000 && fee > 0) {
+                            feeByYear.set(year, fee);
+                        }
+                    }
+
+                    const paidByKey = new Map((this.studentDueMonths || []).map((month) => [
+                        String(month?.month_key || ''),
+                        Number(month?.paid_amount || 0),
+                    ]));
+
+                    return (this.studentDueMonths || []).reduce((sum, month) => {
+                        const key = String(month?.month_key || '');
+                        const [year] = key.split('-').map(v => Number(v));
+                        const fee = feeByYear.get(year);
+                        if (!fee) return sum;
+                        return sum + Math.max(0, fee - Number(paidByKey.get(key) || 0));
+                    }, 0);
+                },
+                setAmountFromYearlyFeeRows() {
+                    this.formData.amount = this.yearlyFeeRowsPayableTotal().toFixed(2);
+                    this.updateAllocationPreview();
+                },
+                yearlyFeeRowsChanged() {
+                    window.clearTimeout(this.yearlyFeePreviewTimer);
+                    this.yearlyFeePreviewTimer = window.setTimeout(() => this.updateAllocationPreview(), 250);
+                },
+                coverageSummaryText() {
+                    const allocs = Array.isArray(this.allocation?.allocations) ? this.allocation.allocations : [];
+                    if (!allocs.length) return '—';
+
+                    const seen = new Set();
+                    const parts = [];
+                    for (const a of allocs) {
+                        if (!a || !a.year || !a.month) continue;
+                        const key = `${a.year}-${String(a.month).padStart(2,'0')}`;
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+
+                        const label = `${this.shortMonthName(a.month)} ${a.year}`;
+                        const typeLabel = a.type === 'due' ? 'due' : (a.type === 'advance' ? 'advance' : '');
+                        if (a.is_partial) {
+                            const bal = this.formatMoney(a.remaining_for_month || 0);
+                            parts.push(`${label} (${typeLabel}${typeLabel ? ', ' : ''}partial Rs ${bal} balance)`);
+                        } else {
+                            parts.push(`${label} (${typeLabel}${typeLabel ? ', ' : ''}full)`);
+                        }
+                    }
+
+                    return parts.length ? parts.join(', ') : '—';
+                },
+                async updateAllocationPreview() {
+                    try {
+                        if (this.categoryType !== 'monthly' || !this.selectedCategoryIsMonthlyFee) return;
+                        const amt = parseFloat(this.formData.amount || '0');
+                        if (!this.selectedStudentId || !amt || amt <= 0) {
+                            this.allocation = {
+                                allocations: [],
+                                summary: {
+                                    total_applied: 0,
+                                    unallocated_balance: 0,
+                                    paid_due_months: [],
+                                    advance_months: [],
+                                    errors: []
+                                }
+                            };
                             return;
                         }
-                        let key = m;
-                        if (typeof m === 'object' && m) key = m.key;
-                        if (typeof key !== 'string') return;
-                        if (this.selectedAdvanceKeys.has(key)) {
-                            this.selectedAdvanceKeys.delete(key);
-                        } else {
-                            this.selectedAdvanceKeys.add(key);
-                            const ordered = [...(this.advanceOptions||[]).map(f=>f.key)].filter(k=>this.selectedAdvanceKeys.has(k));
-                            this.selectedAdvanceKeys = new Set(ordered);
-                        }
-                        this.syncAdvanceSelections();
-                        this.updateAllocationPreview();
-                    },
-                    isAdvanceSelected(key) {
-                        return this.selectedAdvanceKeys.has(key);
-                    },
-                    syncAdvanceSelections() {
-                        const keys = [...this.selectedAdvanceKeys];
-                        this.selectedAdvanceMonths = keys;
-                        const map = new Map((this.advanceOptions||[]).map(o => [o.key, o.label]));
-                        this.selectedAdvanceLabels = keys.map(k => map.get(k)).filter(Boolean);
-                    },
-                    advanceRequiredAmount() {
-                        const keys = [...this.selectedAdvanceKeys];
-                        if (!keys.length) return 0;
 
-                        const map = new Map((this.advanceOptions||[]).map(o => [o.key, o.required_amount]));
-                        let sum = 0;
-                        let allHave = true;
-                        for (const k of keys) {
-                            const v = map.get(k);
-                            if (typeof v !== 'number' || Number.isNaN(v)) {
-                                allHave = false;
-                                break;
-                            }
-                            sum += Number(v);
-                        }
-                        if (allHave) return sum;
-
-                        const fromPreview = Number(this.allocation?.summary?.selected_advance_months_required_amount);
-                        if (!Number.isNaN(fromPreview)) return fromPreview;
-
-                        return keys.length * (Number(this.studentMonthlyFee) || 0);
-                    },
-                    monthName(m) {
-                        const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-                        return names[(m-1)%12];
-                    },
-                    shortMonthName(m) {
-                        return this.monthName(m).slice(0, 3);
-                    },
-                    formatMoney(v) {
-                        const n = Number(v || 0);
-                        return n.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    },
-                    rowsFromDueMonths(months) {
-                        if (!Array.isArray(months)) return [];
-                        const byYear = new Map();
-                        for (const month of months) {
-                            const key = String(month?.month_key || '');
-                            const [year, mo] = key.split('-').map(v => Number(v));
-                            if (!year || !mo) continue;
-                            if (!byYear.has(year)) {
-                                byYear.set(year, Number(month?.due_amount ?? month?.amount ?? 0));
-                            }
-                        }
-
-                        return [...byYear.entries()].map(([year, feeAmount]) => ({
-                            uid: ++this.yearlyFeeRowSeq,
-                            year,
-                            fee_amount: Number(feeAmount || 0).toFixed(2),
-                        }));
-                    },
-                    addYearlyFeeRow() {
-                        const today = new Date();
-                        this.yearlyFeeRows.push({
-                            uid: ++this.yearlyFeeRowSeq,
-                            year: today.getFullYear(),
-                            fee_amount: Number(this.studentMonthlyFee || 0).toFixed(2),
+                        this.isAllocationLoading = true;
+                        const adv = [...this.selectedAdvanceKeys].map(k => {
+                            const [y, mo] = k.split('-');
+                            return {
+                                year: +y,
+                                month: +mo
+                            };
                         });
-                        this.yearlyFeeRowsChanged();
-                    },
-                    removeYearlyFeeRow(index) {
-                        this.yearlyFeeRows.splice(index, 1);
-                        this.yearlyFeeRowsChanged();
-                    },
-                    yearlyFeeRowsPayload() {
-                        const byKey = new Map();
-                        for (const row of this.yearlyFeeRows || []) {
-                            const year = Number(row.year || 0);
-                            const fee = Number(row.fee_amount || 0);
-                            if (year < 2000 || fee <= 0) continue;
-                            for (let month = 1; month <= 12; month++) {
-                                byKey.set(`${year}-${String(month).padStart(2, '0')}`, {
-                                    year,
-                                    month,
-                                    fee_amount: Number(fee.toFixed(2)),
-                                });
-                            }
-                        }
-                        return [...byKey.values()].sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
-                    },
-                    yearlyFeeRowsPayableTotal() {
-                        const feeByYear = new Map();
-                        for (const row of this.yearlyFeeRows || []) {
-                            const year = Number(row.year || 0);
-                            const fee = Number(row.fee_amount || 0);
-                            if (year >= 2000 && fee > 0) {
-                                feeByYear.set(year, fee);
-                            }
-                        }
-
-                        const paidByKey = new Map((this.studentDueMonths || []).map((month) => [
-                            String(month?.month_key || ''),
-                            Number(month?.paid_amount || 0),
-                        ]));
-
-                        return (this.studentDueMonths || []).reduce((sum, month) => {
-                            const key = String(month?.month_key || '');
-                            const [year] = key.split('-').map(v => Number(v));
-                            const fee = feeByYear.get(year);
-                            if (!fee) return sum;
-                            return sum + Math.max(0, fee - Number(paidByKey.get(key) || 0));
-                        }, 0);
-                    },
-                    setAmountFromYearlyFeeRows() {
-                        this.formData.amount = this.yearlyFeeRowsPayableTotal().toFixed(2);
-                        this.updateAllocationPreview();
-                    },
-                    yearlyFeeRowsChanged() {
-                        window.clearTimeout(this.yearlyFeePreviewTimer);
-                        this.yearlyFeePreviewTimer = window.setTimeout(() => this.updateAllocationPreview(), 250);
-                    },
-                    coverageSummaryText() {
-                        const allocs = Array.isArray(this.allocation?.allocations) ? this.allocation.allocations : [];
-                        if (!allocs.length) return '—';
-
-                        const seen = new Set();
-                        const parts = [];
-                        for (const a of allocs) {
-                            if (!a || !a.year || !a.month) continue;
-                            const key = `${a.year}-${String(a.month).padStart(2,'0')}`;
-                            if (seen.has(key)) continue;
-                            seen.add(key);
-
-                            const label = `${this.shortMonthName(a.month)} ${a.year}`;
-                            const typeLabel = a.type === 'due' ? 'due' : (a.type === 'advance' ? 'advance' : '');
-                            if (a.is_partial) {
-                                const bal = this.formatMoney(a.remaining_for_month || 0);
-                                parts.push(`${label} (${typeLabel}${typeLabel ? ', ' : ''}partial Rs ${bal} balance)`);
-                            } else {
-                                parts.push(`${label} (${typeLabel}${typeLabel ? ', ' : ''}full)`);
-                            }
-                        }
-
-                        return parts.length ? parts.join(', ') : '—';
-                    },
-                    async updateAllocationPreview() {
-                        try {
-                            if (this.categoryType !== 'monthly' || !this.selectedCategoryIsMonthlyFee) return;
-                            const amt = parseFloat(this.formData.amount||'0');
-                            if (!this.selectedStudentId || !amt || amt <= 0) {
-                                this.allocation = { allocations: [], summary: { total_applied: 0, unallocated_balance: 0, paid_due_months: [], advance_months: [], errors: [] } };
-                                return;
-                            }
-
-                            this.isAllocationLoading = true;
-                            const adv = [...this.selectedAdvanceKeys].map(k => { const [y, mo] = k.split('-'); return {year: +y, month: +mo}; });
-                            const feeOverrides = this.yearlyFeeRowsPayload();
-                            const payload = { student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv, monthly_fee_overrides: feeOverrides };
-                            if (this.editingRevenueId) payload.revenue_id = this.editingRevenueId;
-                            const res = await fetch("{{ route('revenue.items.preview_allocation') }}", {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
-                                body: JSON.stringify(payload)
-                            });
-                            if (res.ok) {
-                                const data = await res.json();
-                                this.allocation = data || { allocations: [], summary: {} };
-                                if (this.advanceEnabled && this.selectedAdvanceKeys.size === 0) {
-                                    // Auto-select future months based on remaining amount
-                                    const rem = Number(this.allocation.summary.unallocated_balance||0);
-                                    const fee = Number(this.studentMonthlyFee||0);
-                                    if (fee > 0 && rem > 0) {
-                                        const fullCount = Math.floor(rem / fee);
-                                        const extra = rem - fullCount*fee;
-                                        const selectCount = fullCount + (extra > 0 ? 1 : 0);
-                                        const keys = (this.advanceOptions||this.futureMonths).slice(0, selectCount).map(m=>m.key);
-                                        this.selectedAdvanceKeys = new Set(keys);
-                                        this.syncAdvanceSelections();
-                                        // Recompute preview with auto-selected months
-                                        const adv2 = [...this.selectedAdvanceKeys].map(k => { const [y, mo] = k.split('-'); return {year: +y, month: +mo}; });
-                                        const payload2 = { student_id: this.selectedStudentId, revenue_category_id: this.formData.category_id, amount: amt, advance_months: adv2, monthly_fee_overrides: feeOverrides };
-                                        if (this.editingRevenueId) payload2.revenue_id = this.editingRevenueId;
-                                        const res2 = await fetch("{{ route('revenue.items.preview_allocation') }}", {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '' },
-                                            body: JSON.stringify(payload2)
-                                        });
-                                        if (res2.ok) {
-                                            const data2 = await res2.json();
-                                            this.allocation = data2;
-                                        }
+                        const feeOverrides = this.yearlyFeeRowsPayload();
+                        const payload = {
+                            student_id: this.selectedStudentId,
+                            revenue_category_id: this.formData.category_id,
+                            amount: amt,
+                            advance_months: adv,
+                            monthly_fee_overrides: feeOverrides
+                        };
+                        if (this.editingRevenueId) payload.revenue_id = this.editingRevenueId;
+                        const res = await fetch("{{ route('revenue.items.preview_allocation') }}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                            },
+                            body: JSON.stringify(payload)
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.allocation = data || {
+                                allocations: [],
+                                summary: {}
+                            };
+                            if (this.advanceEnabled && this.selectedAdvanceKeys.size === 0) {
+                                // Auto-select future months based on remaining amount
+                                const rem = Number(this.allocation.summary.unallocated_balance || 0);
+                                const fee = Number(this.studentMonthlyFee || 0);
+                                if (fee > 0 && rem > 0) {
+                                    const fullCount = Math.floor(rem / fee);
+                                    const extra = rem - fullCount * fee;
+                                    const selectCount = fullCount + (extra > 0 ? 1 : 0);
+                                    const keys = (this.advanceOptions || this.futureMonths).slice(0, selectCount).map(m => m.key);
+                                    this.selectedAdvanceKeys = new Set(keys);
+                                    this.syncAdvanceSelections();
+                                    // Recompute preview with auto-selected months
+                                    const adv2 = [...this.selectedAdvanceKeys].map(k => {
+                                        const [y, mo] = k.split('-');
+                                        return {
+                                            year: +y,
+                                            month: +mo
+                                        };
+                                    });
+                                    const payload2 = {
+                                        student_id: this.selectedStudentId,
+                                        revenue_category_id: this.formData.category_id,
+                                        amount: amt,
+                                        advance_months: adv2,
+                                        monthly_fee_overrides: feeOverrides
+                                    };
+                                    if (this.editingRevenueId) payload2.revenue_id = this.editingRevenueId;
+                                    const res2 = await fetch("{{ route('revenue.items.preview_allocation') }}", {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                                        },
+                                        body: JSON.stringify(payload2)
+                                    });
+                                    if (res2.ok) {
+                                        const data2 = await res2.json();
+                                        this.allocation = data2;
                                     }
                                 }
                             }
-                        } catch (e) {
-                            console.warn('Allocation preview failed:', e?.message);
-                        } finally {
-                            this.isAllocationLoading = false;
                         }
+                    } catch (e) {
+                        console.warn('Allocation preview failed:', e?.message);
+                    } finally {
+                        this.isAllocationLoading = false;
                     }
-                }));
+                }
+            }));
 
-                // AJAX create category from modal (stay on Add Revenue page)
-                window.addEventListener('DOMContentLoaded', () => {
-                    const form = document.getElementById('add-category-form');
-                    if (!form) return;
+            // AJAX create category from modal (stay on Add Revenue page)
+            window.addEventListener('DOMContentLoaded', () => {
+                const form = document.getElementById('add-category-form');
+                if (!form) return;
 
-                    form.addEventListener('submit', async (e) => {
-                        e.preventDefault();
-                        const errBox = document.getElementById('add-category-error');
-                        if (errBox) {
-                            errBox.classList.add('hidden');
-                            errBox.textContent = '';
-                        }
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const errBox = document.getElementById('add-category-error');
+                    if (errBox) {
+                        errBox.classList.add('hidden');
+                        errBox.textContent = '';
+                    }
 
-                        const fd = new FormData(form);
-                        // Ensure controller validation passes for modal (applies_to_all is required)
-                        if (!fd.has('applies_to_all')) fd.set('applies_to_all', '1');
+                    const fd = new FormData(form);
+                    // Ensure controller validation passes for modal (applies_to_all is required)
+                    if (!fd.has('applies_to_all')) fd.set('applies_to_all', '1');
 
-                        try {
-                            const res = await fetch(form.action, {
-                                method: 'POST',
-                                headers: {
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
-                                },
-                                body: fd,
-                            });
+                    try {
+                        const res = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || ''
+                            },
+                            body: fd,
+                        });
 
-                            if (!res.ok) {
-                                const data = await res.json().catch(() => null);
-                                const msg = data?.message || 'Could not create category.';
-                                const firstErr = data?.errors ? Object.values(data.errors)[0]?.[0] : null;
-                                if (errBox) {
-                                    errBox.textContent = firstErr || msg;
-                                    errBox.classList.remove('hidden');
-                                }
-                                return;
-                            }
-
-                            const cat = await res.json();
-                            // Update the dropdown options immediately
-                            const sel = document.getElementById('revenue_category_id');
-                            if (sel && cat?.id) {
-                                const opt = document.createElement('option');
-                                opt.value = String(cat.id);
-                                opt.textContent = cat.name;
-                                opt.setAttribute('data-name', cat.name);
-                                opt.setAttribute('data-type', cat.payment_type || 'one_time');
-                                sel.appendChild(opt);
-                                sel.value = String(cat.id);
-                                sel.dispatchEvent(new Event('change', { bubbles: true }));
-                            }
-                            window.dispatchEvent(new CustomEvent('revenue-category-created', { detail: cat }));
-                            form.reset();
-                        } catch (ex) {
+                        if (!res.ok) {
+                            const data = await res.json().catch(() => null);
+                            const msg = data?.message || 'Could not create category.';
+                            const firstErr = data?.errors ? Object.values(data.errors)[0]?.[0] : null;
                             if (errBox) {
-                                errBox.textContent = 'Network error while creating category.';
+                                errBox.textContent = firstErr || msg;
                                 errBox.classList.remove('hidden');
                             }
+                            return;
                         }
-                    });
+
+                        const cat = await res.json();
+                        // Update the dropdown options immediately
+                        const sel = document.getElementById('revenue_category_id');
+                        if (sel && cat?.id) {
+                            const opt = document.createElement('option');
+                            opt.value = String(cat.id);
+                            opt.textContent = cat.name;
+                            opt.setAttribute('data-name', cat.name);
+                            opt.setAttribute('data-type', cat.payment_type || 'one_time');
+                            sel.appendChild(opt);
+                            sel.value = String(cat.id);
+                            sel.dispatchEvent(new Event('change', {
+                                bubbles: true
+                            }));
+                        }
+                        window.dispatchEvent(new CustomEvent('revenue-category-created', {
+                            detail: cat
+                        }));
+                        form.reset();
+                    } catch (ex) {
+                        if (errBox) {
+                            errBox.textContent = 'Network error while creating category.';
+                            errBox.classList.remove('hidden');
+                        }
+                    }
                 });
+            });
 
-                Alpine.data('studentPicker', () => ({
-                    q: '',
-                    classRoomId: '',
-                    results: [],
-                    open: false,
-                    selected: null,
-                    highlightedIndex: -1,
-                    initialStudentId: '',
-                    excludeRevenueId: '',
-                    isLoading: false,
+            Alpine.data('studentPicker', () => ({
+                q: '',
+                classRoomId: '',
+                results: [],
+                open: false,
+                selected: null,
+                highlightedIndex: -1,
+                initialStudentId: '',
+                excludeRevenueId: '',
+                isLoading: false,
 
-                    init() {
-                        try {
-                            this.initialStudentId = this.$el?.getAttribute('data-student-id') || '';
-                            this.excludeRevenueId = this.$el?.getAttribute('data-exclude-revenue-id') || '';
-                            if (this.initialStudentId) {
-                                this.loadInitialStudent();
-                            }
-                            this.stripStudentParam();
-                        } catch (err) {
-                            console.error('Error initializing studentPicker:', err);
+                init() {
+                    try {
+                        this.initialStudentId = this.$el?.getAttribute('data-student-id') || '';
+                        this.excludeRevenueId = this.$el?.getAttribute('data-exclude-revenue-id') || '';
+                        if (this.initialStudentId) {
+                            this.loadInitialStudent();
                         }
-                    },
+                        this.stripStudentParam();
+                    } catch (err) {
+                        console.error('Error initializing studentPicker:', err);
+                    }
+                },
 
-                    async loadInitialStudent() {
-                        if (!this.initialStudentId) return;
-                        try {
-                            this.isLoading = true;
-                            const excludeParam = this.excludeRevenueId ? `&exclude_revenue_id=${encodeURIComponent(this.excludeRevenueId)}` : '';
-                            const res = await fetch(`/students/search?id=${encodeURIComponent(this.initialStudentId)}${excludeParam}`);
-                            if (res && res.ok) {
-                                const data = await res.json();
-                                if (data) {
-                                    const payload = Array.isArray(data) ? data : (data?.results ?? []);
-                                    if (Array.isArray(payload) && payload.length > 0) {
-                                        const first = payload[0];
-                                        if (first && first.id) {
-                                            this.selected = first;
-                                            try {
-                                                this.$dispatch('student-selected', this.selected);
-                                            } catch (dispatchErr) {
-                                                console.error('Error dispatching student-selected event:', dispatchErr);
-                                            }
+                async loadInitialStudent() {
+                    if (!this.initialStudentId) return;
+                    try {
+                        this.isLoading = true;
+                        const excludeParam = this.excludeRevenueId ? `&exclude_revenue_id=${encodeURIComponent(this.excludeRevenueId)}` : '';
+                        const res = await fetch(`/students/search?id=${encodeURIComponent(this.initialStudentId)}${excludeParam}`);
+                        if (res && res.ok) {
+                            const data = await res.json();
+                            if (data) {
+                                const payload = Array.isArray(data) ? data : (data?.results ?? []);
+                                if (Array.isArray(payload) && payload.length > 0) {
+                                    const first = payload[0];
+                                    if (first && first.id) {
+                                        this.selected = first;
+                                        try {
+                                            this.$dispatch('student-selected', this.selected);
+                                        } catch (dispatchErr) {
+                                            console.error('Error dispatching student-selected event:', dispatchErr);
                                         }
                                     }
                                 }
                             }
-                        } catch (e) {
-                            console.warn('Failed to load initial student (non-critical):', e?.message);
-                        } finally {
-                            this.isLoading = false;
                         }
-                    },
+                    } catch (e) {
+                        console.warn('Failed to load initial student (non-critical):', e?.message);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
 
-                    async search() {
-                        try {
-                            if (!this.q || typeof this.q.trim !== 'function') {
-                                this.results = [];
-                                this.open = false;
-                                return;
-                            }
-                            if (!this.q.trim()) {
-                                this.results = [];
-                                this.open = false;
-                                return;
-                            }
-                            const params = new URLSearchParams({ q: this.q, limit: 10 });
-                            if (this.classRoomId) params.set('class_room_id', this.classRoomId);
-                            this.isLoading = true;
-                            const res = await fetch(`/students/search?${params}`);
-                            if (res && res.ok) {
-                                const data = await res.json();
-                                if (data) {
-                                    this.results = Array.isArray(data) ? data : (data?.results ?? []);
-                                    if (!Array.isArray(this.results)) {
-                                        this.results = [];
-                                    }
-                                    this.open = this.results.length > 0;
-                                    this.highlightedIndex = -1;
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('Student search error (non-critical):', e?.message);
+                async search() {
+                    try {
+                        if (!this.q || typeof this.q.trim !== 'function') {
                             this.results = [];
                             this.open = false;
-                        } finally {
-                            this.isLoading = false;
+                            return;
                         }
-                    },
-
-                    async openDefault() {
-                        try {
-                            const params = new URLSearchParams({ limit: 5 });
-                            if (this.classRoomId) params.set('class_room_id', this.classRoomId);
-                            this.isLoading = true;
-                            const res = await fetch(`/students/search?${params}`);
-                            if (res && res.ok) {
-                                const data = await res.json();
-                                if (data) {
-                                    this.results = Array.isArray(data) ? data : (data?.results ?? []);
-                                    if (!Array.isArray(this.results)) {
-                                        this.results = [];
-                                    }
-                                    this.open = this.results.length > 0;
-                                    this.highlightedIndex = -1;
-                                }
-                            }
-                        } catch (e) {
-                            console.warn('Default student load error (non-critical):', e?.message);
+                        if (!this.q.trim()) {
                             this.results = [];
                             this.open = false;
-                        } finally {
-                            this.isLoading = false;
+                            return;
                         }
-                    },
-
-                    async select(item) {
-                        try {
-                            if (!item || typeof item !== 'object') return;
-                            
-                            // Fetch full details to get due info
-                            try {
-                                this.isLoading = true;
-                                const res = await fetch(`/students/search?id=${item.id}`);
-                                if (res && res.ok) {
-                                    const data = await res.json();
-                                    if (data.results && data.results[0]) {
-                                        item = data.results[0];
-                                    }
+                        const params = new URLSearchParams({
+                            q: this.q,
+                            limit: 10
+                        });
+                        if (this.classRoomId) params.set('class_room_id', this.classRoomId);
+                        this.isLoading = true;
+                        const res = await fetch(`/students/search?${params}`);
+                        if (res && res.ok) {
+                            const data = await res.json();
+                            if (data) {
+                                this.results = Array.isArray(data) ? data : (data?.results ?? []);
+                                if (!Array.isArray(this.results)) {
+                                    this.results = [];
                                 }
-                            } catch (fetchErr) {
-                                console.warn('Failed to fetch full student details:', fetchErr);
-                            } finally {
-                                this.isLoading = false;
-                            }
-
-                            this.selected = item;
-                            this.q = '';
-                            this.open = false;
-                            this.results = [];
-                            this.highlightedIndex = -1;
-                            
-                            this.$dispatch('student-selected', this.selected);
-                        } catch (err) {
-                            console.error('Error selecting student:', err);
-                        }
-                    },
-
-                    clearSelection() {
-                        try {
-                            this.selected = null;
-                            this.$dispatch('student-selected', null);
-                        } catch (err) {
-                            console.error('Error clearing selection:', err);
-                        }
-                    },
-
-                    handleKeyDown(event) {
-                        try {
-                            if (!this.open || !Array.isArray(this.results) || this.results.length === 0) return;
-                            if (event && event.key === 'ArrowDown') {
-                                event.preventDefault();
-                                this.highlightedIndex = Math.min(this.highlightedIndex + 1, this.results.length - 1);
-                            } else if (event && event.key === 'ArrowUp') {
-                                event.preventDefault();
-                                this.highlightedIndex = Math.max(this.highlightedIndex - 1, -1);
-                            } else if (event && event.key === 'Enter' && this.highlightedIndex >= 0) {
-                                event.preventDefault();
-                                const item = this.results[this.highlightedIndex];
-                                if (item) {
-                                    this.select(item);
-                                    try {
-                                        this.$dispatch('student-selected', item);
-                                    } catch (dispatchErr) {
-                                        console.error('Error dispatching student selection:', dispatchErr);
-                                    }
-                                }
-                            } else if (event && event.key === 'Escape') {
-                                this.open = false;
+                                this.open = this.results.length > 0;
                                 this.highlightedIndex = -1;
                             }
-                        } catch (err) {
-                            console.error('Error in handleKeyDown:', err);
                         }
-                    },
-
-                    stripStudentParam() {
-                        try {
-                            const url = new URL(window.location);
-                            if (url.searchParams.has('student_id')) {
-                                url.searchParams.delete('student_id');
-                                history.replaceState({}, '', url);
-                            }
-                        } catch (err) {
-                            console.warn('Could not strip student param (non-critical):', err?.message);
-                        }
+                    } catch (e) {
+                        console.warn('Student search error (non-critical):', e?.message);
+                        this.results = [];
+                        this.open = false;
+                    } finally {
+                        this.isLoading = false;
                     }
-                }));
+                },
 
-            });
-        </script>
+                async openDefault() {
+                    try {
+                        const params = new URLSearchParams({
+                            limit: 5
+                        });
+                        if (this.classRoomId) params.set('class_room_id', this.classRoomId);
+                        this.isLoading = true;
+                        const res = await fetch(`/students/search?${params}`);
+                        if (res && res.ok) {
+                            const data = await res.json();
+                            if (data) {
+                                this.results = Array.isArray(data) ? data : (data?.results ?? []);
+                                if (!Array.isArray(this.results)) {
+                                    this.results = [];
+                                }
+                                this.open = this.results.length > 0;
+                                this.highlightedIndex = -1;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Default student load error (non-critical):', e?.message);
+                        this.results = [];
+                        this.open = false;
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                async select(item) {
+                    try {
+                        if (!item || typeof item !== 'object') return;
+
+                        // Fetch full details to get due info
+                        try {
+                            this.isLoading = true;
+                            const res = await fetch(`/students/search?id=${item.id}`);
+                            if (res && res.ok) {
+                                const data = await res.json();
+                                if (data.results && data.results[0]) {
+                                    item = data.results[0];
+                                }
+                            }
+                        } catch (fetchErr) {
+                            console.warn('Failed to fetch full student details:', fetchErr);
+                        } finally {
+                            this.isLoading = false;
+                        }
+
+                        this.selected = item;
+                        this.q = '';
+                        this.open = false;
+                        this.results = [];
+                        this.highlightedIndex = -1;
+
+                        this.$dispatch('student-selected', this.selected);
+                    } catch (err) {
+                        console.error('Error selecting student:', err);
+                    }
+                },
+
+                clearSelection() {
+                    try {
+                        this.selected = null;
+                        this.$dispatch('student-selected', null);
+                    } catch (err) {
+                        console.error('Error clearing selection:', err);
+                    }
+                },
+
+                handleKeyDown(event) {
+                    try {
+                        if (!this.open || !Array.isArray(this.results) || this.results.length === 0) return;
+                        if (event && event.key === 'ArrowDown') {
+                            event.preventDefault();
+                            this.highlightedIndex = Math.min(this.highlightedIndex + 1, this.results.length - 1);
+                        } else if (event && event.key === 'ArrowUp') {
+                            event.preventDefault();
+                            this.highlightedIndex = Math.max(this.highlightedIndex - 1, -1);
+                        } else if (event && event.key === 'Enter' && this.highlightedIndex >= 0) {
+                            event.preventDefault();
+                            const item = this.results[this.highlightedIndex];
+                            if (item) {
+                                this.select(item);
+                                try {
+                                    this.$dispatch('student-selected', item);
+                                } catch (dispatchErr) {
+                                    console.error('Error dispatching student selection:', dispatchErr);
+                                }
+                            }
+                        } else if (event && event.key === 'Escape') {
+                            this.open = false;
+                            this.highlightedIndex = -1;
+                        }
+                    } catch (err) {
+                        console.error('Error in handleKeyDown:', err);
+                    }
+                },
+
+                stripStudentParam() {
+                    try {
+                        const url = new URL(window.location);
+                        if (url.searchParams.has('student_id')) {
+                            url.searchParams.delete('student_id');
+                            history.replaceState({}, '', url);
+                        }
+                    } catch (err) {
+                        console.warn('Could not strip student param (non-critical):', err?.message);
+                    }
+                }
+            }));
+
+        });
+    </script>
     @endpush
 </x-app-layout>
