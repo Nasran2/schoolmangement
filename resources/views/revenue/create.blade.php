@@ -846,12 +846,10 @@ $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $
                     category_id: '{{ $selectedCategoryId }}',
                     amount: '{{ $defaultAmount }}',
                     date: '{{ $defaultPaidAt }}',
-                    bill_no: '{{ $autogenerate ? '
-                    ' : $defaultBillNo }}',
+                    bill_no: '{{ $autogenerate ? '' : $defaultBillNo }}',
                     payment_method: '{{ $defaultPaymentMethod }}',
                 },
-                editingRevenueId: '{{ $isEdit ? (int) $item->id : '
-                ' }}',
+                editingRevenueId: '{{ $isEdit ? (int) $item->id : '' }}',
                 categories: @json($categories),
                 categoryName: '',
                 categoryType: '',
@@ -864,8 +862,7 @@ $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $
                 studentHoldChequeNumbers: [],
                 showCategoryModal: false,
                 selectedStudentId: '{{ $initialSelectedStudentId }}',
-                monthlyCatId: '{{ $monthlyCatId ?? '
-                ' }}',
+                monthlyCatId: '{{ $monthlyCatId ?? '' }}',
                 advanceEnabled: false,
                 advanceMode: false,
                 advanceOptions: [],
