@@ -506,12 +506,12 @@ class ReportController extends Controller
             return $query;
         }
 
-        // Exclude only: payment_method = cheque AND payment_status = pending
+        // Exclude only: payment_method = cheque AND payment_status in (pending, hold)
         return $query->where(function ($q) use ($methodColumn, $statusColumn) {
             $q->where($methodColumn, '!=', 'cheque')
                 ->orWhereNull($methodColumn)
                 ->orWhereNull($statusColumn)
-                ->orWhere($statusColumn, '!=', 'pending');
+                ->orWhereNotIn($statusColumn, ['pending', 'hold']);
         });
     }
 
@@ -531,9 +531,9 @@ class ReportController extends Controller
     {
         if ($statusColumn !== null && $statusColumn !== '') {
             // For cheques:
-            // - pending: count on cheque_date (expected clearing date)
+            // - pending/hold: count on cheque_date (expected clearing date)
             // - confirmed/returned: count on paid_at (passed/received date)
-            return "DATE(CASE WHEN {$methodColumn} = 'cheque' THEN (CASE WHEN {$statusColumn} = 'pending' THEN COALESCE({$chequeDateColumn}, {$baseDateColumn}) ELSE {$baseDateColumn} END) ELSE {$baseDateColumn} END)";
+            return "DATE(CASE WHEN {$methodColumn} = 'cheque' THEN (CASE WHEN {$statusColumn} IN ('pending', 'hold') THEN COALESCE({$chequeDateColumn}, {$baseDateColumn}) ELSE {$baseDateColumn} END) ELSE {$baseDateColumn} END)";
         }
 
         return "DATE(CASE WHEN {$methodColumn} = 'cheque' THEN COALESCE({$chequeDateColumn}, {$baseDateColumn}) ELSE {$baseDateColumn} END)";
@@ -1405,14 +1405,21 @@ class ReportController extends Controller
         $revQ = Revenue::query()
             ->leftJoin('students', 'students.id', '=', 'revenues.student_id')
             ->leftJoin('revenue_categories', 'revenue_categories.id', '=', 'revenues.revenue_category_id')
-            ->whereRaw("{$revenueEffectiveDateSqlQualified} >= ? AND {$revenueEffectiveDateSqlQualified} <= ?", [$start->toDateString(), $end->toDateString()])
-            ->orderByRaw("CASE WHEN revenues.payment_method = 'cheque' AND revenues.payment_status = 'pending' THEN COALESCE(revenues.cheque_date, revenues.paid_at) WHEN revenues.payment_method = 'cheque' THEN revenues.paid_at ELSE revenues.paid_at END")
+            ->where(function($q) use ($start, $end) {
+                $q->whereBetween(DB::raw('DATE(revenues.paid_at)'), [$start->toDateString(), $end->toDateString()])
+                  ->orWhere(function($subQ) use ($start, $end) {
+                      $subQ->where('revenues.payment_method', 'cheque')
+                           ->whereNotNull('revenues.confirmed_at')
+                           ->whereBetween(DB::raw('DATE(revenues.confirmed_at)'), [$start->toDateString(), $end->toDateString()]);
+                  });
+            })
+            ->orderBy('revenues.paid_at')
             ->orderBy('revenues.id')
             ->select([
                 'revenues.id',
                 'revenues.bill_no',
                 'revenues.paid_at',
-                DB::raw("CASE WHEN revenues.payment_method = 'cheque' AND revenues.payment_status = 'pending' THEN COALESCE(revenues.cheque_date, revenues.paid_at) WHEN revenues.payment_method = 'cheque' THEN revenues.paid_at ELSE revenues.paid_at END as effective_at"),
+                'revenues.created_at',
                 'revenues.amount',
                 'revenues.notes',
                 'revenues.cancel_reason',
@@ -1425,11 +1432,17 @@ class ReportController extends Controller
                 'revenue_categories.name as category_name',
             ]);
         $revQ = $this->applyPaymentMethodFilter($revQ, 'revenues.payment_method', $methodFilter);
-        $revQ = $this->applyPendingChequeFilter($revQ, 'revenues.payment_method', 'revenues.payment_status', $includePendingCheques);
-        $revenues = $revQ->get()->map(function ($r) use ($isBankMethod, $includePendingCheques) {
+        
+        $revenues = $revQ->get()->flatMap(function ($r) use ($isBankMethod, $includePendingCheques, $start, $end) {
+            $rows = [];
             $pm = (string) ($r->payment_method ?? 'cash');
             $isBank = $isBankMethod($pm);
             $status = (string) ($r->payment_status ?? 'paid');
+            
+            $receiptDate = Carbon::parse($r->paid_at)->toDateString();
+            $confirmedDate = $r->confirmed_at ? Carbon::parse($r->confirmed_at)->toDateString() : null;
+            $startDate = $start->toDateString();
+            $endDate = $end->toDateString();
 
             $student = $r->student_name ?: '—';
             $category = $r->category_name ?: 'Income';
@@ -1452,36 +1465,91 @@ class ReportController extends Controller
                 $desc .= ' (Discount: ' . $discountStr . ')';
             }
 
-            $methodLabel = $this->paymentMethodLabel($pm);
-            if ($status === 'cancelled') {
-                $methodLabel = 'Cancelled';
-            } elseif ($pm === 'cheque') {
-                if ($includePendingCheques && $status === 'pending') {
-                    $methodLabel .= ' (Pending)';
-                } elseif ($status === 'rejected') {
-                    $methodLabel .= ' (Returned)';
+            $baseLabel = $this->paymentMethodLabel($pm);
+
+            if ($pm === 'cheque') {
+                $isPendingCurrently = in_array($status, ['pending', 'hold']);
+                
+                $emitReceiptRow = false;
+                if ($isPendingCurrently) {
+                    if ($receiptDate >= $startDate && $receiptDate <= $endDate) {
+                        $emitReceiptRow = true;
+                    }
                 } else {
-                    $methodLabel .= ' (Passed)';
+                    if ($receiptDate !== $confirmedDate && $receiptDate >= $startDate && $receiptDate <= $endDate) {
+                        $emitReceiptRow = true;
+                    }
+                }
+
+                if ($emitReceiptRow) {
+                    $amount = 0.0;
+                    if ($isPendingCurrently && $includePendingCheques) {
+                        $amount = (float) $r->amount;
+                    }
+                    $rows[] = [
+                        'date' => Carbon::parse($receiptDate),
+                        'section' => 'revenue',
+                        'type' => 'Revenue',
+                        'ref' => $r->bill_no ?: '—',
+                        'student' => $student,
+                        'category' => $category,
+                        'description' => $desc,
+                        'method' => $status === 'cancelled' ? 'Cancelled' : $baseLabel . ' (Pending)',
+                        'account' => $isBank ? 'bank' : 'cash',
+                        'status' => $status,
+                        'cheque_date' => $r->cheque_date ? Carbon::parse($r->cheque_date)->toDateString() : null,
+                        'meta' => $meta,
+                        'in' => $amount,
+                        'out' => 0.0,
+                    ];
+                }
+
+                if (!$isPendingCurrently && $confirmedDate) {
+                    if ($confirmedDate >= $startDate && $confirmedDate <= $endDate) {
+                        $methodLabel = $status === 'cancelled' ? 'Cancelled' : ($status === 'rejected' ? $baseLabel . ' (Returned)' : $baseLabel . ' (Passed)');
+                        $rows[] = [
+                            'date' => Carbon::parse($confirmedDate),
+                            'section' => 'revenue',
+                            'type' => 'Revenue',
+                            'ref' => $r->bill_no ?: '—',
+                            'student' => $student,
+                            'category' => $category,
+                            'description' => $desc,
+                            'method' => $methodLabel,
+                            'account' => $isBank ? 'bank' : 'cash',
+                            'status' => $status,
+                            'cheque_date' => $r->cheque_date ? Carbon::parse($r->cheque_date)->toDateString() : null,
+                            'meta' => $meta,
+                            'in' => (float) $r->amount,
+                            'out' => 0.0,
+                        ];
+                    }
+                }
+            } else {
+                if ($receiptDate >= $startDate && $receiptDate <= $endDate) {
+                    $rows[] = [
+                        'date' => Carbon::parse($receiptDate),
+                        'section' => 'revenue',
+                        'type' => 'Revenue',
+                        'ref' => $r->bill_no ?: '—',
+                        'student' => $student,
+                        'category' => $category,
+                        'description' => $desc,
+                        'method' => $status === 'cancelled' ? 'Cancelled' : $baseLabel,
+                        'account' => $isBank ? 'bank' : 'cash',
+                        'status' => $status,
+                        'cheque_date' => null,
+                        'meta' => $meta,
+                        'in' => (float) $r->amount,
+                        'out' => 0.0,
+                    ];
                 }
             }
 
-            return [
-                'date' => $r->effective_at ? Carbon::parse($r->effective_at) : ($r->paid_at ? Carbon::parse($r->paid_at) : null),
-                'section' => 'revenue',
-                'type' => 'Revenue',
-                'ref' => $r->bill_no ?: '—',
-                'student' => $student,
-                'category' => $category,
-                'description' => $desc,
-                'method' => $methodLabel,
-                'account' => $isBank ? 'bank' : 'cash',
-                'status' => $status,
-                'cheque_date' => $r->cheque_date ? Carbon::parse($r->cheque_date)->toDateString() : null,
-                'meta' => $meta,
-                'in' => (float) $r->amount,
-                'out' => 0.0,
-            ];
-        });
+            return $rows;
+        })->sortBy(function ($r) {
+            return ($r['date'] instanceof Carbon) ? $r['date']->timestamp : 0;
+        })->values();
 
         // Refunds (outflow) based on adjustment created_at within range
         $refundQ = DB::table('revenue_adjustments')

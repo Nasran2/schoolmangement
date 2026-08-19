@@ -53,6 +53,7 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
 $refundedAmount = 0.0;
 $waivedAmount = 0.0;
 $isReturnedCheque = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
+$isPendingCheque = ($revenue->payment_method ?? null) === 'cheque' && in_array($revenue->payment_status ?? null, ['pending', 'hold']);
 $isManualCancellation = method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled');
 $isCancelledPayment = $isReturnedCheque || $isManualCancellation;
 $cancelledLabel = $isReturnedCheque ? 'CHEQUE RETURNED' : 'CANCELLED';
@@ -454,6 +455,9 @@ if (empty($studentAddress) && $student) {
                                 : ($type === 'advance'
                                     ? ($isBalancePayment ? 'Balance' : 'Advance')
                                     : ucfirst((string) ($cm['type'] ?? '')));
+                            if ($isPendingCheque) {
+                                $typeLabel = 'Hold';
+                            }
                         @endphp
                         <li>
                             {{ \Carbon\Carbon::createFromDate($cm['year'],$cm['month'],1)->format('F Y') }} – Rs {{ number_format((float) $cm['amount'],2) }} 

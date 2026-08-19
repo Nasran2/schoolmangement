@@ -19,50 +19,57 @@
     <div class="py-8 bg-gradient-to-b from-slate-50 to-white">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
             @php
-                $isReturnedChequeReceipt = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
-                $isCancelledReceipt = method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled');
-                $isInvalidReceipt = $isReturnedChequeReceipt || $isCancelledReceipt;
+            $isReturnedChequeReceipt = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
+            $isPendingChequeReceipt = ($revenue->payment_method ?? null) === 'cheque' && in_array($revenue->payment_status ?? null, ['pending', 'hold']);
+            $isCancelledReceipt = method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled');
+            $isInvalidReceipt = $isReturnedChequeReceipt || $isCancelledReceipt;
+            $bannerClass = $isInvalidReceipt ? 'bg-rose-50 border-rose-200' : ($isPendingChequeReceipt ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200');
+            $textClass = $isInvalidReceipt ? 'text-rose-900' : ($isPendingChequeReceipt ? 'text-yellow-900' : 'text-green-900');
+            $subtextClass = $isInvalidReceipt ? 'text-rose-700' : ($isPendingChequeReceipt ? 'text-yellow-700' : 'text-green-700');
             @endphp
 
-            <div class="mb-6 {{ $isInvalidReceipt ? 'bg-rose-50 border-rose-200' : 'bg-green-50 border-green-200' }} border rounded-lg p-4">
+            <div class="mb-6 {{ $bannerClass }} border rounded-lg p-4">
                 <div class="flex items-center gap-3">
                     @if($isInvalidReceipt)
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-rose-600">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-                        </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-rose-600">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                    </svg>
+                    @elseif($isPendingChequeReceipt)
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-yellow-600">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                     @else
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-green-600">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-green-600">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                     @endif
                     <div>
-                        <p class="font-semibold {{ $isInvalidReceipt ? 'text-rose-900' : 'text-green-900' }}">
-                            {{ $isInvalidReceipt ? 'Payment Cancelled' : 'Payment Successful!' }}
+                        <p class="font-semibold {{ $textClass }}">
+                            {{ $isInvalidReceipt ? 'Payment Cancelled' : ($isPendingChequeReceipt ? 'Payment Pending Confirmation' : 'Payment Successful!') }}
                         </p>
-                        <p class="text-sm {{ $isInvalidReceipt ? 'text-rose-700' : 'text-green-700' }}">
+                        <p class="text-sm {{ $subtextClass }}">
                             Receipt #{{ $revenue->bill_no }} {{ $isCancelledReceipt ? 'has been cancelled and is not counted as paid.' : ($isReturnedChequeReceipt ? 'belongs to a returned cheque and is not counted as paid.' : 'has been generated') }}
                         </p>
                     </div>
                 </div>
             </div>
 
-            <x-receipt 
+            <x-receipt
                 :revenue="$revenue"
                 :student="$revenue->student"
                 :category="$revenue->category"
                 :schoolInfo="$schoolInfo"
-                :schoolLogoDataUri="$schoolLogoDataUri"
-            />
+                :schoolLogoDataUri="$schoolLogoDataUri" />
         </div>
     </div>
 
     @if($autoPrint)
-        <script>
-            window.addEventListener('load', function() {
-                setTimeout(function() {
-                    window.print();
-                }, 500);
-            });
-        </script>
+    <script>
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        });
+    </script>
     @endif
 </x-app-layout>

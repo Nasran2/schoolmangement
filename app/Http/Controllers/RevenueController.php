@@ -93,9 +93,9 @@ class RevenueController extends Controller
 
         $item->forceFill([
             'payment_status' => 'confirmed',
-            // Store the user-selected pass date
+            // Store the user-selected pass date in confirmed_at
             'confirmed_at' => $confirmedAt,
-            'paid_at' => $passedDate,
+            // Keep paid_at as the original receipt date
         ])->save();
 
         return back()->with('success', 'Cheque marked as PASSED on ' . $passedDate . '.');
