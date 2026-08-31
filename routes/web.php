@@ -40,7 +40,7 @@ Route::get('/cache', function () {
     \Illuminate\Support\Facades\Artisan::call('route:clear');
     \Illuminate\Support\Facades\Artisan::call('config:clear');
     \Illuminate\Support\Facades\Artisan::call('view:clear');
-    
+
     return response()->json([
         'status' => 'success',
         'message' => 'All caches cleared successfully',
@@ -91,8 +91,8 @@ Route::get('/linkstore', function () {
                         continue;
                     }
 
-                    $src = $from.DIRECTORY_SEPARATOR.$item;
-                    $dst = $to.DIRECTORY_SEPARATOR.$item;
+                    $src = $from . DIRECTORY_SEPARATOR . $item;
+                    $dst = $to . DIRECTORY_SEPARATOR . $item;
 
                     if (is_dir($src)) {
                         $copyRecursive($src, $dst);
@@ -272,7 +272,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/opening-balance/reset', [\App\Http\Controllers\Settings\OpeningBalanceSettingsController::class, 'reset'])
             ->middleware('permission:settings.manage|settings.opening_balance.reset')
             ->name('opening-balance.reset');
-
     });
 
     Route::prefix('rbac')->name('rbac.')->middleware('permission:roles.manage')->group(function () {
@@ -421,9 +420,9 @@ Route::middleware('auth')->group(function () {
         Route::get('items/create', [RevenueController::class, 'create'])
             ->middleware('permission:revenue.add')
             ->name('items.create');
-                Route::get('items/{item}/receipt', [RevenueController::class, 'receipt'])
-                    ->middleware('permission:revenue.manage')
-                    ->name('items.receipt');
+        Route::get('items/{item}/receipt', [RevenueController::class, 'receipt'])
+            ->middleware('permission:revenue.manage')
+            ->name('items.receipt');
         Route::post('items', [RevenueController::class, 'store'])
             ->middleware('permission:revenue.add')
             ->name('items.store');
@@ -502,40 +501,40 @@ Route::middleware('auth')->group(function () {
     Route::post('students/alumni/leaving-docs', [StudentController::class, 'alumniBulkLeavingDocs'])
         ->middleware('permission:students.manage')
         ->name('students.alumni.leaving_docs');
-        // Lightweight student search for selectors (admission number, name, phone) + optional class filter
-        Route::get('students/search', [StudentController::class, 'search'])
-            ->middleware('permission:revenue.add')
-            ->name('students.search');
-        Route::post('students/promote', [\App\Http\Controllers\PromotionController::class, 'promote'])
-            ->middleware('permission:students.promote')
-            ->name('students.promote');
-        Route::post('students/demote', [\App\Http\Controllers\PromotionController::class, 'demote'])
-            ->middleware('permission:students.demote')
-            ->name('students.demote');
-        // Per-student promotion/demotion
-        Route::post('students/{student}/promote', [\App\Http\Controllers\PromotionController::class, 'promoteStudent'])
-            ->middleware('permission:students.promote')
-            ->name('students.promote.one');
-        Route::post('students/{student}/demote', [\App\Http\Controllers\PromotionController::class, 'demoteStudent'])
-            ->middleware('permission:students.demote')
-            ->name('students.demote.one');
+    // Lightweight student search for selectors (admission number, name, phone) + optional class filter
+    Route::get('students/search', [StudentController::class, 'search'])
+        ->middleware('permission:revenue.add')
+        ->name('students.search');
+    Route::post('students/promote', [\App\Http\Controllers\PromotionController::class, 'promote'])
+        ->middleware('permission:students.promote')
+        ->name('students.promote');
+    Route::post('students/demote', [\App\Http\Controllers\PromotionController::class, 'demote'])
+        ->middleware('permission:students.demote')
+        ->name('students.demote');
+    // Per-student promotion/demotion
+    Route::post('students/{student}/promote', [\App\Http\Controllers\PromotionController::class, 'promoteStudent'])
+        ->middleware('permission:students.promote')
+        ->name('students.promote.one');
+    Route::post('students/{student}/demote', [\App\Http\Controllers\PromotionController::class, 'demoteStudent'])
+        ->middleware('permission:students.demote')
+        ->name('students.demote.one');
 
-        // Current-month fee selection after promote/demote
-        Route::post('students/{student}/monthly-fee/current', [StudentController::class, 'setCurrentMonthFee'])
-            ->middleware('permission:revenue.add')
-            ->name('students.monthly_fee.current');
-        Route::patch('students/{student}/fee-start-date', [StudentController::class, 'updateFeeStartDate'])
-            ->middleware('permission:students.manage')
-            ->name('students.fee_start_date.update');
-        Route::post('students/{student}/monthly-fee-credits', [StudentController::class, 'storeMonthlyFeeCredit'])
-            ->middleware('permission:students.manage')
-            ->name('students.monthly_fee.credits.store');
-        Route::delete('students/{student}/monthly-fee-credits/{credit}', [StudentController::class, 'deleteMonthlyFeeCredit'])
-            ->middleware('permission:students.manage')
-            ->name('students.monthly_fee.credits.delete');
-        Route::get('students/check-admission', [StudentController::class, 'checkAdmissionNumber'])
-            ->middleware('permission:students.add')
-            ->name('students.check_admission');
+    // Current-month fee selection after promote/demote
+    Route::post('students/{student}/monthly-fee/current', [StudentController::class, 'setCurrentMonthFee'])
+        ->middleware('permission:revenue.add')
+        ->name('students.monthly_fee.current');
+    Route::patch('students/{student}/fee-start-date', [StudentController::class, 'updateFeeStartDate'])
+        ->middleware('permission:students.manage')
+        ->name('students.fee_start_date.update');
+    Route::post('students/{student}/monthly-fee-credits', [StudentController::class, 'storeMonthlyFeeCredit'])
+        ->middleware('permission:students.manage')
+        ->name('students.monthly_fee.credits.store');
+    Route::delete('students/{student}/monthly-fee-credits/{credit}', [StudentController::class, 'deleteMonthlyFeeCredit'])
+        ->middleware('permission:students.manage')
+        ->name('students.monthly_fee.credits.delete');
+    Route::get('students/check-admission', [StudentController::class, 'checkAdmissionNumber'])
+        ->middleware('permission:students.add')
+        ->name('students.check_admission');
     Route::get('students/create', [StudentController::class, 'create'])->middleware('permission:students.add')->name('students.create');
     Route::post('students', [StudentController::class, 'store'])->middleware('permission:students.add')->name('students.store');
     Route::get('students/{student}', [StudentController::class, 'show'])->middleware('permission:students.manage')->name('students.show');
@@ -571,6 +570,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:teachers.salary.pay')
         ->name('teachers.search');
     Route::get('teachers/{teacher}', [TeacherController::class, 'show'])->middleware('permission:teachers.manage')->name('teachers.show');
+    Route::get('teachers/{teacher}/salary-report', [TeacherController::class, 'salaryReport'])->middleware('permission:teachers.manage')->name('teachers.salary.report');
     Route::get('teachers/{teacher}/edit', [TeacherController::class, 'edit'])->middleware('permission:teachers.manage')->name('teachers.edit');
     Route::put('teachers/{teacher}', [TeacherController::class, 'update'])->middleware('permission:teachers.manage')->name('teachers.update');
     Route::post('teachers/{teacher}/salary', [TeacherController::class, 'updateSalary'])
@@ -596,11 +596,11 @@ Route::middleware('auth')->group(function () {
     Route::resource('teacher-salary-payments', TeacherSalaryPaymentController::class)
         ->middleware('permission:teachers.salary.pay')
         ->whereNumber('teacher_salary_payment');
-    
+
     Route::get('teacher-salary-payments/{teacherSalaryPayment}/receipt', [TeacherSalaryPaymentController::class, 'receipt'])
         ->middleware('permission:teachers.salary.pay')
         ->name('teacher-salary-payments.receipt');
-    
+
     Route::get('teacher-salary-payments/{teacherSalaryPayment}/payslip', [TeacherSalaryPaymentController::class, 'payslip'])
         ->middleware('permission:teachers.salary.pay')
         ->name('teacher-salary-payments.payslip');
@@ -697,4 +697,4 @@ Route::middleware('auth')->group(function () {
         ->name('audit_logs.index');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

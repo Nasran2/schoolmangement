@@ -20,7 +20,7 @@ class TeacherController extends Controller
         $query = Teacher::query();
 
         if ($request->filled('q')) {
-            $q = '%'.$request->string('q').'%';
+            $q = '%' . $request->string('q') . '%';
             $query->where(function ($sub) use ($q) {
                 $sub->where('name', 'like', $q)
                     ->orWhere('phone', 'like', $q)
@@ -45,7 +45,7 @@ class TeacherController extends Controller
 
         $dueQuery = (clone $query)
             ->where('active', true)
-            ->when($paidTeacherIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $paidTeacherIds));
+            ->when($paidTeacherIds->isNotEmpty(), fn($q) => $q->whereNotIn('id', $paidTeacherIds));
 
         $teachersSalaryDueCount = (clone $dueQuery)->count();
         $totalSalaryPayable = (float) (clone $dueQuery)->sum('salary_amount');
@@ -183,6 +183,48 @@ class TeacherController extends Controller
     }
 
     /**
+     * Generate salary report PDF
+     */
+    public function salaryReport(Teacher $teacher)
+    {
+        $payments = TeacherSalaryPayment::query()
+            ->where('teacher_id', $teacher->id)
+            ->orderByDesc('paid_at')
+            ->get();
+
+        $monthlyPayments = [];
+        $startMonth = now()->subMonths(11)->startOfMonth();
+        $endMonth = now()->endOfMonth();
+        $startMonthKey = $startMonth->format('Y-m');
+        $endMonthKey = $endMonth->format('Y-m');
+
+        $paymentsCollection = \App\Models\TeacherSalaryPayment::where('teacher_id', $teacher->id)
+            ->whereBetween('payment_month', [$startMonthKey, $endMonthKey])
+            ->get()
+            ->groupBy('payment_month');
+
+        for ($i = 0; $i < 12; $i++) {
+            $monthDate = now()->subMonths(11 - $i);
+            $month = $monthDate->format('Y-m');
+            $monthLabel = $monthDate->format('M Y');
+            $monthlyPayments[] = [
+                'month' => $month,
+                'label' => $monthLabel,
+                'paid' => isset($paymentsCollection[$month]) && $paymentsCollection[$month]->count() > 0,
+                'amount' => isset($paymentsCollection[$month]) ? $paymentsCollection[$month]->sum('amount') : 0,
+            ];
+        }
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('teachers.salary-report-pdf', [
+            'teacher' => $teacher,
+            'payments' => $payments,
+            'monthlyPayments' => $monthlyPayments,
+        ]);
+
+        return $pdf->stream('salary_report_' . str_replace(' ', '_', $teacher->name) . '.pdf');
+    }
+
+    /**
      * Show the form for editing the specified resource.
      */
     public function edit(Teacher $teacher): View
@@ -286,9 +328,11 @@ class TeacherController extends Controller
      */
     public function updateSalary(Request $request, Teacher $teacher): RedirectResponse
     {
-        if (! $request->user()
+        if (
+            ! $request->user()
             || ! $request->user()->can('teachers.salary.amounts.view')
-            || ! $request->user()->can('teachers.salary.components')) {
+            || ! $request->user()->can('teachers.salary.components')
+        ) {
             abort(403);
         }
 
@@ -313,7 +357,9 @@ class TeacherController extends Controller
             foreach ($components as $c) {
                 $type = (string) ($c['type'] ?? '');
                 $amount = (float) ($c['amount'] ?? 0);
-                if ($type === '' && $amount <= 0) { continue; }
+                if ($type === '' && $amount <= 0) {
+                    continue;
+                }
                 $normalized[] = ['type' => $type, 'amount' => $amount];
                 $total += $amount;
             }
@@ -349,7 +395,7 @@ class TeacherController extends Controller
             // non-blocking
         }
 
-        return back()->with('status', 'Monthly salary updated to Rs '.number_format((float)$teacher->salary_amount, 2));
+        return back()->with('status', 'Monthly salary updated to Rs ' . number_format((float)$teacher->salary_amount, 2));
     }
 
     /**
