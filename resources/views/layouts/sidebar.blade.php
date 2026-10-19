@@ -15,34 +15,34 @@
     $isDeveloperTeachers = request()->routeIs('developer.teachers');
     $isDeveloperUsers = request()->routeIs('developer.users');
 
-    // Use direct permission checks to bypass Gate::before for menu visibility
-    $canViewDashboard = $user?->hasPermissionTo('dashboard.view') ?? false;
-    $canManageRevenue = $user?->hasPermissionTo('revenue.manage') ?? false;
-    $canAddRevenue = $user?->hasPermissionTo('revenue.add') ?? false;
-    $canManageRevenueCategories = $user?->hasPermissionTo('revenue.categories.manage') ?? false;
-    $canManageExpense = $user?->hasPermissionTo('expense.manage') ?? false;
-    $canAddExpense = $user?->hasPermissionTo('expense.add') ?? false;
-    $canManageExpenseCategories = $user?->hasPermissionTo('expense.categories.manage') ?? false;
-    $canManageStudents = $user?->hasPermissionTo('students.manage') ?? false;
-    $canAddStudents = $user?->hasPermissionTo('students.add') ?? false;
-    $canBulkUploadStudents = $user?->hasPermissionTo('students.bulk_upload') ?? false;
-    $canManageClassrooms = ($user?->hasPermissionTo('classrooms.view') ?? false) || ($user?->hasPermissionTo('classrooms.create') ?? false) || ($user?->hasPermissionTo('classrooms.update') ?? false) || ($user?->hasPermissionTo('classrooms.delete') ?? false);
-    $canManageTeachers = $user?->hasPermissionTo('teachers.manage') ?? false;
-    $canAddTeachers = $user?->hasPermissionTo('teachers.add') ?? false;
-    $canViewReports = $user?->hasPermissionTo('reports.view') ?? false;
-    $canManageUsers = $user?->hasPermissionTo('users.manage') ?? false;
-    $canManageRoles = $user?->hasPermissionTo('roles.manage') ?? false;
-    $canViewActivityLogs = $user?->hasPermissionTo('audit_logs.view') ?? false;
-    $canViewSettingsGeneral = $user?->hasPermissionTo('settings.general.manage') ?? false;
-    $canViewSettingsStatus = $user?->hasPermissionTo('settings.status.view') ?? false;
-    $canManageSettingsPromotion = $user?->hasPermissionTo('settings.promotion.manage') ?? false;
-    $canManageSettingsPrinter = $user?->hasPermissionTo('settings.printer.manage') ?? false;
-    $canManageSettingsSms = $user?->hasPermissionTo('settings.sms.manage') ?? false;
-    $canManageSettingsEmail = $user?->hasPermissionTo('settings.email.manage') ?? false;
-    $canManageSettingsSalaryComponents = $user?->hasPermissionTo('settings.salary_components.manage') ?? false;
-    $canManageSettingsBackups = $user?->hasPermissionTo('settings.backups.manage') ?? false;
-    $canManageSettingsOpeningBalance = $user?->hasPermissionTo('settings.opening_balance.manage') ?? false;
-    $canViewSettings = ($user?->hasPermissionTo('settings.manage') ?? false) || $canViewSettingsGeneral || $canViewSettingsStatus || $canManageSettingsPromotion || $canManageSettingsPrinter || $canManageSettingsSms || $canManageSettingsEmail || $canManageSettingsSalaryComponents || $canManageSettingsBackups || $canManageSettingsOpeningBalance;
+    // Match menu visibility to the same authorization checks used by routes.
+    $canViewDashboard = $user?->can('dashboard.view') ?? false;
+    $canManageRevenue = $user?->can('revenue.manage') ?? false;
+    $canAddRevenue = $user?->can('revenue.add') ?? false;
+    $canManageRevenueCategories = $user?->can('revenue.categories.manage') ?? false;
+    $canManageExpense = $user?->can('expense.manage') ?? false;
+    $canAddExpense = $user?->can('expense.add') ?? false;
+    $canManageExpenseCategories = $user?->can('expense.categories.manage') ?? false;
+    $canManageStudents = $user?->can('students.manage') ?? false;
+    $canAddStudents = $user?->can('students.add') ?? false;
+    $canBulkUploadStudents = $user?->can('students.bulk_upload') ?? false;
+    $canManageClassrooms = ($user?->can('classrooms.view') ?? false) || ($user?->can('classrooms.create') ?? false) || ($user?->can('classrooms.update') ?? false) || ($user?->can('classrooms.delete') ?? false);
+    $canManageTeachers = $user?->can('teachers.manage') ?? false;
+    $canAddTeachers = $user?->can('teachers.add') ?? false;
+    $canViewReports = $user?->can('reports.view') ?? false;
+    $canManageUsers = $user?->can('users.manage') ?? false;
+    $canManageRoles = $user?->can('roles.manage') ?? false;
+    $canViewActivityLogs = $user?->can('audit_logs.view') ?? false;
+    $canViewSettingsGeneral = $user?->canAny(['settings.manage', 'settings.general.manage']) ?? false;
+    $canViewSettingsStatus = $user?->canAny(['settings.manage', 'settings.status.view']) ?? false;
+    $canManageSettingsPromotion = $user?->canAny(['settings.manage', 'settings.promotion.manage']) ?? false;
+    $canManageSettingsPrinter = $user?->canAny(['settings.manage', 'settings.printer.manage']) ?? false;
+    $canManageSettingsSms = $user?->canAny(['settings.manage', 'settings.sms.manage']) ?? false;
+    $canManageSettingsEmail = $user?->canAny(['settings.manage', 'settings.email.manage']) ?? false;
+    $canManageSettingsSalaryComponents = $user?->canAny(['settings.manage', 'settings.salary_components.manage']) ?? false;
+    $canManageSettingsBackups = $user?->canAny(['settings.manage', 'settings.backups.manage']) ?? false;
+    $canManageSettingsOpeningBalance = $user?->canAny(['settings.manage', 'settings.opening_balance.manage']) ?? false;
+    $canViewSettings = ($user?->can('settings.manage') ?? false) || $canViewSettingsGeneral || $canViewSettingsStatus || $canManageSettingsPromotion || $canManageSettingsPrinter || $canManageSettingsSms || $canManageSettingsEmail || $canManageSettingsSalaryComponents || $canManageSettingsBackups || $canManageSettingsOpeningBalance;
 @endphp
 
 <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 hidden lg:flex lg:flex-col">
@@ -193,7 +193,7 @@
             </div>
         @endcanany
 
-        @if($canAddTeachers || $canManageTeachers)
+        @if($canAddTeachers || $canManageTeachers || $user?->canAny(['teachers.bulk_upload', 'teachers.salary.pay', 'teachers.salary.summary.view', 'visiting_teachers.manage']) || $user?->hasRole('Developer'))
             <div class="mt-2">
                 <button type="button" @click="open.teachers = !open.teachers" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -208,6 +208,7 @@
                     @endcan
                     @can('teachers.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.index') || request()->routeIs('teachers.show') || request()->routeIs('teachers.edit') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.index') }}">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.report') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.report') }}">Teacher Report</a>
                     @endcan
                     @can('teachers.salary.pay')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teacher-salary-payments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teacher-salary-payments.index') }}">Salary Payments</a>
@@ -218,11 +219,14 @@
                     @can('teachers.bulk_upload')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.bulk.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.bulk.create') }}">Bulk Upload</a>
                     @endcan
+                    @if($user?->hasRole('Developer') || $user?->can('visiting_teachers.manage'))
                     <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('visiting-teachers.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('visiting-teachers.index') }}">Visiting Teachers</a>
+                    @endif
                 </div>
             </div>
         @endif
 
+        @if($user?->hasRole('Developer') || $user?->can('seminars.manage'))
         <!-- Seminars -->
         <div class="mt-2">
             <button type="button" @click="open.seminars = !open.seminars" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -240,6 +244,9 @@
             </div>
         </div>
 
+        @endif
+
+        @if($user?->hasRole('Developer') || $user?->can('extra_classes.manage'))
         <!-- Extra Classes -->
         <div class="mt-2">
             <button type="button" @click="open.extraClasses = !open.extraClasses" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -254,6 +261,8 @@
                 <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('extra-classes.index') || request()->routeIs('extra-classes.edit') || request()->routeIs('extra-classes.show') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('extra-classes.index') }}">Manage</a>
             </div>
         </div>
+
+        @endif
 
         @if($canViewReports)
             <div class="mt-2">
@@ -343,7 +352,7 @@
             </div>
         @endcan
 
-        @if($canViewSettings || $canManageRoles)
+        @if($canViewSettings || $canManageRoles || $canManageUsers)
             <div class="mt-2">
                 <button type="button" @click="open.settings = !open.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isSettings ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -563,7 +572,7 @@
             </div>
         @endif
 
-        @if($canAddTeachers || $canManageTeachers)
+        @if($canAddTeachers || $canManageTeachers || $user?->canAny(['teachers.bulk_upload', 'teachers.salary.pay', 'teachers.salary.summary.view', 'visiting_teachers.manage']) || $user?->hasRole('Developer'))
             <div class="mt-2">
                 <button type="button" @click="menus.teachers = !menus.teachers" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isTeachers ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">
@@ -578,6 +587,7 @@
                     @endcan
                     @can('teachers.manage')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.index') || request()->routeIs('teachers.show') || request()->routeIs('teachers.edit') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.index') }}">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.report') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.report') }}">Teacher Report</a>
                     @endcan
                     @can('teachers.salary.pay')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teacher-salary-payments.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teacher-salary-payments.index') }}">Salary Payments</a>
@@ -585,11 +595,14 @@
                     @can('teachers.bulk_upload')
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('teachers.bulk.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('teachers.bulk.create') }}">Bulk Upload</a>
                     @endcan
+                    @if($user?->hasRole('Developer') || $user?->can('visiting_teachers.manage'))
                     <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('visiting-teachers.*') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('visiting-teachers.index') }}">Visiting Teachers</a>
+                    @endif
                 </div>
             </div>
         @endif
 
+        @if($user?->hasRole('Developer') || $user?->can('seminars.manage'))
         <!-- Seminars -->
         <div class="mt-2">
             <button type="button" @click="menus.seminars = !menus.seminars" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -607,6 +620,9 @@
             </div>
         </div>
 
+        @endif
+
+        @if($user?->hasRole('Developer') || $user?->can('extra_classes.manage'))
         <!-- Extra Classes -->
         <div class="mt-2">
             <button type="button" @click="menus.extraClasses = !menus.extraClasses" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -621,6 +637,8 @@
                 <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('extra-classes.index') || request()->routeIs('extra-classes.edit') || request()->routeIs('extra-classes.show') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('extra-classes.index') }}">Manage</a>
             </div>
         </div>
+
+        @endif
 
         @if($canViewReports)
             <div class="mt-2">
@@ -710,7 +728,7 @@
             </div>
         @endif
 
-        @if($canViewSettings || $canManageRoles)
+        @if($canViewSettings || $canManageRoles || $canManageUsers)
             <div class="mt-2">
                 <button type="button" @click="menus.settings = !menus.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium {{ $isSettings ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50' }}">
                     <span class="flex items-center gap-3">

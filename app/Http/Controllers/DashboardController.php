@@ -21,12 +21,12 @@ class DashboardController extends Controller
     public function __invoke(Request $request): View
     {
         $user = $request->user();
-        $canViewCashFlow = (bool) $user?->hasPermissionTo('dashboard.widget.cash_flow.view');
-        $canViewRevenueVsExpense = (bool) $user?->hasPermissionTo('dashboard.widget.revenue_vs_expense.view');
-        $canViewRevenueBreakdown = (bool) $user?->hasPermissionTo('dashboard.widget.revenue_category_breakdown.view');
-        $canViewExpenseBreakdown = (bool) $user?->hasPermissionTo('dashboard.widget.expense_category_breakdown.view');
-        $canViewEnrollmentTrend = (bool) $user?->hasPermissionTo('dashboard.widget.enrollment_trend.view');
-        $canViewChequeAlerts = (bool) (($user?->hasPermissionTo('dashboard.widget.notifications.view') ?? false) || ($user?->hasPermissionTo('revenue.manage') ?? false));
+        $canViewCashFlow = (bool) $user?->can('dashboard.widget.cash_flow.view');
+        $canViewRevenueVsExpense = (bool) $user?->can('dashboard.widget.revenue_vs_expense.view');
+        $canViewRevenueBreakdown = (bool) $user?->can('dashboard.widget.revenue_category_breakdown.view');
+        $canViewExpenseBreakdown = (bool) $user?->can('dashboard.widget.expense_category_breakdown.view');
+        $canViewEnrollmentTrend = (bool) $user?->can('dashboard.widget.enrollment_trend.view');
+        $canViewChequeAlerts = (bool) (($user?->can('dashboard.widget.notifications.view') ?? false));
 
         $today = Carbon::today();
         [$rangeKey, $rangeLabel, $rangeStart, $rangeEnd] = $this->resolveRange($request, $today);
@@ -239,26 +239,9 @@ class DashboardController extends Controller
         $activityActions = AuditLog::query()->select('action')->distinct()->orderBy('action')->pluck('action');
         $activityUsers = User::query()->orderBy('name')->limit(50)->get(['id', 'name']);
 
-        // Auto-pass pending cheques after N days from cheque_date.
-        // This is also scheduled in routes/console.php, but running here keeps UI consistent even without cron.
-        $chequeAutoPassDays = 14;
-        try {
-            $chequeAutoPassDays = (int) (app('settings')->get('cheques.auto_pass_days', '14') ?: 14);
-            $chequeAutoPassDays = max(1, min(90, $chequeAutoPassDays));
-        } catch (\Throwable $e) {
-            $chequeAutoPassDays = 14;
-        }
-
-        Revenue::query()
-            ->where('payment_method', 'cheque')
-            ->whereIn('payment_status', ['hold', 'pending'])
-            ->whereNotNull('cheque_date')
-            ->whereDate('cheque_date', '<=', $today->copy()->subDays($chequeAutoPassDays)->toDateString())
-            ->update([
-                'payment_status' => 'confirmed',
-                'confirmed_at' => now(),
-                'paid_at' => now()->toDateString(),
-            ]);
+        // Cheque confirmation is handled by cheques:auto-pass in the scheduler.
+        // Viewing a dashboard must not change financial records.
+        $chequeAutoPassDays = max(1, min(90, (int) app('settings')->get('cheques.auto_pass_days', '14')));
 
         // Dashboard cheque alerts:
         // 1) Pending cheques with 1-7 days left => reminder.
@@ -389,6 +372,7 @@ class DashboardController extends Controller
 
     private function resolveRange(Request $request, Carbon $today): array
     {
+        $request->validate(['from' => ['nullable', 'date'], 'to' => ['nullable', 'date']]);
         $key = (string) $request->query('range', 'last_30_days');
 
         $start = $today->copy()->subDays(29)->startOfDay();

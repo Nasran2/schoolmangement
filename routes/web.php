@@ -29,12 +29,45 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
-// Route::get('/', function () {
-//     return view('welcome');
-// });
+// Public migration runner (no authentication required)
+$runMigration = function () {
+    try {
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $output = \Illuminate\Support\Facades\Artisan::output();
+
+        return response(
+            '<div style="font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 24px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">'
+            . '<h2 style="color: #16a34a; margin-top: 0; display: flex; align-items: center; gap: 8px;">✓ Migration Executed Successfully</h2>'
+            . '<p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">Executed at: ' . now()->toDateTimeString() . '</p>'
+            . '<pre style="background: #0f172a; color: #38bdf8; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace;">'
+            . e(trim($output) ?: 'Nothing to migrate. Database is already up to date.')
+            . '</pre>'
+            . '</div>',
+            200,
+            ['Content-Type' => 'text/html']
+        );
+    } catch (\Throwable $e) {
+        return response(
+            '<div style="font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 24px; border-radius: 8px; border: 1px solid #fecaca; background: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">'
+            . '<h2 style="color: #dc2626; margin-top: 0; display: flex; align-items: center; gap: 8px;">✗ Migration Failed</h2>'
+            . '<p style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">Failed at: ' . now()->toDateTimeString() . '</p>'
+            . '<pre style="background: #450a0a; color: #fca5a5; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; font-family: monospace;">'
+            . e($e->getMessage())
+            . '</pre>'
+            . '</div>',
+            500,
+            ['Content-Type' => 'text/html']
+        );
+    }
+};
+
+Route::match(['get', 'post'], '/migration', $runMigration)->name('public.migration');
+Route::match(['get', 'post'], '/migrqtion', $runMigration)->name('public.migrqtion');
+Route::match(['get', 'post'], '/migrate', $runMigration)->name('public.migrate');
 
 
-// Cache clear endpoint (no permission required)
+
+// Cache tools require administrative access.
 Route::get('/cache', function () {
     \Illuminate\Support\Facades\Artisan::call('cache:clear');
     \Illuminate\Support\Facades\Artisan::call('route:clear');
@@ -46,9 +79,9 @@ Route::get('/cache', function () {
         'message' => 'All caches cleared successfully',
         'timestamp' => now()->toDateTimeString(),
     ]);
-})->name('cache.clear');
+})->middleware(['auth', 'role_or_permission:Developer|settings.manage'])->name('cache.clear');
 
-// Storage symlink endpoint (no permission required)
+// Storage setup requires administrative access.
 Route::get('/linkstore', function () {
     $target = storage_path('app/public');
     $link = public_path('storage');
@@ -123,7 +156,7 @@ Route::get('/linkstore', function () {
             'timestamp' => now()->toDateTimeString(),
         ], 500);
     }
-})->name('storage.link.public');
+})->middleware(['auth', 'role_or_permission:Developer|settings.manage'])->name('storage.link.public');
 
 // Secret admin link (PIN protected)
 Route::prefix('onlyadmin')->name('onlyadmin.')->group(function () {
@@ -137,20 +170,12 @@ Route::prefix('onlyadmin')->name('onlyadmin.')->group(function () {
 });
 
 Route::get('/', function () {
-    if (Auth::check() && Auth::user()?->hasRole('Developer')) {
-        return redirect()->route('developer.dashboard');
-    }
-
-    return redirect()->route('dashboard');
+    return redirect()->route(Auth::user()?->landingRoute() ?? 'login');
 });
 
 // Some deployments expose the app through /public/ so treat that path as the root.
 Route::get('/public', function () {
-    if (Auth::check() && Auth::user()?->hasRole('Developer')) {
-        return redirect()->route('developer.dashboard');
-    }
-
-    return redirect()->route('dashboard');
+    return redirect()->route(Auth::user()?->landingRoute() ?? 'login');
 });
 
 Route::get('/dashboard', DashboardController::class)
@@ -158,15 +183,15 @@ Route::get('/dashboard', DashboardController::class)
     ->name('dashboard');
 
 Route::get('/opening-balances', [\App\Http\Controllers\OpeningBalanceController::class, 'create'])
-    ->middleware('auth')
+    ->middleware(['auth', 'permission:settings.manage|settings.opening_balance.manage'])
     ->name('opening-balance.create');
 
 Route::post('/opening-balances', [\App\Http\Controllers\OpeningBalanceController::class, 'store'])
-    ->middleware('auth')
+    ->middleware(['auth', 'permission:settings.manage|settings.opening_balance.manage'])
     ->name('opening-balance.store');
 
 Route::delete('/opening-balances/{openingBalance}', [\App\Http\Controllers\OpeningBalanceController::class, 'destroy'])
-    ->middleware('auth')
+    ->middleware(['auth', 'permission:settings.manage|settings.opening_balance.reset'])
     ->name('opening-balance.destroy');
 
 // Public storage fallback: serve /storage/* without needing symlink
@@ -279,12 +304,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
         Route::get('/roles/{role}', [RoleController::class, 'edit'])->name('roles.edit');
         Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
     });
 
     Route::prefix('users')->name('users.')->middleware('permission:users.manage')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');
         Route::get('/create', [UserController::class, 'create'])->name('create');
         Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
+        Route::put('/{user}', [UserController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
         Route::post('/{user}/status', [UserController::class, 'updateStatus'])->name('status');
     });
 
@@ -563,6 +592,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:students.bulk_upload')
         ->name('students.bulk.store');
 
+    Route::get('teachers/report', [TeacherController::class, 'teachersReport'])->middleware('permission:teachers.manage')->name('teachers.report');
     Route::get('teachers', [TeacherController::class, 'index'])->middleware('permission:teachers.manage')->name('teachers.index');
     Route::get('teachers/create', [TeacherController::class, 'create'])->middleware('permission:teachers.add')->name('teachers.create');
     Route::post('teachers', [TeacherController::class, 'store'])->middleware('permission:teachers.add')->name('teachers.store');
@@ -634,7 +664,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Seminars module
-    Route::prefix('seminars')->name('seminars.')->middleware('role:Super Admin|Admin|Developer')->group(function () {
+    Route::prefix('seminars')->name('seminars.')->middleware('role_or_permission:Developer|seminars.manage')->group(function () {
         Route::get('/', [\App\Http\Controllers\SeminarController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\SeminarController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\SeminarController::class, 'store'])->name('store');
@@ -656,11 +686,11 @@ Route::middleware('auth')->group(function () {
 
     // Teacher lookup (Teachers + Visiting Teachers)
     Route::get('teacher-lookup', \App\Http\Controllers\TeacherLookupController::class)
-        ->middleware('role:Super Admin|Admin|Developer')
+        ->middleware('role_or_permission:Developer|seminars.manage|extra_classes.manage')
         ->name('teacher-lookup');
 
     // Extra classes module
-    Route::prefix('extra-classes')->name('extra-classes.')->middleware('role:Super Admin|Admin|Developer')->group(function () {
+    Route::prefix('extra-classes')->name('extra-classes.')->middleware('role_or_permission:Developer|extra_classes.manage')->group(function () {
         Route::get('/', [\App\Http\Controllers\ExtraClassController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\ExtraClassController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\ExtraClassController::class, 'store'])->name('store');
@@ -681,7 +711,7 @@ Route::middleware('auth')->group(function () {
     });
 
     // Visiting teachers
-    Route::prefix('visiting-teachers')->name('visiting-teachers.')->middleware('role:Super Admin|Admin|Developer')->group(function () {
+    Route::prefix('visiting-teachers')->name('visiting-teachers.')->middleware('role_or_permission:Developer|visiting_teachers.manage')->group(function () {
         Route::get('/', [\App\Http\Controllers\VisitingTeacherController::class, 'index'])->name('index');
         Route::get('/create', [\App\Http\Controllers\VisitingTeacherController::class, 'create'])->name('create');
         Route::post('/', [\App\Http\Controllers\VisitingTeacherController::class, 'store'])->name('store');

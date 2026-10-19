@@ -30,6 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SystemLockMiddleware::class,
         ]);
 
+        $middleware->web(append: [\App\Http\Middleware\EnsureAccountIsActive::class]);
+
         $middleware->alias([
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,

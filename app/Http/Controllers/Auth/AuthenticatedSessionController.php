@@ -34,7 +34,11 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('developer.dashboard');
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        if (! $user->can('dashboard.view') && parse_url($request->session()->get('url.intended', ''), PHP_URL_PATH) === parse_url(route('dashboard'), PHP_URL_PATH)) {
+            $request->session()->forget('url.intended');
+        }
+
+        return redirect()->intended(route($user->landingRoute(), absolute: false));
     }
 
     /**

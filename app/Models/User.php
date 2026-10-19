@@ -19,6 +19,8 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+    protected $attributes = ['active' => true];
+
     protected $fillable = [
         'name',
         'username',
@@ -36,6 +38,53 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    public function landingRoute(): string
+    {
+        if ($this->hasRole('Developer')) {
+            return 'developer.dashboard';
+        }
+
+        $destinations = [
+            'dashboard.view' => 'dashboard',
+            'students.manage' => 'students.index',
+            'students.add' => 'students.create',
+            'teachers.manage' => 'teachers.index',
+            'teachers.add' => 'teachers.create',
+            'revenue.manage' => 'revenue.items.index',
+            'revenue.add' => 'revenue.items.create',
+            'expense.manage' => 'expense.items.index',
+            'expense.add' => 'expense.items.create',
+            'classrooms.view' => 'classrooms.index',
+            'classrooms.create' => 'classrooms.create',
+            'seminars.manage' => 'seminars.index',
+            'extra_classes.manage' => 'extra-classes.index',
+            'visiting_teachers.manage' => 'visiting-teachers.index',
+            'teachers.salary.pay' => 'teacher-salary-payments.index',
+            'teachers.salary.summary.view' => 'teacher-salary-payments.summary',
+            'reports.view' => 'reports.index',
+            'users.manage' => 'users.index',
+            'roles.manage' => 'rbac.roles.index',
+            'settings.manage' => 'settings.general.edit',
+            'settings.general.manage' => 'settings.general.edit',
+            'settings.status.view' => 'settings.status.index',
+            'settings.promotion.manage' => 'settings.promotion.edit',
+            'settings.printer.manage' => 'settings.printer.edit',
+            'settings.sms.manage' => 'settings.sms.edit',
+            'settings.email.manage' => 'settings.email.edit',
+            'settings.salary_components.manage' => 'settings.salary-components.edit',
+            'settings.backups.manage' => 'settings.backups.index',
+            'settings.opening_balance.manage' => 'settings.opening-balance.edit',
+            'audit_logs.view' => 'audit_logs.index',
+        ];
+        foreach ($destinations as $permission => $route) {
+            if ($this->can($permission)) {
+                return $route;
+            }
+        }
+
+        return 'profile.edit';
+    }
 
     /**
      * Get the attributes that should be cast.

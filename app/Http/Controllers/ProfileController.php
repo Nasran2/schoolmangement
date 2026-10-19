@@ -48,6 +48,8 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        app(\App\Services\AccessControl::class)->protectLastAdministrator($user, false, []);
+
         Auth::logout();
 
         $user->delete();

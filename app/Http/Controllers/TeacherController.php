@@ -407,4 +407,131 @@ class TeacherController extends Controller
 
         return redirect()->route('teachers.index')->with('status', 'Teacher deleted.');
     }
+
+    /**
+     * Generate the teachers report with payment status.
+     */
+    public function teachersReport(Request $request)
+    {
+        $query = Teacher::query();
+
+        if ($request->filled('q')) {
+            $q = '%' . $request->string('q') . '%';
+            $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'like', $q)
+                    ->orWhere('phone', 'like', $q);
+            });
+        }
+
+        $teachers = $query->orderBy('name')->get();
+        
+        $selectedMonth = $request->input('month');
+        if (empty($selectedMonth)) {
+            $selectedMonth = 'all';
+        }
+
+        $paymentsQuery = \App\Models\TeacherSalaryPayment::query();
+        if ($selectedMonth !== 'all') {
+            $paymentsQuery->where('payment_month', $selectedMonth);
+        }
+        $paymentsCollection = $paymentsQuery->get()->groupBy('teacher_id');
+
+        $reportData = [];
+        $grandTotalBasic = 0;
+        $grandTotalExtra = 0;
+        $grandTotalDeduction = 0;
+        $grandTotalPaid = 0;
+
+        foreach ($teachers as $teacher) {
+            $payments = $paymentsCollection->get($teacher->id, collect());
+            
+            $basicSalary = (float) $teacher->salary_amount;
+            $paymentDetails = [];
+            
+            $totalExtra = 0;
+            $totalDeduction = 0;
+            $totalPaid = 0;
+            
+            if ($payments->isNotEmpty()) {
+                $sortedPayments = $payments->sortBy('payment_month');
+                foreach ($sortedPayments as $payment) {
+                    $mBasic = (float)$payment->base_salary;
+                    $mDeduction = (float)$payment->total_deductions;
+                    $mPaid = (float)$payment->amount;
+                    $mExtra = $mPaid - ($mBasic - $mDeduction);
+                    
+                    $totalExtra += $mExtra;
+                    $totalDeduction += $mDeduction;
+                    $totalPaid += $mPaid;
+                    
+                    $paymentDetails[] = [
+                        'month_name' => \Carbon\Carbon::parse($payment->payment_month)->format('F'),
+                        'date_str' => $payment->paid_at ? $payment->paid_at->format('y F d') : '-',
+                        'extra' => $mExtra,
+                        'deduction' => $mDeduction,
+                        'paid_amount' => $mPaid,
+                    ];
+                }
+            } else {
+                if ($selectedMonth !== 'all') {
+                    $paymentDetails[] = [
+                        'month_name' => \Carbon\Carbon::parse($selectedMonth)->format('F'),
+                        'date_str' => '-',
+                        'extra' => 0,
+                        'deduction' => 0,
+                        'paid_amount' => 0,
+                    ];
+                }
+            }
+            
+            $grandTotalBasic += $basicSalary;
+            $grandTotalExtra += $totalExtra;
+            $grandTotalDeduction += $totalDeduction;
+            $grandTotalPaid += $totalPaid;
+
+            $reportData[] = [
+                'teacher' => $teacher,
+                'name' => $teacher->name,
+                'contact' => $teacher->phone,
+                'address' => $teacher->address,
+                'basic_salary' => $basicSalary,
+                'payment_details' => $paymentDetails,
+                'is_paid' => $payments->isNotEmpty(),
+            ];
+        }
+
+        if ($request->boolean('pdf')) {
+            // Get selected columns from request, default to all if none provided
+            $columns = $request->input('columns', ['name', 'contact', 'address', 'basic_salary', 'extra_paid', 'deduction', 'paid_month_date', 'paid_amount']);
+            if (!is_array($columns)) {
+                $columns = [];
+            }
+            
+            $html = view('teachers.report-pdf', [
+                'reportData' => $reportData,
+                'columns' => $columns,
+                'grandTotalBasic' => $grandTotalBasic,
+                'grandTotalExtra' => $grandTotalExtra,
+                'grandTotalDeduction' => $grandTotalDeduction,
+                'grandTotalPaid' => $grandTotalPaid,
+                'selectedMonth' => $selectedMonth,
+            ])->render();
+            
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+            return $pdf->download('teacher-report-' . $selectedMonth . '.pdf');
+        }
+
+        return view('teachers.report', [
+            'reportData' => $reportData,
+            'grandTotalBasic' => $grandTotalBasic,
+            'grandTotalExtra' => $grandTotalExtra,
+            'grandTotalDeduction' => $grandTotalDeduction,
+            'grandTotalPaid' => $grandTotalPaid,
+            'filters' => [
+                'q' => $request->input('q'),
+                'month' => $selectedMonth,
+            ],
+            'selectedMonth' => $selectedMonth,
+        ]);
+    }
 }

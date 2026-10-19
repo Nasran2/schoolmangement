@@ -7,9 +7,9 @@
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <form method="GET" class="flex items-center gap-2">
+                <form method="GET" class="flex items-center gap-2" x-data="{ range: @js($dashboardRange['key'] ?? 'last_30_days') }">
                     <span class="text-sm text-gray-600">Range</span>
-                    <select name="range" class="border-gray-300 rounded-md shadow-sm text-sm" onchange="this.form.submit()">
+                    <select name="range" class="border-gray-300 rounded-md shadow-sm text-sm" x-model="range" @change="if (range !== 'custom') $el.form.submit()">
                         <option value="today" @selected(($dashboardRange['key'] ?? '') === 'today')>Today</option>
                         <option value="last_7_days" @selected(($dashboardRange['key'] ?? '') === 'last_7_days')>Last 7 Days</option>
                         <option value="last_30_days" @selected(($dashboardRange['key'] ?? '') === 'last_30_days')>Last 30 Days</option>
@@ -22,9 +22,9 @@
                         <option value="custom" @selected(($dashboardRange['key'] ?? '') === 'custom')>Custom</option>
                     </select>
                     <div class="flex gap-2" x-data="{ show: '{{ $dashboardRange['key'] ?? '' }}' === 'custom' }" x-init="show = ('{{ $dashboardRange['key'] ?? '' }}' === 'custom')">
-                        <input type="text" name="from" placeholder="DD-MM-YYYY" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['from'] ?? '' }}" x-show="show" x-cloak>
-                        <input type="text" name="to" placeholder="DD-MM-YYYY" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['to'] ?? '' }}" x-show="show" x-cloak>
-                        <button type="submit" class="inline-flex items-center px-3 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700" x-show="show" x-cloak>Apply</button>
+                        <input type="text" name="from" placeholder="DD-MM-YYYY" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['from'] ?? '' }}" x-show="range === 'custom'" x-cloak>
+                        <input type="text" name="to" placeholder="DD-MM-YYYY" class="border-gray-300 rounded-md shadow-sm text-sm" value="{{ $dashboardRange['to'] ?? '' }}" x-show="range === 'custom'" x-cloak>
+                        <button type="submit" class="inline-flex items-center px-3 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700" x-show="range === 'custom'" x-cloak>Apply</button>
                     </div>
                 </form>
 
@@ -41,12 +41,12 @@
                             Add Expense
                         </a>
                     @endcan
-                    @can('sms.send.bulk')
+                    @if(auth()->user()->can('sms.send.bulk') && auth()->user()->can('students.manage'))
                         <a href="{{ route('students.index') }}" class="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-800 shadow hover:bg-gray-200">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10"/><path d="M3 15l9 6 9-6"/></svg>
                             View Due & SMS
                         </a>
-                    @endcan
+                    @endif
                 </div>
             </div>
         </div>
@@ -54,22 +54,22 @@
 
     @php
         $widgetPermissionsUser = auth()->user();
-        $canWidgetTotalRevenue = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.total_revenue.view') ?? false;
-        $canWidgetTotalExpenses = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.total_expenses.view') ?? false;
-        $canWidgetNetProfit = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.net_profit.view') ?? false;
-        $canWidgetCashFlow = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.cash_flow.view') ?? false;
-        $canWidgetRevenueVsExpense = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.revenue_vs_expense.view') ?? false;
-        $canWidgetDueStudents = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.due_students.view') ?? false;
-        $canWidgetRevenueBreakdown = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.revenue_category_breakdown.view') ?? false;
-        $canWidgetExpenseBreakdown = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.expense_category_breakdown.view') ?? false;
-        $canWidgetUpcomingTeacherPayments = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.upcoming_teacher_payments.view') ?? false;
-        $canWidgetEnrollmentTrend = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.enrollment_trend.view') ?? false;
-        $canWidgetNotifications = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.notifications.view') ?? false;
-        $canWidgetRecentActivity = $widgetPermissionsUser?->hasPermissionTo('dashboard.widget.recent_activity.view') ?? false;
+        $canWidgetTotalRevenue = $widgetPermissionsUser?->can('dashboard.widget.total_revenue.view') ?? false;
+        $canWidgetTotalExpenses = $widgetPermissionsUser?->can('dashboard.widget.total_expenses.view') ?? false;
+        $canWidgetNetProfit = $widgetPermissionsUser?->can('dashboard.widget.net_profit.view') ?? false;
+        $canWidgetCashFlow = $widgetPermissionsUser?->can('dashboard.widget.cash_flow.view') ?? false;
+        $canWidgetRevenueVsExpense = $widgetPermissionsUser?->can('dashboard.widget.revenue_vs_expense.view') ?? false;
+        $canWidgetDueStudents = $widgetPermissionsUser?->can('dashboard.widget.due_students.view') ?? false;
+        $canWidgetRevenueBreakdown = $widgetPermissionsUser?->can('dashboard.widget.revenue_category_breakdown.view') ?? false;
+        $canWidgetExpenseBreakdown = $widgetPermissionsUser?->can('dashboard.widget.expense_category_breakdown.view') ?? false;
+        $canWidgetUpcomingTeacherPayments = $widgetPermissionsUser?->can('dashboard.widget.upcoming_teacher_payments.view') ?? false;
+        $canWidgetEnrollmentTrend = $widgetPermissionsUser?->can('dashboard.widget.enrollment_trend.view') ?? false;
+        $canWidgetNotifications = $widgetPermissionsUser?->can('dashboard.widget.notifications.view') ?? false;
+        $canWidgetRecentActivity = $widgetPermissionsUser?->can('dashboard.widget.recent_activity.view') ?? false;
     @endphp
 
     <div class="py-8">
-        <script type="application/json" id="dashboard-data">{!! json_encode($dashboardData ?? []) !!}</script>
+        <script type="application/json" id="dashboard-data">{!! json_encode($dashboardData ?? [], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             @if($canWidgetTotalRevenue)
@@ -123,7 +123,7 @@
             @if($canWidgetCashFlow)
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
-                    <div class="text-sm text-gray-500">Cash Flow (Last 30 Days)</div>
+                    <div class="text-sm text-gray-500">Cash Flow ({{ $dashboardRange['label'] ?? 'Selected Range' }})</div>
                     <div class="mt-1 text-xs text-gray-600">Daily net (income - expense)</div>
                     <div class="mt-3 h-16">
                         <canvas id="cashflowChart"></canvas>
@@ -320,7 +320,7 @@
                             <a class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700" href="{{ route('students.index') }}">View All Due Payments</a>
                         @endcan
                         @can('sms.send.bulk')
-                            <button type="button" disabled class="inline-flex items-center px-4 py-2 bg-gray-200 border border-transparent rounded-md font-semibold text-xs text-gray-500 uppercase tracking-widest cursor-not-allowed">Send Bulk SMS</button>
+                            <form method="POST" action="{{ route('sms.students.due') }}" onsubmit="return confirm('Send payment reminders to students with outstanding fees?');">@csrf<button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 rounded-md font-semibold text-xs text-white hover:bg-indigo-700">Send Bulk SMS</button></form>
                         @endcan
                     </div>
                 </div>
@@ -395,7 +395,7 @@
             @if($canWidgetEnrollmentTrend)
             <div class="xl:col-span-2 bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
-                    <div class="text-base font-semibold text-gray-900">Student Enrollment Trend (Last 12 Months)</div>
+                    <div class="text-base font-semibold text-gray-900">Student Enrollment Trend ({{ $dashboardRange['label'] ?? 'Selected Range' }})</div>
                     <div class="mt-4 h-72">
                         <canvas id="enrollmentLine"></canvas>
                     </div>

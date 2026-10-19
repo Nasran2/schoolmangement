@@ -45,6 +45,9 @@ class SmsController extends Controller
         $template = (string) app('settings')->get('sms.template.due', 'Dear {name}, your due is {amount}.');
         $phones = [];
         foreach ($students as $s) {
+            if ((float) ($s->computed_due_amount ?? $s->due_amount) <= 0) {
+                continue;
+            }
             $msg = $this->interpolate($template, [
                 'name' => $s->name,
                 'amount' => number_format((float) ($s->computed_due_amount ?? $s->due_amount), 2),
@@ -80,6 +83,9 @@ class SmsController extends Controller
 
         $template = (string) app('settings')->get('sms.template.due', 'Dear {name}, your due is {amount}.');
         foreach ($students as $s) {
+            if ((float) ($s->computed_due_amount ?? $s->due_amount) <= 0) {
+                continue;
+            }
             $msg = $this->interpolate($template, [
                 'name' => $s->name,
                 'amount' => number_format((float) ($s->computed_due_amount ?? $s->due_amount), 2),

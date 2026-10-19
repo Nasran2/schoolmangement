@@ -18,16 +18,41 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('rbac.roles.update', $role) }}">
+            @if ($errors->any())
+                <div class="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-800">{{ $errors->first() }}</div>
+            @endif
+            @if($isSystemRole)
+                <div class="mb-6 rounded-md bg-indigo-50 p-4 text-sm text-indigo-900">
+                    This system role is protected. Admin and Super Admin have full application access. Developer access is managed through the developer console. Create a custom role to choose restricted modules and individual cards.
+                </div>
+            @endif
+            <form method="POST" action="{{ route('rbac.roles.update', $role) }}" x-data="{}">
                 @csrf
                 @method('PUT')
 
+                @unless($isSystemRole)
+                    <div class="mb-6 rounded-lg bg-white p-6 shadow-sm">
+                        <x-input-label for="name" value="Role name" />
+                        <x-text-input id="name" name="name" :value="old('name', $role->name)" class="mt-1 block w-full" required />
+                        <p class="mt-3 text-sm text-gray-600">Access Dashboard enables the dashboard page. Select each card separately below. Reports need Access Reports Module plus their individual report permission. Permissions from multiple roles are combined.</p>
+                        <div class="mt-4 flex gap-4 text-sm text-indigo-700">
+                            <button type="button" @click="$el.closest('form').querySelectorAll('input[name=\'permissions[]\']:not(:disabled)').forEach(input => input.checked = true)">Select all</button>
+                            <button type="button" @click="$el.closest('form').querySelectorAll('input[name=\'permissions[]\']:not(:disabled)').forEach(input => input.checked = false)">Clear all</button>
+                        </div>
+                    </div>
+                @endunless
                 <div class="space-y-8">
                     @if (!empty($permissionGroups ?? []))
                         @foreach ($permissionGroups as $group => $perms)
-                            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-100">
+                            <fieldset class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-100" @disabled($isSystemRole)>
                                 <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                                     <h3 class="text-lg font-medium text-gray-900">{{ $group }}</h3>
+                                    @unless($isSystemRole)
+                                        <div class="flex gap-3 text-xs text-indigo-700">
+                                            <button type="button" @click="$el.closest('fieldset').querySelectorAll('input:not(:disabled)').forEach(input => input.checked = true)">Select group</button>
+                                            <button type="button" @click="$el.closest('fieldset').querySelectorAll('input:not(:disabled)').forEach(input => input.checked = false)">Clear group</button>
+                                        </div>
+                                    @endunless
                                     <span class="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded border border-gray-200">{{ count($perms) }} permissions</span>
                                 </div>
                                 <div class="p-6">
@@ -40,7 +65,8 @@
                                                         name="permissions[]"
                                                         value="{{ $permission->name }}"
                                                         class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 transition duration-150 ease-in-out"
-                                                        {{ in_array($permission->name, old('permissions', $rolePermissions), true) ? 'checked' : '' }}
+                                                        @disabled($isSystemRole || !auth()->user()->can($permission->name))
+                                                        @checked(($isSystemRole && in_array($role->name, ['Admin', 'Super Admin'], true)) || in_array($permission->name, session()->hasOldInput() ? old('permissions', []) : $rolePermissions, true))
                                                     />
                                                 </div>
                                                 <div class="ml-3 text-sm leading-5 select-none">
@@ -52,7 +78,7 @@
                                         @endforeach
                                     </div>
                                 </div>
-                            </div>
+                            </fieldset>
                         @endforeach
                     @else
                         {{-- Fallback if no groups --}}
@@ -66,7 +92,8 @@
                                                 name="permissions[]"
                                                 value="{{ $permission->name }}"
                                                 class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                                {{ in_array($permission->name, old('permissions', $rolePermissions), true) ? 'checked' : '' }}
+                                                @disabled($isSystemRole || !auth()->user()->can($permission->name))
+                                                        @checked(($isSystemRole && in_array($role->name, ['Admin', 'Super Admin'], true)) || in_array($permission->name, session()->hasOldInput() ? old('permissions', []) : $rolePermissions, true))
                                             />
                                             <span class="text-sm text-gray-700">{{ $permissionLabels[$permission->name] ?? $permission->name }}</span>
                                         </label>
@@ -79,7 +106,7 @@
 
                 <div class="mt-8 flex items-center justify-end gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200 sticky bottom-4 z-10">
                     <a href="{{ route('rbac.roles.index') }}" class="text-sm text-gray-600 hover:text-gray-900 font-medium">Cancel</a>
-                    <x-primary-button class="px-6 py-2 text-base shadow-md">{{ __('Save Changes') }}</x-primary-button>
+                    @unless($isSystemRole)<x-primary-button class="px-6 py-2 text-base shadow-md">{{ __('Save Changes') }}</x-primary-button>@endunless
                 </div>
             </form>
         </div>

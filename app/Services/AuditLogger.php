@@ -19,7 +19,7 @@ class AuditLogger
             'user_id' => $user?->id,
             'action' => $action,
             'auditable_type' => $auditable ? get_class($auditable) : null,
-            'auditable_id' => $auditable && property_exists($auditable, 'id') ? $auditable->id : null,
+            'auditable_id' => $auditable && isset($auditable->id) ? $auditable->id : null,
             'description' => $description,
             'metadata' => $metadata,
             'ip_address' => request()->ip(),

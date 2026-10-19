@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Rbac;
 
 use App\Http\Controllers\Controller;
 use App\Services\AuditLogger;
+use App\Services\AccessControl;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,13 +19,14 @@ class RoleController extends Controller
     public function index(): View
     {
         return view('rbac.roles.index', [
-            'roles' => Role::query()->orderBy('name')->get(),
+            'roles' => Role::query()->where('guard_name', 'web')->withCount(['users', 'permissions'])->orderBy('name')->get(),
         ]);
     }
 
     public function edit(Role $role): View
     {
-        $permissions = Permission::query()->orderBy('name')->get();
+        abort_unless($role->guard_name === 'web', 404);
+        $permissions = Permission::query()->where('guard_name', 'web')->orderBy('name')->get();
 
         // Group permissions by category for easier management in the UI
         $groups = [
@@ -32,6 +37,9 @@ class RoleController extends Controller
             'Activity Logs' => ['audit_logs.'],
             'Students' => ['students.'],
             'Teachers' => ['teachers.'],
+            'Seminars' => ['seminars.'],
+            'Extra Classes' => ['extra_classes.'],
+            'Visiting Teachers' => ['visiting_teachers.'],
             'Revenue' => ['revenue.'],
             'Expense' => ['expense.'],
             'Classrooms' => ['classrooms.'],
@@ -86,7 +94,10 @@ class RoleController extends Controller
             'settings.opening_balance.reset' => 'Reset Opening Balance',
 
             // Users
-            'users.manage' => 'Manage Users',
+            'users.manage' => 'Create, Edit, Delete and Assign User Roles',
+            'seminars.manage' => 'Manage Seminars, Attendance and Payments',
+            'extra_classes.manage' => 'Manage Extra Classes, Enrollments and Payments',
+            'visiting_teachers.manage' => 'Manage Visiting Teachers',
 
             // Classrooms
             'classrooms.view' => 'View Classrooms',
@@ -175,58 +186,84 @@ class RoleController extends Controller
             'permissionGroups' => $permissionGroups,
             'permissionLabels' => $labels,
             'rolePermissions' => $role->permissions->pluck('name')->all(),
+            'isSystemRole' => in_array($role->name, AccessControl::SYSTEM_ROLES, true),
         ]);
     }
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        $this->authorizeEditableRole($request, $role);
         $validated = $request->validate([
-            'permissions' => ['array'],
-            'permissions.*' => ['string'],
+            'name' => ['sometimes', 'required', 'string', 'max:50', Rule::unique('roles', 'name')->where('guard_name', 'web')->ignore($role)],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['required', 'string', 'distinct', Rule::exists('permissions', 'name')->where('guard_name', 'web')],
         ]);
-
+        $this->validateName($validated['name'] ?? $role->name);
         $before = $role->permissions->pluck('name')->all();
-
         $next = $validated['permissions'] ?? [];
-        sort($before);
-        sort($next);
+        foreach ($next as $permission) {
+            if (! $request->user()->can($permission)) {
+                throw ValidationException::withMessages(['permissions' => 'You can only grant permissions you hold yourself.']);
+            }
+        }
 
-        $role->syncPermissions($next);
-
-        $added = array_values(array_diff($next, $before));
-        $removed = array_values(array_diff($before, $next));
-
-        app(AuditLogger::class)->log(
-            'rbac.role.permissions.update',
-            $role,
-            'Role permissions updated',
-            [
+        DB::transaction(function () use ($role, $validated, $next, $before) {
+            $role->update(['name' => $validated['name'] ?? $role->name]);
+            $role->syncPermissions($next);
+            app(AuditLogger::class)->log('rbac.role.permissions.update', $role, 'Role permissions updated', [
                 'role' => $role->name,
-                'added' => $added,
-                'removed' => $removed,
-            ]
-        );
+                'added' => array_values(array_diff($next, $before)),
+                'removed' => array_values(array_diff($before, $next)),
+            ]);
+        });
 
-        return back()->with('status', 'Role permissions updated.');
+        return back()->with('status', 'Role updated.');
     }
 
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:50', 'unique:roles,name'],
+            'name' => ['required', 'string', 'max:50', Rule::unique('roles', 'name')->where('guard_name', 'web')],
         ]);
+        $this->validateName($validated['name']);
+        $role = DB::transaction(function () use ($validated) {
+            $role = Role::create(['name' => $validated['name'], 'guard_name' => 'web']);
+            app(AuditLogger::class)->log('rbac.role.create', $role, 'Role created', ['role' => $role->name]);
 
-        $role = Role::create(['name' => $validated['name']]);
+            return $role;
+        });
 
-        app(AuditLogger::class)->log(
-            'rbac.role.create',
-            $role,
-            'Role created',
-            [
-                'role' => $role->name,
-            ]
-        );
+        return redirect()->route('rbac.roles.edit', $role)->with('status', 'Role created. Choose its permissions below.');
+    }
 
-        return back()->with('status', 'Role created.');
+    public function destroy(Request $request, Role $role): RedirectResponse
+    {
+        $this->authorizeEditableRole($request, $role);
+        DB::transaction(function () use ($role) {
+            $role = Role::query()->lockForUpdate()->findOrFail($role->id);
+            if ($role->users()->exists()) {
+                throw ValidationException::withMessages(['role' => 'Reassign users before deleting this role.']);
+            }
+            app(AuditLogger::class)->log('rbac.role.delete', $role, 'Role deleted', ['role' => $role->name]);
+            $role->delete();
+        });
+
+        return redirect()->route('rbac.roles.index')->with('status', 'Role deleted.');
+    }
+
+    private function authorizeEditableRole(Request $request, Role $role): void
+    {
+        abort_unless($role->guard_name === 'web', 404);
+        abort_if(in_array($role->name, AccessControl::SYSTEM_ROLES, true), 403, 'System roles are protected. Create a custom role for restricted access.');
+        abort_unless($role->permissions->every(fn ($permission) => $request->user()->can($permission->name)), 403);
+    }
+
+    private function validateName(string $name): void
+    {
+        foreach (AccessControl::SYSTEM_ROLES as $reserved) {
+            if (strcasecmp(trim($name), $reserved) === 0) {
+                throw ValidationException::withMessages(['name' => 'This name is reserved for a protected system role.']);
+            }
+        }
     }
 }

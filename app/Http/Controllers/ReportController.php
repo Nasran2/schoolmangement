@@ -3065,9 +3065,10 @@ class ReportController extends Controller
         $group = $request->input('group', 'day');
         $filters = $request->only(['category_id', 'from', 'to', 'group']);
 
-        $groupSql = $group === 'month'
-            ? "DATE_FORMAT(paid_at, '%Y-%m')"
-            : "DATE_FORMAT(paid_at, '%Y-%m-%d')";
+        $dateFormat = $group === 'month' ? '%Y-%m' : '%Y-%m-%d';
+        $groupSql = DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('{$dateFormat}', revenues.paid_at)"
+            : "DATE_FORMAT(revenues.paid_at, '{$dateFormat}')";
 
         $refundsSub = DB::table('revenue_adjustments')
             ->selectRaw('revenue_id, SUM(amount) as refund_amount')

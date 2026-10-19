@@ -28,11 +28,11 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div class="rounded-xl border border-indigo-100 bg-white p-5 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-indigo-600">Users</p>
-                    <p class="mt-2 text-3xl font-bold text-gray-900">{{ number_format($users->total()) }}</p>
+                    <p class="mt-2 text-3xl font-bold text-gray-900">{{ number_format($stats['total']) }}</p>
                 </div>
                 <div class="rounded-xl border border-emerald-100 bg-white p-5 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-emerald-600">Active</p>
-                    <p class="mt-2 text-3xl font-bold text-gray-900">{{ $hasActiveColumn ? number_format($users->where('active', true)->count()) : number_format($users->total()) }}</p>
+                    <p class="mt-2 text-3xl font-bold text-gray-900">{{ $hasActiveColumn ? number_format($stats['active']) : number_format($stats['total']) }}</p>
                 </div>
                 <div class="rounded-xl border border-amber-100 bg-white p-5 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-amber-600">Roles</p>
@@ -43,6 +43,12 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="px-6 py-5 border-b border-gray-100">
                     <h3 class="text-lg font-semibold text-gray-900">User List</h3>
+                    <form method="GET" class="mt-4 flex flex-wrap items-end gap-3">
+                        <div><x-input-label for="q" value="Search users" /><x-text-input id="q" name="q" :value="request('q')" placeholder="Name, username or email" /></div>
+                        <div><x-input-label for="filter-role" value="Role" /><select id="filter-role" name="role" class="rounded-md border-gray-300"><option value="">All roles</option>@foreach($roles as $role)<option value="{{ $role->name }}" @selected(request('role') === $role->name)>{{ $role->name }}</option>@endforeach</select></div>
+                        <div><x-input-label for="filter-active" value="Status" /><select id="filter-active" name="active" class="rounded-md border-gray-300"><option value="">All statuses</option><option value="1" @selected(request('active') === '1')>Active</option><option value="0" @selected(request('active') === '0')>Inactive</option></select></div>
+                        <x-primary-button>Filter</x-primary-button><a href="{{ route('users.index') }}" class="py-2 text-sm text-indigo-600">Reset</a>
+                    </form>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -72,6 +78,8 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-right">
+                                        @if(app(\App\Services\AccessControl::class)->canManageTarget(auth()->user(), $user))
+                                        <a href="{{ route('users.edit', $user) }}" class="inline-flex px-3 py-2 text-xs font-semibold text-indigo-600">Edit</a>
                                         @if($hasActiveColumn)
                                             @if(auth()->id() === $user->id)
                                                 <span class="inline-flex items-center rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-600">Current User</span>
@@ -85,7 +93,16 @@
                                                 </form>
                                             @endif
                                         @else
-                                            <span class="text-xs text-gray-500">No actions</span>
+                                            <span class="text-xs text-gray-500">Status unavailable</span>
+                                        @endif
+                                        @if(auth()->id() !== $user->id)
+                                            <form method="POST" action="{{ route('users.destroy', $user) }}" class="inline" onsubmit="return confirm('Delete this user account permanently?');">
+                                                @csrf @method('DELETE')
+                                                <button type="submit" class="px-3 py-2 text-xs font-semibold text-red-700">Delete</button>
+                                            </form>
+                                        @endif
+                                        @else
+                                            <span class="text-xs text-gray-500">Protected account</span>
                                         @endif
                                     </td>
                                 </tr>
