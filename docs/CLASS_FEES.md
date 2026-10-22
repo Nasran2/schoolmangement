@@ -97,3 +97,19 @@ View access accepts `class_fees.view`, `revenue.add`, `revenue.manage`, or
 `dashboard.widget.exam_fees.view` and `dashboard.widget.facility_fees.view`.
 Admin and Super Admin retain full access. The original fee-schedule migration is
 `2026_10_20_000002_create_class_fee_schedules.php`.
+
+## Hosting the browser controls
+
+`public/js/class-fees.js` is the single implementation of the calendar and bulk
+selection factories. `resources/js/classFees.js` re-exports it for the Vite build
+and JavaScript tests. Both fee views include `class-fees.partials.scripts`, which
+loads the standalone file synchronously before the deferred Alpine application.
+Its modification time versions the URL. Upload the standalone file and the Blade
+partial together. This keeps the controls working even when an older application
+bundle is still deployed. A regression test covers the standalone runtime.
+
+When deploying, include `public/build/manifest.json` **and** every referenced file
+under `public/build/assets/`. Updating PHP/Blade files alone does not update Vite
+JavaScript. An outdated bundle can produce `termCalendar is not defined`, followed
+by `feeAmount is not defined`, and leave the date controls hidden. Clear compiled
+views with `php artisan view:clear` after replacing the view files.

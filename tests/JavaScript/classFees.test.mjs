@@ -90,3 +90,26 @@ test('validation redisplay preserves amounts and accounting choices', () => {
     assert.equal(bulk.lines[0].record_revenue, false);
     assert.equal(bulk.total, 250);
 });
+
+test('standalone fee script defines both Alpine factories without the main application bundle', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const { runInNewContext } = await import('node:vm');
+    const script = await readFile(new URL('../../public/js/class-fees.js', import.meta.url), 'utf8');
+    const page = {};
+    runInNewContext(script, page);
+    assert.equal(typeof page.termCalendar, 'function');
+    assert.equal(typeof page.bulkClassFees, 'function');
+    const form = { ...page.termCalendar(null, '2026-01-01'), enabled: false, feeAmount: '700' };
+    form.init();
+    form.enabled = true;
+    assert.equal(form.feeAmount, '700');
+    assert.equal(form.terms.length, 3);
+    assert.equal(form.terms[0].end, '2026-04-30');
+    assert.equal(form.terms[1].start, '2026-05-01');
+    assert.equal(form.terms[2].end, '2026-12-31');
+    const bulk = page.bulkClassFees(candidates, 1);
+    bulk.init();
+    bulk.toggleAll(true);
+    bulk.addSelected();
+    assert.equal(bulk.lines.length, 2);
+});

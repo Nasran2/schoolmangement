@@ -1,3 +1,4 @@
+@include('class-fees.partials.scripts')
 @php
     $savedTerms = old('exam_terms', $classFeeValues['exam_terms'] ?? null);
     $legacyExamDate = old('exam_fee_start_date', $classFeeValues['exam_fee_start_date'] ?? '');
@@ -8,15 +9,15 @@
     <div class="rounded-lg border border-indigo-100 bg-indigo-50 p-5 space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><x-input-label for="exam_fee" value="Exam fee per term (Rs)" /><x-text-input id="exam_fee" name="exam_fee" type="number" min="0" max="9999999999.99" step="0.01" x-model="feeAmount" class="mt-1 w-full" :value="old('exam_fee', $classFeeValues['exam_fee'] ?? '')" /><x-input-error :messages="$errors->get('exam_fee')" class="mt-2" /></div>
-            <div><label class="flex items-center gap-2 mt-6 text-sm font-semibold text-indigo-900"><input type="checkbox" x-model="enabled" @disabled($savedTerms !== null) class="rounded border-gray-300 text-indigo-600"> Use three editable terms</label><p class="mt-1 text-xs text-gray-600">Existing receipts are kept with their corresponding term.</p></div>
+            <div><label class="flex items-center gap-2 mt-6 text-sm font-semibold text-indigo-900"><input type="checkbox" x-model="enabled" @checked($useTerms) @disabled($savedTerms !== null) class="rounded border-gray-300 text-indigo-600"> Use three editable terms</label><p class="mt-1 text-xs text-gray-600">Existing receipts are kept with their corresponding term.</p></div>
         </div>
         <div x-show="enabled" class="space-y-4">
             <p class="text-sm text-indigo-900">Set Term 1’s dates. Terms 2 and 3 fill automatically; each date can then be adjusted.</p>
             @for($i = 0; $i < 3; $i++)
                 <fieldset class="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-lg bg-white p-4 border border-indigo-100">
                     <legend class="px-2 text-sm font-semibold text-indigo-900">Term {{ $i + 1 }}</legend>
-                    <div><label for="term-{{ $i }}-start" class="block text-sm font-medium text-gray-700">Starting date</label><input id="term-{{ $i }}-start" type="date" name="exam_terms[{{ $i }}][start]" x-model="terms[{{ $i }}].start" @if($i === 0) @change="firstStartChanged()" @endif :disabled="!enabled || Number(feeAmount) <= 0" :required="enabled && Number(feeAmount) > 0" min="2000-01-01" max="2099-12-31" class="mt-1 w-full rounded-md border-gray-300"></div>
-                    <div><label for="term-{{ $i }}-end" class="block text-sm font-medium text-gray-700">Ending date</label><input id="term-{{ $i }}-end" type="date" name="exam_terms[{{ $i }}][end]" x-model="terms[{{ $i }}].end" @if($i === 0) @change="fillRemaining()" @endif :disabled="!enabled || Number(feeAmount) <= 0" :required="enabled && Number(feeAmount) > 0" :min="terms[{{ $i }}].start || '2000-01-01'" max="2099-12-31" class="mt-1 w-full rounded-md border-gray-300"></div>
+                    <div><label for="term-{{ $i }}-start" class="block text-sm font-medium text-gray-700">Starting date</label><input id="term-{{ $i }}-start" type="date" name="exam_terms[{{ $i }}][start]" value="{{ $savedTerms[$i]['start'] ?? ($i === 0 ? $legacyExamDate : '') }}" x-model="terms[{{ $i }}].start" @if($i === 0) @change="firstStartChanged()" @endif :disabled="!enabled || Number(feeAmount) <= 0" :required="enabled && Number(feeAmount) > 0" min="2000-01-01" max="2099-12-31" class="mt-1 w-full rounded-md border-gray-300"></div>
+                    <div><label for="term-{{ $i }}-end" class="block text-sm font-medium text-gray-700">Ending date</label><input id="term-{{ $i }}-end" type="date" name="exam_terms[{{ $i }}][end]" value="{{ $savedTerms[$i]['end'] ?? '' }}" x-model="terms[{{ $i }}].end" @if($i === 0) @change="fillRemaining()" @endif :disabled="!enabled || Number(feeAmount) <= 0" :required="enabled && Number(feeAmount) > 0" :min="terms[{{ $i }}].start || '2000-01-01'" max="2099-12-31" class="mt-1 w-full rounded-md border-gray-300"></div>
                 </fieldset>
             @endfor
             <button type="button" @click="fillRemaining()" class="text-sm font-semibold text-indigo-700 underline">Reset Terms 2 &amp; 3 from Term 1</button>

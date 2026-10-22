@@ -404,4 +404,22 @@ class ClassFeeBulkPaymentTest extends TestCase
         $this->assertDatabaseCount('revenues', 1);
         $this->assertSame(1000.0, $this->tracker($class)['pending'] ?? $this->tracker($class)['rows']->sum('pending'));
     }
+
+    public function test_class_form_and_bulk_page_load_the_standalone_fee_script_before_their_alpine_state(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class);
+        foreach ([route('classrooms.edit', $class), route('classrooms.create'), route('class-fees.bulk')] as $url) {
+            $response = $this->get($url)->assertOk()->assertSee('/js/class-fees.js?v=', false);
+            $html = $response->getContent();
+            $scriptAt = strpos($html, '/js/class-fees.js?v=');
+            $stateAt = strpos($html, 'x-data="{ ...termCalendar');
+            if ($stateAt === false) {
+                $stateAt = strpos($html, 'x-data="bulkClassFees(');
+            }
+            $this->assertNotFalse($stateAt);
+            $this->assertLessThan($stateAt, $scriptAt);
+            $this->assertSame(1, substr_count($html, '/js/class-fees.js?v='));
+        }
+    }
 }

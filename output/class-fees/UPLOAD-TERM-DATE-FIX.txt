@@ -1,0 +1,46 @@
+TERM DATE DISPLAY FIX - 22 OCTOBER 2026
+
+The hosted site was verified to be using app-KXoJB0o5.js. That older bundle
+contains neither termCalendar nor bulkClassFees, so Alpine cannot initialize
+the form. This update loads the fee controls independently and includes the
+current compiled assets.
+
+CPANEL INSTALLATION
+
+1. Upload term-date-display-fix.zip to the Laravel application folder: the
+   folder containing artisan, app/, resources/, and public/.
+
+2. Extract it there and overwrite matching files. Keep the other application
+   files and assets already on the server.
+
+3. If your subdomain document root is a SEPARATE folder (such as public_html),
+   copy the CONTENTS of public/js/ and public/build/ into that web folder's
+   js/ and build/ folders as well. These URLs must load the updated files:
+     https://system.bicpolgahawela.lk/js/class-fees.js
+     https://system.bicpolgahawela.lk/build/assets/app-BJeF-ZFT.js
+   Keep the application public/ copy available to Laravel for file versioning.
+
+4. In cPanel Terminal, change to the Laravel application folder and run:
+     php artisan view:clear
+   If Terminal is unavailable, remove only the compiled .php files inside
+   storage/framework/views/ using File Manager. Preserve .gitignore and the folder.
+
+5. Reopen the classroom edit page and hard-refresh:
+     Mac: Command + Shift + R
+     Windows: Ctrl + F5
+
+6. Tick "Use three editable terms". All three Starting date / Ending date
+   pairs will appear. Enter Term 1's dates; the other terms fill automatically
+   and can be edited. Click UPDATE only after reviewing your actual dates.
+
+No database migration is required for this display fix. This package contains
+no student data, payment data, credentials, or .env file.
+
+WHAT IS INCLUDED
+- Three Blade views/partials for loading and displaying the controls.
+- public/js/class-fees.js, the standalone calendar/bulk-controls implementation.
+- public/build/manifest.json and all current compiled JS/CSS files.
+- resources/js/classFees.js, the source wrapper for future builds.
+
+After updating both the public files and views, this form works even if the
+older main app bundle is temporarily cached.

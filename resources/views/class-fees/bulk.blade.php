@@ -1,4 +1,5 @@
 <x-app-layout>
+    @include('class-fees.partials.scripts')
     <x-slot name="header">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div><h2 class="text-xl font-semibold text-gray-900">Bulk fee payments</h2><p class="mt-1 text-sm text-gray-600">Select a class or find students, add their terms to the list, then review and save together.</p></div>
