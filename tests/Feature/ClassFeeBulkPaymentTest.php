@@ -422,4 +422,119 @@ class ClassFeeBulkPaymentTest extends TestCase
             $this->assertSame(1, substr_count($html, '/js/class-fees.js?v='));
         }
     }
+
+    public function test_fee_script_loader_does_not_crash_when_a_hosting_upload_is_missing_the_public_script(): void
+    {
+        $originalPublicPath = public_path();
+        try {
+            $this->app->usePublicPath(sys_get_temp_dir().'/school-missing-public-'.Str::uuid());
+            $html = view('class-fees.partials.scripts')->render();
+            $this->assertStringContainsString('/js/class-fees.js?v=20261022', $html);
+        } finally {
+            $this->app->usePublicPath($originalPublicPath);
+        }
+    }
+
+    public function test_unpaid_facility_fee_can_change_amount_and_starting_date_after_its_schedule_has_started(): void
+    {
+        $class = $this->schoolClass();
+        $this->student($class);
+        $schedule = $class->feeSchedules()->where('fee_type', 'facility')->firstOrFail();
+        $this->put(route('classrooms.update', $class), ['name' => $class->name,
+            'facility_fee' => 5000, 'facility_fee_start_date' => '2026-01-02'])->assertSessionHasNoErrors();
+        $this->assertSame('2026-01-02', $schedule->fresh()->first_due_date->toDateString());
+        $this->assertSame(5000.0, (float) $schedule->fresh()->amount);
+        $this->assertSame(1, $class->feeSchedules()->where('fee_type', 'facility')->count());
+        $this->get(route('class-fees.index', ['class_room_id' => $class->id, 'type' => 'facility']))->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 5000.0);
+    }
+
+    public function test_unpaid_legacy_exam_setup_can_move_off_its_old_cadence_and_into_the_past(): void
+    {
+        $class = $this->schoolClass(true);
+        $schedule = $class->feeSchedules()->where('fee_type', 'exam')->firstOrFail();
+        $this->put(route('classrooms.update', $class), ['name' => $class->name,
+            'exam_fee' => 700, 'exam_fee_start_date' => '2026-01-03'])->assertSessionHasNoErrors();
+        $this->assertSame('2026-01-03', $schedule->fresh()->first_due_date->toDateString());
+        $this->assertSame(700.0, (float) $schedule->fresh()->amount);
+        $this->assertSame(1, $class->feeSchedules()->where('fee_type', 'exam')->count());
+    }
+
+    public function test_unpaid_terms_can_be_repriced_and_moved_to_an_earlier_year_without_extra_versions(): void
+    {
+        $class = $this->schoolClass();
+        $this->student($class);
+        $schedule = $class->feeSchedules()->where('fee_type', 'exam')->firstOrFail();
+        $terms = $this->terms(2025);
+        $this->put(route('classrooms.update', $class), ['name' => $class->name, 'exam_fee' => 700,
+            'exam_fee_start_date' => '2025-01-01', 'exam_terms' => $terms,
+            'facility_fee' => 5000, 'facility_fee_start_date' => '2026-01-02'])->assertSessionHasNoErrors();
+        $this->assertSame($terms, $schedule->fresh()->terms);
+        $this->assertSame(700.0, (float) $schedule->fresh()->amount);
+        $this->assertSame(1, $class->feeSchedules()->where('fee_type', 'exam')->count());
+        $this->assertSame(2100.0, $this->tracker($class)['due']);
+        $this->put(route('classrooms.update', $class), ['name' => $class->name, 'exam_fee' => 900,
+            'exam_fee_start_date' => '2028-01-01', 'exam_terms' => $this->terms(2028)])->assertSessionHasNoErrors();
+        $this->assertSame(1, $class->feeSchedules()->where('fee_type', 'exam')->count());
+        $this->assertSame('2028-01-01', $schedule->fresh()->first_due_date->toDateString());
+        $this->assertSame(0.0, $this->tracker($class)['due']);
+    }
+
+    public function test_setup_only_versions_can_be_consolidated_or_removed_before_any_payment(): void
+    {
+        $class = $this->schoolClass();
+        $schedule = $class->feeSchedules()->where('fee_type', 'facility')->firstOrFail();
+        $schedule->update(['ends_on' => '2026-06-01']);
+        $later = $class->feeSchedules()->create(['fee_type' => 'facility', 'amount' => 3000,
+            'revenue_category_id' => $schedule->revenue_category_id, 'first_due_date' => '2027-01-15']);
+        $this->put(route('classrooms.update', $class), ['name' => $class->name,
+            'facility_fee' => 5000, 'facility_fee_start_date' => '2026-01-02'])->assertSessionHasNoErrors();
+        $this->assertSame(1, $class->feeSchedules()->where('fee_type', 'facility')->count());
+        $this->assertNull($schedule->fresh());
+        $this->assertSame('2026-01-02', $later->fresh()->first_due_date->toDateString());
+        $this->put(route('classrooms.update', $class), ['name' => $class->name, 'facility_fee' => 0])->assertSessionHasNoErrors();
+        $this->assertSame(0, $class->feeSchedules()->where('fee_type', 'facility')->count());
+        $this->assertSame(1, $class->feeSchedules()->where('fee_type', 'exam')->count());
+        $this->put(route('classrooms.update', $class), ['name' => $class->name,
+            'facility_fee' => 4500, 'facility_fee_start_date' => '2026-01-01'])->assertSessionHasNoErrors();
+        $this->assertSame(1, $class->feeSchedules()->where('fee_type', 'facility')->count());
+    }
+
+    public function test_a_payment_for_one_fee_does_not_lock_an_unpaid_fee_of_the_same_class(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class);
+        $this->post(route('class-fees.bulk.store'), $this->batch([$this->line($class, $student)]))->assertSessionHasNoErrors();
+        $this->put(route('classrooms.update', $class), ['name' => $class->name,
+            'facility_fee' => 5000, 'facility_fee_start_date' => '2026-01-02'])->assertSessionHasNoErrors();
+        $this->assertSame(1000.0, $this->tracker($class)['paid']);
+        $this->assertSame(5000.0, (float) $class->feeSchedules()->where('fee_type', 'facility')->firstOrFail()->amount);
+    }
+
+    public function test_historical_and_cancelled_payments_keep_schedule_history_protected(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class);
+        $line = $this->line($class, $student, '2026-01-15', false, 2000, 'facility');
+        $this->post(route('class-fees.bulk.store'), $this->batch([$line]))->assertSessionHasNoErrors();
+        $payload = ['name' => $class->name, 'facility_fee' => 5000, 'facility_fee_start_date' => '2026-01-15'];
+        $this->put(route('classrooms.update', $class), $payload)->assertSessionHasErrors('facility_fee_start_date');
+        $history = ClassFeePaymentHistory::firstOrFail();
+        $this->delete(route('class-fees.payments.destroy', ['source' => 'history', 'payment' => $history->id]), ['reason' => 'Incorrect entry'])->assertSessionHasNoErrors();
+        $this->put(route('classrooms.update', $class), $payload)->assertSessionHasErrors('facility_fee_start_date');
+        $this->assertSame(2000.0, (float) $history->classFeeSchedule->fresh()->amount);
+    }
+
+    public function test_invalid_term_dates_still_roll_back_unpaid_setup_changes(): void
+    {
+        $class = $this->schoolClass();
+        $terms = $this->terms();
+        $terms[1]['start'] = '2026-04-30';
+        $this->put(route('classrooms.update', $class), ['name' => 'Should roll back', 'exam_fee' => 700,
+            'exam_fee_start_date' => '2026-01-01', 'exam_terms' => $terms,
+            'facility_fee' => 5000, 'facility_fee_start_date' => '2026-01-02'])->assertSessionHasErrors('exam_terms');
+        $this->assertNotSame('Should roll back', $class->fresh()->name);
+        $this->assertSame(1000.0, (float) $class->feeSchedules()->where('fee_type', 'exam')->firstOrFail()->amount);
+        $this->assertSame(2000.0, (float) $class->feeSchedules()->where('fee_type', 'facility')->firstOrFail()->amount);
+    }
 }

@@ -358,6 +358,8 @@ class ClassFeeTest extends TestCase
     public function test_fee_rate_changes_preserve_month_end_dates_and_do_not_add_extra_installments(): void
     {
         $class = $this->schoolClass(['exam_fee_start_date' => '2026-01-31']);
+        $student = $this->student($class);
+        $this->collect($class, $this->payload($class, $student, '2026-01-31'))->assertSessionHasNoErrors();
         $this->put(route('classrooms.update', $class), ['name' => $class->name, 'exam_fee' => 1500, 'exam_fee_start_date' => '2026-11-01'])
             ->assertSessionHasErrors('exam_fee_start_date');
         $this->put(route('classrooms.update', $class), ['name' => $class->name, 'exam_fee' => 1500, 'exam_fee_start_date' => '2027-04-30'])

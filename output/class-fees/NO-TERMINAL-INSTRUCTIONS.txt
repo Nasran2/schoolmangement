@@ -1,0 +1,41 @@
+FIX THE MISSING TERM-DATE SCRIPT WITHOUT TERMINAL
+
+The error is a missing file, not a cache problem. The script URL on the hosted
+site returned HTTP 404. The old loader also tried to read that missing file's
+modification time, causing Laravel's 500 error.
+
+1. Open cPanel -> File Manager.
+
+2. Open this application folder:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+3. Upload class-fees-no-terminal-fix.zip INTO THAT FOLDER and extract it there.
+   Overwrite matching files. The archive contains these two application files:
+
+   public/js/class-fees.js
+   resources/views/class-fees/partials/scripts.blade.php
+
+   After extraction, confirm the JavaScript exists at:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/public/js/class-fees.js
+
+   Do not extract the ZIP inside another public/ or js/ folder. The ZIP already
+   contains the public/ and resources/ paths.
+
+4. Clear compiled views using File Manager:
+   - In the SAME application folder, open storage/framework/views/
+   - Select only the compiled .php files inside that folder.
+   - Delete those compiled .php files. Laravel recreates them automatically.
+   - Keep the views/ folder itself and .gitignore.
+   - Do not delete resources/views/, storage/framework/sessions/, or .env.
+
+5. Open https://system.bicpolgahawela.lk/js/class-fees.js
+   It should show JavaScript containing termCalendar and bulkClassFees.
+   If it still shows 404, the file has not reached the correct public folder.
+
+6. Return to the classroom edit page. Hard refresh with Command + Shift + R
+   on Mac, or Ctrl + F5 on Windows. Tick Use three editable terms.
+
+This update does not change payments or the database. No Terminal, new migration,
+or cache-clearing web endpoint is required. The corrected loader tolerates a
+missing file without crashing, but the JavaScript file must be uploaded for the
+controls to work.

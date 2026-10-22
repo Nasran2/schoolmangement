@@ -1,0 +1,35 @@
+ALLOW FEE SETUP CHANGES BEFORE THE FIRST PAYMENT
+
+This fixes the "choose a future starting date" error when no payments have been
+recorded. Unpaid exam/facility amounts and dates may be corrected, including dates
+in the past. Term calendars still require three valid non-overlapping terms.
+Existing payment history remains protected.
+
+CPANEL FILE MANAGER - NO TERMINAL REQUIRED
+
+1. Upload unpaid-fee-settings-fix.zip to:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract it there and overwrite matching files. The ZIP already contains
+   app/, resources/, and public/ paths. Do not extract it inside another folder.
+
+3. Open storage/framework/views/ in the same application folder and delete only
+   the compiled .php files inside. Keep the folder itself and .gitignore.
+
+4. Hard-refresh the classroom edit page (Command + Shift + R on Mac, or Ctrl + F5
+   on Windows), enter the required fee amounts and dates, then click UPDATE.
+
+INCLUDED FILES
+- app/Services/Billing/ClassFeeService.php
+- resources/views/classrooms/partials/recurring-fees.blade.php
+- resources/views/class-fees/partials/scripts.blade.php
+- public/js/class-fees.js
+
+The last two files also retain the previous JavaScript-loader fix.
+No migration, database reset, Terminal command, or new JavaScript build is needed.
+
+Payment records are checked separately for each fee type and classroom. Pending,
+historical and cancelled payment records are treated as history and retain the
+existing safeguards. Before any records exist, old setup-only schedule versions
+are consolidated when correcting that fee; a blank/zero fee removes its unpaid
+setup. Saved payments, students and other classes are not changed by this upload.

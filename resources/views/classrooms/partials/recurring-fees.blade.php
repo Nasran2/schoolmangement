@@ -21,7 +21,7 @@
                 </fieldset>
             @endfor
             <button type="button" @click="fillRemaining()" class="text-sm font-semibold text-indigo-700 underline">Reset Terms 2 &amp; 3 from Term 1</button>
-            <p class="text-xs text-gray-600">The calendar repeats annually. To set a new rate or calendar for a future academic year, enter that year’s Term 1 starting date. Earlier schedules and payments remain.</p>
+            <p class="text-xs text-gray-600">The calendar repeats annually. Before any payments are recorded, you can correct the fee and term dates, including earlier dates. Once payments exist, rate changes start in a future academic year and payment history is preserved.</p>
         </div>
         <div x-show="!enabled" x-cloak><x-input-label for="exam_fee_start_date" value="Legacy exam fee first due date (every 3 months)" /><x-text-input id="exam_fee_start_date" name="exam_fee_start_date" type="date" x-bind:disabled="enabled" x-model="terms[0].start" class="mt-1 w-full" :value="$legacyExamDate" /><x-input-error :messages="$errors->get('exam_fee_start_date')" class="mt-2" /><p class="mt-2 text-xs text-gray-600">Enable three terms above to replace the quarterly calendar. Recorded installments are mapped to the corresponding term in each year.</p></div>
         <template x-if="enabled"><input type="hidden" name="exam_fee_start_date" :value="terms[0].start"></template>
@@ -32,5 +32,5 @@
         <div><x-input-label for="facility_fee" value="Facility fee (Rs) — once a year" /><x-text-input id="facility_fee" name="facility_fee" type="number" min="0" max="9999999999.99" step="0.01" class="mt-1 w-full" :value="old('facility_fee', $classFeeValues['facility_fee'] ?? '')" /><x-input-error :messages="$errors->get('facility_fee')" class="mt-2" /></div>
         <div><x-input-label for="facility_fee_start_date" value="Facility fee first due date" /><x-text-input id="facility_fee_start_date" name="facility_fee_start_date" type="date" min="2000-01-01" max="2099-12-31" class="mt-1 w-full" :value="old('facility_fee_start_date', $classFeeValues['facility_fee_start_date'] ?? '')" /><x-input-error :messages="$errors->get('facility_fee_start_date')" class="mt-2" /></div>
     </div>
-    <p class="text-xs text-gray-500">Blank or zero amounts stop future charges; existing installments and receipts are preserved. Students are charged for installments that apply while enrolled in this class.</p>
+    <p class="text-xs text-gray-500">Before any payments are recorded for a fee, you can freely correct its amount and starting date. Blank or zero removes an unpaid setup; fees with payment history retain earlier installments and receipts. Students are charged for installments that apply while enrolled in this class.</p>
 </div>

@@ -14,9 +14,13 @@ legacy installments in each calendar year map to the corresponding new term.
 Receipt amounts, bill numbers, payment dates and accounting entries are retained.
 An active fourth legacy receipt prevents conversion; correct/cancel that receipt
 first. Cancelled fourth receipts remain as audit history. When starting a later
-year, the earlier schedule is closed and retained. Changing an existing rate
-requires a future calendar after prepaid installments and after the previous term
-ends. Standard month-end and leap-year calculations do not drift.
+year, the earlier schedule is closed and retained when it has payment history.
+Before a class fee has any payment records, its amounts and dates are editable
+setup, including past dates and changes outside the original cadence. The current
+unpaid schedule is updated in place and setup-only older versions are consolidated
+so obsolete charges do not survive a correction. Blank or zero removes an unpaid
+setup. Once payment records exist, changing the rate requires a future calendar
+after prepaid installments and after the previous term ends. Standard month-end and leap-year calculations do not drift.
 
 Open **Exam & Facility Fees → Bulk payments**:
 
@@ -113,3 +117,12 @@ under `public/build/assets/`. Updating PHP/Blade files alone does not update Vit
 JavaScript. An outdated bundle can produce `termCalendar is not defined`, followed
 by `feeAmount is not defined`, and leave the date controls hidden. Clear compiled
 views with `php artisan view:clear` after replacing the view files.
+
+## Correcting setup before the first payment
+
+The no-payment check applies separately to each class and fee type. An exam
+payment does not lock an unpaid facility fee. Both Revenue receipts and historical
+settlements are checked across all versions of that fee; pending and cancelled
+records also retain the history protections. Term ordering and overlap validation
+continue to apply. Corrections run under the same class lock as collection and
+commit atomically with the classroom update.

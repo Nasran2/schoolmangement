@@ -35,10 +35,6 @@ class ClassFeeService
             }
             $amount = round((float) ($data[$type.'_fee'] ?? 0), 2);
             $date = $data[$type.'_fee_start_date'] ?? null;
-            $closedEnd = $class->feeSchedules()->where('fee_type', $type)->whereNotNull('ends_on')->max('ends_on');
-            if ($amount > 0 && $closedEnd && $date <= Carbon::parse($closedEnd)->toDateString()) {
-                throw ValidationException::withMessages([$type.'_fee_start_date' => 'Choose a starting date after the earlier fee schedule ends ('.Carbon::parse($closedEnd)->toDateString().').']);
-            }
             $current = $class->feeSchedules()->where('fee_type', $type)->whereNull('ends_on')->lockForUpdate()->first();
             if ($current?->terms && $amount > 0 && empty($data['exam_terms']) && $type === 'exam'
                 && ($amount !== (float) $current->amount || $date !== $current->first_due_date->toDateString())) {
@@ -46,6 +42,15 @@ class ClassFeeService
             }
             if ($current && $amount === (float) $current->amount && $date === $current->first_due_date->toDateString()) {
                 continue;
+            }
+            if ($this->reviseUnpaidSchedule($class, $type, [
+                'amount' => $amount, 'first_due_date' => $date, 'terms' => $current?->terms,
+            ])) {
+                continue;
+            }
+            $closedEnd = $class->feeSchedules()->where('fee_type', $type)->whereNotNull('ends_on')->max('ends_on');
+            if ($amount > 0 && $closedEnd && $date <= Carbon::parse($closedEnd)->toDateString()) {
+                throw ValidationException::withMessages([$type.'_fee_start_date' => 'Choose a starting date after the earlier fee schedule ends ('.Carbon::parse($closedEnd)->toDateString().').']);
             }
             $original = $class->feeSchedules()->where('fee_type', $type)->orderBy('first_due_date')->first();
             if ($amount > 0 && $original && $original->first_due_date->lte(today())) {
@@ -99,6 +104,33 @@ class ClassFeeService
         $class->unsetRelation('feeSchedules');
     }
 
+    /** Until a fee has payment records, its schedule is editable setup data. */
+    private function reviseUnpaidSchedule(ClassRoom $class, string $type, array $attributes): bool
+    {
+        $schedules = $class->feeSchedules()->where('fee_type', $type)
+            ->orderByDesc('first_due_date')->lockForUpdate()->get();
+        if ($schedules->isEmpty()) {
+            return false;
+        }
+        $ids = $schedules->pluck('id');
+        // Include pending, historical and cancelled entries: all are accounting history.
+        if (Revenue::whereIn('class_fee_schedule_id', $ids)->exists()
+            || ClassFeePaymentHistory::whereIn('class_fee_schedule_id', $ids)->exists()) {
+            return false;
+        }
+        if ((float) $attributes['amount'] <= 0) {
+            $schedules->each(fn ($schedule) => $schedule->delete());
+        } else {
+            $current = $schedules->firstWhere('ends_on', null) ?? $schedules->first();
+            $current->update($attributes + ['ends_on' => null]);
+            // Consolidate setup-only versions, so outdated unpaid charges do not survive a correction.
+            $schedules->reject(fn ($schedule) => $schedule->id === $current->id)
+                ->each(fn ($schedule) => $schedule->delete());
+        }
+
+        return true;
+    }
+
     /** Three editable terms repeat annually; old receipt identities move with their term. */
     private function configureTerms(ClassRoom $class, array $data): void
     {
@@ -114,8 +146,13 @@ class ClassFeeService
                 throw ValidationException::withMessages(['exam_terms' => 'Term dates must be in order, without overlap, within one academic year.']);
             }
         }
-        $current = $class->feeSchedules()->where('fee_type', 'exam')->whereNull('ends_on')->lockForUpdate()->first();
         $amount = round((float) $data['exam_fee'], 2);
+        if ($this->reviseUnpaidSchedule($class, 'exam', [
+            'amount' => $amount, 'first_due_date' => $terms[0]['start'], 'terms' => $terms,
+        ])) {
+            return;
+        }
+        $current = $class->feeSchedules()->where('fee_type', 'exam')->whereNull('ends_on')->lockForUpdate()->first();
         $closedEnd = $class->feeSchedules()->where('fee_type', 'exam')->whereNotNull('ends_on')->max('ends_on');
         if ($closedEnd && $terms[0]['start'] <= Carbon::parse($closedEnd)->toDateString()) {
             throw ValidationException::withMessages(['exam_terms' => 'The new calendar must start after the earlier schedule ends.']);
