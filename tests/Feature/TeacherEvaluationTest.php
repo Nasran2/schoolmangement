@@ -653,6 +653,34 @@ class TeacherEvaluationTest extends TestCase
         }
     }
 
+    public function test_evaluation_and_teacher_profile_styles_do_not_depend_on_the_compiled_css_build(): void
+    {
+        $this->actingAs($this->hr());
+        $teacher = Teacher::factory()->create();
+        foreach ([route('teacher-evaluations.index'), route('teacher-evaluations.create', ['type' => 'annual']), route('hr.teachers.show', $teacher)] as $url) {
+            $response = $this->get($url)->assertOk();
+            $html = $response->getContent();
+            $this->assertStringContainsString('id="teacher-evaluation-styles"', $html);
+            $this->assertStringContainsString('.profile-template-list.is-general', $html);
+            $this->assertLessThan(strpos($html, '</head>'), strpos($html, 'id="teacher-evaluation-styles"'));
+        }
+        $html = $this->get(route('teacher-evaluations.index'))->assertOk()->getContent();
+        if ($previewDir = getenv('TEACHER_EVALUATION_HTML_PREVIEW_DIR')) {
+            if (! is_dir($previewDir)) {
+                mkdir($previewDir, 0775, true);
+            }
+            file_put_contents($previewDir.'/evaluation-index.html', $html);
+        }
+        $document = new \DOMDocument;
+        @$document->loadHTML($html);
+        $icons = (new \DOMXPath($document))->query('//svg[contains(concat(" ", normalize-space(@class), " "), " profile-icon ")]');
+        $this->assertGreaterThan(0, $icons->length);
+        foreach ($icons as $icon) {
+            $this->assertSame('20', $icon->getAttribute('width'));
+            $this->assertSame('20', $icon->getAttribute('height'));
+        }
+    }
+
     private function preview(string $name, string $bytes): void
     {
         if ($dir = getenv('TEACHER_EVALUATION_PREVIEW_DIR')) {

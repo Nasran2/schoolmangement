@@ -17,6 +17,9 @@
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @if(request()->routeIs('teacher-evaluations.*', 'hr.teachers.*'))
+            @include('teacher-evaluations.styles')
+        @endif
     </head>
     <body class="font-sans antialiased">
         <div class="min-h-screen bg-gray-100">

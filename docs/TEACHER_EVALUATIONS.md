@@ -58,3 +58,18 @@ Three dedicated sample teacher profiles are created as inactive, with zero salar
 Run `php artisan migrate --force`. The migrations add the evaluation table, optional supervisor names, permissions and role assignments. Fresh installations also receive the role through `RbacSeeder`; do not rerun that general seeder just to install this module because its existing behavior resets default login accounts.
 
 Verification covers permissions, nonfinancial directory projections, scoring and bands, drafts and completion, duplicate annual years, concurrent edits, repeatable events and rows, signatures and follow-up, filters and range boundaries, safe XLSX text, template formulas, real PDF/XLSX generation and administrator access. Browser checks cover live scores, repeated entries and retained data after validation. PDF and worksheet previews are visually reviewed with synthetic test data.
+
+### Layout styles on shared hosting
+
+The application layout includes `teacher-evaluations.styles` in the page head for
+`teacher-evaluations.*` and `hr.teachers.*` routes. It renders the canonical
+`resources/css/teacher-evaluations.css` directly, so these screens remain styled
+when the hosted Vite CSS build is older. The source remains shared with the Vite
+import; no second stylesheet copy needs maintaining. An unreadable stylesheet is
+skipped instead of causing a server error.
+
+Reusable profile SVGs have intrinsic width/height attributes of 20 pixels as a
+fallback when custom CSS is unavailable. Contextual CSS can still size them for
+buttons, cards and navigation. This prevents download icons from expanding to
+fill the entire content area. The regression test checks styles are in the head
+on evaluation lists, forms and teacher profiles, plus bounded icon defaults.

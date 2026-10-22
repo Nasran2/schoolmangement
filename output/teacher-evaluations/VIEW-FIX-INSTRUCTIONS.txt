@@ -1,0 +1,32 @@
+TEACHER EVALUATION VIEW FIX - NO TERMINAL REQUIRED
+
+CAUSE
+The hosted CSS build does not contain the evaluation/profile stylesheet. The
+unsized download SVG therefore fills the page, displacing templates and filters.
+This patch gives icons a safe default size and supplies evaluation styles directly
+from their source file, even when the compiled CSS on the server is older.
+
+INSTALL THROUGH CPANEL FILE MANAGER
+
+1. Upload teacher-evaluations-view-fix.zip into the Laravel application folder:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract it there, overwriting matching files. The ZIP already contains the
+   resources/ directory, so do not extract it inside resources/ a second time.
+
+3. Open storage/framework/views/ in the same application folder. Delete only the
+   compiled .php files inside. Keep the folder and .gitignore. Do not delete
+   resources/views/ or other storage folders.
+
+4. Hard-refresh Teacher Evaluations: Command + Shift + R on Mac, Ctrl + F5 on
+   Windows. The download arrow should be a small icon beside "Download a blank
+   form", with the Annual appraisal/Event review cards and filters below.
+
+INCLUDED APPLICATION FILES
+resources/views/layouts/app.blade.php
+resources/views/components/profile-icon.blade.php
+resources/views/teacher-evaluations/styles.blade.php
+resources/css/teacher-evaluations.css
+
+No Terminal, database migration or JavaScript/CSS rebuild is required.
+The upload does not change evaluation records, teacher data or permissions.

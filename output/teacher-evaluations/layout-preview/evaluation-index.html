@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="2V4xxDyPdXAQmfpvAWec0HYjqpGqFZ7uWuptTLMu">
+
+        <title>Laravel</title>
+
+        
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+
+        <!-- Scripts -->
+        <link rel="preload" as="style" href="http://localhost/build/assets/app-bn267Wj5.css" /><link rel="preload" as="style" href="http://localhost/build/assets/app-DyLtjqsc.css" /><link rel="modulepreload" as="script" href="http://localhost/build/assets/app-BJeF-ZFT.js" /><link rel="stylesheet" href="http://localhost/build/assets/app-bn267Wj5.css" /><link rel="stylesheet" href="http://localhost/build/assets/app-DyLtjqsc.css" /><script type="module" src="http://localhost/build/assets/app-BJeF-ZFT.js"></script>                    <style id="teacher-evaluation-styles">
+        .evaluation-sheet { border-color: #ded8eb; }
+.evaluation-form .evaluation-details-section { border-color: #ded8eb; border-top: 4px solid #7566a8; box-shadow: 0 2px 8px #29166f05; }
+.evaluation-section-label { color: #29166f; font-size: 1.1rem; font-weight: 700; }
+.evaluation-sheet-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1.25rem 1.5rem; background: #f1edf9; border-top: 4px solid #7566a8; }
+.evaluation-sheet-heading h3 { color: #29166f; font-weight: 700; font-size: 1.05rem; }
+.evaluation-sheet-heading p { margin-top: .3rem; font-size: .85rem; color: #685d80; }
+.evaluation-add-row { background: #29166f; color: white; border-radius: .5rem; padding: .65rem 1rem; font-size: .8rem; font-weight: 600; }
+.evaluation-add-row:hover { background: #493582; }
+.evaluation-add-row:disabled { opacity: .5; cursor: not-allowed; }
+.evaluation-scroll-hint { margin: 0; padding: .7rem 1.5rem; color: #7566a8; background: #faf9fd; font-size: .75rem; }
+.evaluation-grid-scroll { overflow: auto; max-height: 75vh; scrollbar-color: #b6a8da #f1edf9; }
+.evaluation-grid-scroll:focus-visible { outline: 2px solid #7566a8; outline-offset: -2px; }
+.evaluation-entry-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: .8rem; line-height: 1.5; }
+.annual-entry-table { min-width: 1400px; }
+.evidence-entry-table { min-width: 1510px; }
+.development-entry-table { min-width: 1370px; }
+.evaluation-entry-table thead th { position: sticky; top: 0; z-index: 2; background: #29166f; color: #fff; text-align: left; padding: .85rem .65rem; font-size: .75rem; font-weight: 600; border-right: 1px solid #51418b; }
+.evaluation-entry-table tbody th, .evaluation-entry-table tbody td { padding: .65rem; vertical-align: top; border-right: 1px solid #e3deee; border-bottom: 1px solid #e3deee; background: #fff; }
+.evaluation-entry-table tbody tr:nth-child(even) th, .evaluation-entry-table tbody tr:nth-child(even) td { background: #f4f5f7; }
+.evaluation-entry-table tbody th { text-align: left; color: #362563; font-weight: 600; }
+.evaluation-entry-table tbody tr:focus-within th, .evaluation-entry-table tbody tr:focus-within td { background: #f5f1ff; }
+.evaluation-entry-table textarea, .evaluation-entry-table input, .evaluation-entry-table select { width: 100%; min-width: 0; background: #fff; border: 1px solid #d6cde7; border-radius: .35rem; padding: .5rem; font-size: .8rem; line-height: 1.5; color: #302640; }
+.evaluation-entry-table textarea { min-height: 95px; resize: vertical; }
+.evaluation-entry-table textarea:focus, .evaluation-entry-table input:focus, .evaluation-entry-table select:focus { border-color: #7566a8; outline: 2px solid #d9cff0; outline-offset: 1px; --tw-ring-color: transparent; }
+.evaluation-entry-table textarea::placeholder { color: #a39aaf; }
+.evaluation-entry-table .evaluation-rating { background: #fff9e9; }
+.evaluation-entry-table .evaluation-calculated { background: #f1edf9; text-align: center; color: #493582; font-weight: 700; padding-top: 1.2rem; }
+.evaluation-entry-table .evaluation-row-number, .evaluation-entry-table .evaluation-weight { color: #7566a8; font-weight: 600; text-align: center; }
+.evaluation-standard { color: #71697c; }
+.evaluation-entry-table tfoot th, .evaluation-entry-table tfoot td { padding: 1rem; background: #29166f; color: #fff; text-align: left; font-weight: 600; }
+.evaluation-remove-row { color: #a33d64; background: #fceef3; padding: .4rem .5rem; border-radius: .35rem; font-size: .75rem; }
+.evaluation-remove-row:hover { background: #f8dae6; }
+.evaluation-sheet-note { padding: .85rem 1.5rem; color: #685d80; font-size: .75rem; background: #faf9fd; }
+.evaluation-entry-table .evaluation-empty { padding: 2rem; text-align: center; color: #7566a8; }
+.evaluation-preview { border-color: #ded8eb; box-shadow: 0 4px 24px #29166f08; }
+.evaluation-preview .evaluation-report .worksheet { font-size: 12px; }
+.evaluation-preview .evaluation-report .criteria { font-size: 12px; line-height: 1.5; }
+.evaluation-preview .evaluation-report .criteria th, .evaluation-preview .evaluation-report .worksheet th { font-size: 11px; }
+@media (max-width: 640px) { .evaluation-sheet-heading { padding: 1rem; } .evaluation-scroll-hint, .evaluation-sheet-note { padding-left: 1rem; padding-right: 1rem; } }
+
+.evaluation-entry-table thead th:first-child { left: 0; z-index: 5; }
+.evaluation-entry-table thead th:nth-child(2) { left: 45px; z-index: 5; }
+.evaluation-entry-table tbody td:first-child { position: sticky; left: 0; z-index: 3; }
+.evaluation-entry-table tbody th:nth-child(2), .evaluation-entry-table tbody td:nth-child(2) { position: sticky; left: 45px; z-index: 3; box-shadow: 3px 0 5px #29166f08; }
+
+/* Teacher profile and reusable template downloads. */
+.profile-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.teacher-profile { max-width: 1440px; margin: 0 auto; padding: 28px 0 36px; color: #272338; }
+.teacher-profile-hero { position: relative; overflow: hidden; border: 1px solid #e0d8ef; border-radius: 18px; background: linear-gradient(115deg, #f1ecfc 0%, #faf8ff 38%, #fff 80%); box-shadow: 0 4px 18px #29166f05; }
+.teacher-profile-hero::before { content: ''; display: block; height: 4px; background: linear-gradient(90deg, #493084, #9785c4 55%, #75b9b1); }
+.teacher-profile-identity { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; padding: 28px; }
+.teacher-profile-avatar { display: flex; justify-content: center; align-items: center; width: 76px; height: 76px; flex-shrink: 0; color: #fff; background: #493084; border: 5px solid #fff; border-radius: 22px; box-shadow: 0 4px 14px #29166f17; font-size: 24px; font-weight: 700; }
+.teacher-profile-name { flex: 1; min-width: 180px; }
+.teacher-profile-eyebrow { margin-bottom: 4px; font-size: 10px; font-weight: 700; color: #817295; letter-spacing: 1.6px; text-transform: uppercase; }
+.teacher-profile-name h1 { font-size: 25px; line-height: 1.35; font-weight: 700; letter-spacing: -.5px; overflow-wrap: anywhere; color: #302345; }
+.teacher-profile-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 9px; font-size: 13px; color: #797086; }
+.teacher-profile-meta > span { display: inline-flex; gap: 6px; align-items: center; overflow-wrap: anywhere; }
+.teacher-profile-meta .profile-icon { width: 15px; height: 15px; color: #9382af; }
+.teacher-profile-state { display: flex; align-items: flex-end; flex-direction: column; gap: 10px; margin-left: auto; }
+.teacher-profile-state > p { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #968c9f; }
+.teacher-profile-state .profile-icon { width: 12px; height: 12px; }
+.profile-status { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid transparent; line-height: 1.4; }
+.profile-status > span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.profile-status.is-active { color: #17775e; background: #ecf8f2; border-color: #ccebdc; }
+.profile-status.is-inactive { color: #6d6779; background: #f3f1f6; border-color: #e5e0ed; }
+.profile-status.is-draft { color: #aa6c14; background: #fff8e9; border-color: #f1e3bf; }
+.teacher-profile-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 28px; border-top: 1px solid #e7e0f1; background: #ffffffa8; }
+.teacher-profile-primary-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.profile-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 9px; padding: 10px 14px; font-size: 13px; font-weight: 600; line-height: 1.5; transition: background .15s, border-color .15s; }
+.profile-button .profile-icon { width: 16px; height: 16px; }
+.profile-button.is-primary { background: #493084; border-color: #493084; color: white; box-shadow: 0 3px 8px #49308418; }
+.profile-button.is-primary:hover { background: #352264; }
+.profile-button.is-teal { background: #f0f9f6; color: #207966; border-color: #c8e6dc; }
+.profile-button.is-teal:hover { background: #e3f3ec; }
+.profile-button.is-plain { color: #756291; }
+.profile-button.is-plain:hover { background: #f1edf8; }
+.profile-button.is-outline { color: #6c5b82; background: white; border-color: #e0d8eb; }
+.profile-button.is-outline:hover { border-color: #aa94c6; background: #fcfaff; }
+.teacher-profile-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+.tone-purple { --profile-ink: #67499a; --profile-wash: #f1ecfa; --profile-edge: #e5dcf2; }
+.tone-blue { --profile-ink: #4b75aa; --profile-wash: #edf3fc; --profile-edge: #dae6f5; }
+.tone-teal { --profile-ink: #287e70; --profile-wash: #eaf7f2; --profile-edge: #d1e9df; }
+.tone-amber { --profile-ink: #ad7a26; --profile-wash: #fff6e5; --profile-edge: #f3e5c7; }
+.profile-stat { background: white; padding: 17px 19px 16px; border: 1px solid var(--profile-edge); border-radius: 13px; border-top: 3px solid var(--profile-edge); box-shadow: 0 2px 6px #29166f03; }
+.profile-stat-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 600; color: #746b80; }
+.profile-stat-icon, .profile-panel-icon, .profile-history-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--profile-ink); background: var(--profile-wash); border-radius: 11px; flex-shrink: 0; }
+.profile-stat-icon { width: 32px; height: 32px; }
+.profile-stat-icon .profile-icon { width: 17px; height: 17px; }
+.profile-stat-number { margin-top: 3px; font-size: 30px; line-height: 1.2; font-weight: 700; color: var(--profile-ink); letter-spacing: -.5px; }
+.profile-stat-note { margin-top: 6px; font-size: 11px; color: #8d8098; }
+.teacher-profile-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; margin-top: 24px; }
+.teacher-profile-grid.is-single { grid-template-columns: minmax(0, 1fr); }
+.teacher-profile-main, .teacher-profile-aside { display: grid; gap: 24px; min-width: 0; }
+.profile-panel { min-width: 0; background: white; border: 1px solid #e5e1ed; border-radius: 15px; box-shadow: 0 3px 12px #29166f04; overflow: hidden; scroll-margin-top: 24px; }
+.profile-panel-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 11px; padding: 21px 23px; border-bottom: 1px solid #f0edf5; }
+.profile-panel-icon { width: 37px; height: 37px; }
+.profile-panel-heading > div { flex: 1; min-width: 120px; }
+.profile-panel-heading h2, .profile-panel-heading h3 { font-size: 15px; font-weight: 700; color: #3b304c; line-height: 1.4; }
+.profile-panel-heading p { margin-top: 4px; color: #82748e; font-size: 12px; line-height: 1.6; }
+.teacher-profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 20px 23px 23px; }
+.profile-info { display: flex; align-items: flex-start; gap: 11px; padding: 13px 14px; background: #faf9fc; border: 1px solid #f1edf6; border-radius: 10px; min-width: 0; }
+.profile-info-icon { color: #a294b7; padding-top: 2px; }
+.profile-info-icon .profile-icon { width: 17px; height: 17px; }
+.profile-info.is-wide { grid-column: 1 / -1; }
+.profile-info dt { font-size: 11px; letter-spacing: .6px; color: #8c7e99; }
+.profile-info dd { margin-top: 4px; font-size: 14px; line-height: 1.7; color: #5c506b; overflow-wrap: anywhere; }
+.profile-info dd.text-gray-400 { color: #b3a9be; }
+.profile-history-all { display: inline-flex; align-items: center; gap: 5px; color: #80639f; font-size: 11px; font-weight: 600; margin-left: auto; }
+.profile-history-all:hover { color: #493084; }
+.profile-history-all .profile-icon { width: 14px; height: 14px; }
+.profile-history-item { display: flex; align-items: center; gap: 13px; padding: 18px 23px; border-bottom: 1px solid #f1edf6; transition: background .15s; }
+.profile-history-item:last-child { border-bottom: 0; }
+.profile-history-item:hover { background: #fbf9fe; }
+.profile-history-icon { width: 37px; height: 40px; border-radius: 9px; }
+.profile-history-icon .profile-icon { width: 18px; height: 18px; }
+.profile-history-description { flex: 1; min-width: 0; }
+.profile-history-description h3 { font-size: 14px; font-weight: 600; color: #51415f; overflow-wrap: anywhere; }
+.profile-history-description p { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 5px; font-size: 12px; color: #8c7c9a; }
+.profile-history-separator { color: #d0c6da; }
+.profile-history-result { display: flex; align-items: flex-end; flex-direction: column; gap: 5px; }
+.profile-history-score { font-size: 12px; font-weight: 600; color: #76618e; white-space: nowrap; }
+.profile-history-score small { font-size: 9px; font-weight: 400; color: #a89bb4; }
+.profile-history-chevron { width: 13px; height: 13px; color: #c0b3cd; }
+.profile-history-empty { display: flex; flex-direction: column; align-items: center; padding: 35px 20px; text-align: center; }
+.profile-history-empty h3 { margin-top: 14px; font-size: 13px; font-weight: 600; color: #746181; }
+.profile-history-empty p, .profile-history-footnote { color: #a396af; font-size: 11px; line-height: 1.7; }
+.profile-history-empty p { margin-top: 6px; max-width: 280px; }
+.profile-history-footnote { border-top: 1px solid #f1edf6; padding: 13px 23px; background: #fcfbfe; }
+.profile-template-list { display: grid; gap: 13px; padding: 18px; }
+.profile-template-list.is-general { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.profile-template-card { padding: 15px; border: 1px solid var(--profile-edge); border-radius: 11px; background: linear-gradient(135deg, var(--profile-wash), #fff); }
+.profile-template-title { display: flex; align-items: flex-start; gap: 9px; }
+.profile-template-icon { color: var(--profile-ink); padding-top: 1px; }
+.profile-template-icon .profile-icon { width: 18px; height: 18px; }
+.profile-template-title h4 { font-size: 14px; font-weight: 700; color: var(--profile-ink); }
+.profile-template-title p { margin-top: 4px; font-size: 12px; line-height: 1.6; color: #83738f; }
+.profile-template-formats { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+.profile-format-button { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 12px; background: white; border-radius: 7px; border: 1px solid #e9e2ee; font-size: 12px; font-weight: 600; transition: border-color .15s, background .15s; }
+.profile-format-button .profile-icon { width: 15px; height: 15px; }
+.profile-format-button.is-pdf { color: #b96979; }
+.profile-format-button.is-pdf:hover { border-color: #e5bdc7; background: #fff7f9; }
+.profile-format-button.is-xlsx { color: #388e72; }
+.profile-format-button.is-xlsx:hover { border-color: #a9d9c5; background: #f2fbf6; }
+.profile-template-note { display: flex; align-items: center; justify-content: center; gap: 6px; grid-column: 1 / -1; font-size: 10px; color: #8a7a97; line-height: 1.6; }
+.profile-template-note .profile-icon { width: 13px; height: 13px; }
+.profile-review-guide .profile-panel-heading { border-bottom: 0; padding-bottom: 12px; }
+.profile-review-guide .profile-panel-heading h2 { font-size: 14px; }
+.profile-guide-content { display: grid; gap: 17px; padding: 4px 23px 20px; }
+.profile-guide-label { display: inline-block; border-radius: 5px; padding: 3px 7px; color: var(--profile-ink); background: var(--profile-wash); font-size: 10px; font-weight: 600; }
+.profile-guide-content p { margin-top: 7px; font-size: 13px; line-height: 1.75; color: #83738f; }
+.profile-guide-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 23px; border-top: 1px solid #f0ebf7; color: #80639f; font-size: 11px; font-weight: 600; background: #fcfaff; }
+.profile-guide-link:hover { color: #493084; background: #f4effb; }
+.profile-guide-link .profile-icon { width: 14px; height: 14px; }
+.teacher-profile a:focus-visible, .profile-templates a:focus-visible { outline: 2px solid #8e76b4; outline-offset: 3px; }
+@media (min-width: 1600px) { .teacher-profile-grid { grid-template-columns: minmax(0, 1fr) 370px; } }
+@media (max-width: 1150px) { .teacher-profile-grid { grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; } .teacher-profile-main, .teacher-profile-aside { gap: 18px; } .teacher-profile-fields { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 850px) { .teacher-profile-grid { grid-template-columns: minmax(0, 1fr); } .teacher-profile-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-profile-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .teacher-profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .profile-stat-note { font-size: 11px; } }
+@media (max-width: 600px) { .teacher-profile { padding-top: 18px; } .teacher-profile-identity { padding: 20px; gap: 14px; align-items: flex-start; } .teacher-profile-avatar { width: 59px; height: 59px; border-radius: 18px; border-width: 3px; font-size: 19px; } .teacher-profile-name { min-width: 140px; } .teacher-profile-name h1 { font-size: 20px; } .teacher-profile-state { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; } .teacher-profile-actions { padding: 16px 20px; } .teacher-profile-primary-actions { width: 100%; } .teacher-profile-primary-actions > .profile-button { flex: 1 1 160px; } .teacher-profile-stats { gap: 12px; margin-top: 16px; } .profile-stat { padding: 14px; } .profile-stat-note { display: none; } .profile-stat-top { font-size: 11px; } .profile-stat-number { font-size: 27px; margin-top: 7px; } .teacher-profile-grid { margin-top: 18px; } .teacher-profile-fields { grid-template-columns: minmax(0, 1fr); padding: 16px; } .teacher-profile-aside { grid-template-columns: minmax(0, 1fr); } .profile-panel-heading { padding: 18px; } .profile-history-item { gap: 10px; padding: 16px; flex-wrap: wrap; } .profile-history-description { flex-basis: calc(100% - 60px); } .profile-history-result { flex-direction: row; align-items: center; margin-left: 47px; } .profile-history-chevron { margin-left: auto; } .profile-template-list.is-general { grid-template-columns: minmax(0, 1fr); } }
+
+.evaluation-save-dialog { width: min(560px, calc(100% - 32px)); max-height: calc(100vh - 48px); margin: auto; padding: 0; border: 1px solid #e6dced; border-radius: 16px; box-shadow: 0 20px 80px #25143938; color: #41374f; background: white; }
+.evaluation-save-dialog::backdrop { background: #241b3b77; backdrop-filter: blur(2px); }
+.evaluation-save-dialog-header { display: flex; align-items: flex-start; gap: 13px; padding: 24px 24px 18px; background: #fffbf2; border-bottom: 1px solid #f2e8d6; }
+.evaluation-save-warning-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 38px; height: 38px; border-radius: 12px; background: #fcedc7; color: #a47416; font-size: 23px; font-weight: 700; }
+.evaluation-save-dialog h3 { font-size: 17px; font-weight: 700; color: #5d482d; }
+.evaluation-save-dialog-header p { margin-top: 6px; font-size: 13px; line-height: 1.65; color: #8b7962; }
+.evaluation-missing-list { max-height: min(38vh, 330px); overflow: auto; margin: 18px 24px; padding-left: 20px; list-style: disc; font-size: 13px; line-height: 1.65; color: #766380; }
+.evaluation-missing-list li { margin-bottom: 7px; padding-left: 3px; overflow-wrap: anywhere; }
+.evaluation-save-dialog-note { margin: 0 24px 20px; padding: 11px 13px; border-radius: 8px; background: #f5f1fa; color: #8c7a9c; font-size: 11px; line-height: 1.65; }
+.evaluation-save-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; border-top: 1px solid #eee7f3; padding: 16px 24px; }
+.evaluation-return-button, .evaluation-confirm-button { padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; }
+.evaluation-return-button { border: 1px solid #dfd5e9; background: white; color: #867196; }
+.evaluation-confirm-button { border: 1px solid #563986; background: #563986; color: white; }
+.evaluation-return-button:hover { background: #faf7fd; }
+.evaluation-confirm-button:hover { background: #422a6c; }
+.evaluation-confirm-button:disabled { opacity: .6; cursor: wait; }
+.evaluation-save-dialog button:focus-visible { outline: 2px solid #aa92c6; outline-offset: 3px; }
+.evaluation-incomplete-notice { border: 1px solid #eddfbf; background: #fffbf1; color: #8a6a36; padding: 18px 22px; border-radius: 12px; font-size: 13px; line-height: 1.7; }
+.evaluation-incomplete-notice h3, .evaluation-incomplete-notice summary { font-weight: 600; }
+.evaluation-incomplete-notice ul { list-style: disc; padding-left: 20px; margin: 10px 0; }
+
+.evaluation-teacher-picker { min-width: 0; }
+.evaluation-teacher-picker .ts-control { border-color: #d9cfe6; color: #5f4a75; font-size: 14px; line-height: 1.6; }
+.evaluation-teacher-picker .ts-control .item { overflow-wrap: anywhere; }
+.evaluation-teacher-picker .ts-dropdown { border-color: #dfd4eb; box-shadow: 0 8px 24px #29166f14; font-size: 13px; }
+.evaluation-teacher-picker .ts-dropdown .option { padding: 10px 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.evaluation-teacher-picker .ts-dropdown .active { background: #f1eafa; color: #614282; }
+.evaluation-teacher-picker .ts-dropdown .highlight { background: #e5d8f2; border-radius: 2px; }
+
+.evaluation-score-summary { border: 1px solid #ded5ed; border-radius: 16px; overflow: hidden; background: white; box-shadow: 0 3px 12px #29166f05; }
+.evaluation-score-overall { padding: 24px 28px; background: #f2edf9; border-bottom: 1px solid #e5dcef; }
+.evaluation-score-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.evaluation-score-heading h3 { font-size: 14px; font-weight: 600; color: #624a87; }
+.evaluation-score-badge { padding: 3px 9px; border-radius: 20px; background: white; border: 1px solid #ded3ed; font-size: 11px; color: #79668f; }
+.evaluation-score-value { margin-top: 8px; font-size: 40px; font-weight: 700; letter-spacing: -1px; line-height: 1.2; color: #392269; font-variant-numeric: tabular-nums; }
+.evaluation-score-value span { font-size: 23px; font-weight: 500; letter-spacing: 0; color: #9280ab; }
+.evaluation-score-band { margin-top: 6px; font-size: 14px; font-weight: 600; color: #65468f; }
+.evaluation-score-note { margin-top: 8px; font-size: 12px; line-height: 1.7; color: #80718f; max-width: 700px; }
+.evaluation-score-supervisors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.evaluation-score-reviewer { padding: 20px 24px; min-width: 0; border-right: 1px solid #eee8f4; }
+.evaluation-score-reviewer:last-child { border-right: 0; }
+.evaluation-score-reviewer h4 { font-size: 12px; font-weight: 600; color: #766586; }
+.evaluation-score-reviewer-name { margin-top: 4px; font-size: 12px; color: #9c8da9; overflow-wrap: anywhere; }
+.evaluation-score-points { margin-top: 12px; font-size: 23px; font-weight: 700; color: #6e558b; font-variant-numeric: tabular-nums; }
+.evaluation-score-points span { font-size: 13px; font-weight: 400; color: #a396af; }
+.evaluation-score-progress { margin-top: 5px; font-size: 11px; color: #95849f; }
+.evaluation-score-reviewer.is-complete .evaluation-score-progress { color: #398573; }
+@media (max-width: 600px) { .evaluation-score-overall { padding: 20px; } .evaluation-score-value { font-size: 34px; } .evaluation-score-supervisors { grid-template-columns: minmax(0, 1fr); } .evaluation-score-reviewer { padding: 16px 20px; border-right: 0; border-bottom: 1px solid #eee8f4; } .evaluation-score-reviewer:last-child { border-bottom: 0; } }
+
+    </style>
+            </head>
+    <body class="font-sans antialiased">
+        <div class="min-h-screen bg-gray-100">
+            <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 hidden lg:flex lg:flex-col">
+    <div class="px-5 py-5 border-b border-gray-200">
+        <div class="flex items-center gap-3">
+            <div class="relative inline-flex items-center justify-center">
+                <div class="inline-flex items-center justify-center rounded-md bg-gray-200 text-gray-700 font-semibold relative h-10 w-10 fill-current text-gray-700" aria-label="Laravel logo">
+        <span>L</span>
+    </div>
+            </div>
+            <div class="min-w-0">
+                <div class="text-sm font-semibold text-gray-900 truncate">
+                    Laravel
+                </div>
+                <div class="text-xs text-gray-600 truncate">
+                    HR admin · Carmella Ernser
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ menus: { revenue: false, expense: false, students: false, teachers: false, reports: false, classrooms: false, settings: false, evaluations: true, seminars: false, extraClasses: false } }">
+        
+        
+        
+        
+        
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/students" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21v-2a6 6 0 0112 0v2m1-7a5 5 0 015 5v2"/></svg><span>Students</span></a>
+        <button type="button" aria-label="Toggle Students menu" @click="menus.students = !menus.students" :aria-expanded="menus.students.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.students ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.students" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/students">Student Details</a>
+                                                                                                </div>
+            </div>
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/teachers" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0116 0v2"/></svg><span>Teachers</span></a>
+        <button type="button" aria-label="Toggle Teachers menu" @click="menus.teachers = !menus.teachers" :aria-expanded="menus.teachers.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.teachers ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.teachers" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/teachers">Teacher Details</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-evaluations">Evaluation reports</a>
+                                                                                                                                                            </div>
+            </div>
+        
+        <div class="mt-2">
+        <div class="flex items-center rounded-lg bg-indigo-50 text-indigo-700">
+            <a href="http://localhost/teacher-evaluations" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4H5v17h14V4h-4M9 3h6v4H9zM8 12h8M8 16h8"/></svg><span>Evaluations</span></a>
+        <button type="button" aria-label="Toggle Evaluations menu" @click="menus.evaluations = !menus.evaluations" :aria-expanded="menus.evaluations.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.evaluations ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+        <div x-show="menus.evaluations" class="mt-1 ml-5 space-y-1 border-l border-gray-200 pl-3" x-cloak>
+            <a class="block rounded-md px-3 py-2 text-sm bg-indigo-50 text-indigo-700 font-medium" href="http://localhost/teacher-evaluations">All evaluations</a>
+                            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=annual">Add annual appraisal</a>
+                <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=event">Add event review</a>
+                        <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/hr/teachers">Browse teachers</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations#templates">Download templates</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/instructions">How to use evaluations</a>
+        </div>
+    </div>
+
+        
+        
+        
+        
+        
+        
+        
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <form method="POST" action="http://localhost/logout">
+                <input type="hidden" name="_token" value="2V4xxDyPdXAQmfpvAWec0HYjqpGqFZ7uWuptTLMu" autocomplete="off">                <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    <span>Logout</span>
+                </button>
+            </form>
+        </div>
+    </nav>
+</aside>
+
+<!-- Mobile sidebar -->
+<div x-data="{ open: false }" class="lg:hidden">
+    <div class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200">
+        <div class="h-14 px-4 flex items-center justify-between">
+            <button type="button" @click="open = true" class="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+            </button>
+            <div class="text-sm font-semibold text-gray-900 truncate">Laravel</div>
+            <div class="w-10"></div>
+        </div>
+    </div>
+
+    <div x-show="open" class="fixed inset-0 z-50" x-cloak>
+        <div class="absolute inset-0 bg-black/30" @click="open = false"></div>
+        <div class="absolute inset-y-0 left-0 w-64 bg-white border-r border-gray-200 overflow-y-auto">
+            <div class="px-5 py-5 border-b border-gray-200 flex items-center justify-between">
+                <div class="text-sm font-semibold text-gray-900 truncate">Laravel</div>
+                <button type="button" @click="open = false" class="p-2 rounded-md text-gray-600 hover:bg-gray-100">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6"/><path d="M6 6l12 12"/></svg>
+                </button>
+            </div>
+    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ menus: { revenue: false, expense: false, students: false, teachers: false, reports: false, classrooms: false, settings: false, evaluations: true, seminars: false, extraClasses: false } }">
+        
+        
+        
+        
+        
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/students" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21v-2a6 6 0 0112 0v2m1-7a5 5 0 015 5v2"/></svg><span>Students</span></a>
+        <button type="button" aria-label="Toggle Students menu" @click="menus.students = !menus.students" :aria-expanded="menus.students.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.students ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.students" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/students">Student Details</a>
+                                                                                                </div>
+            </div>
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/teachers" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0116 0v2"/></svg><span>Teachers</span></a>
+        <button type="button" aria-label="Toggle Teachers menu" @click="menus.teachers = !menus.teachers" :aria-expanded="menus.teachers.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.teachers ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.teachers" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/teachers">Teacher Details</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-evaluations">Evaluation reports</a>
+                                                                                                                                                            </div>
+            </div>
+        
+        <div class="mt-2">
+        <div class="flex items-center rounded-lg bg-indigo-50 text-indigo-700">
+            <a href="http://localhost/teacher-evaluations" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4H5v17h14V4h-4M9 3h6v4H9zM8 12h8M8 16h8"/></svg><span>Evaluations</span></a>
+        <button type="button" aria-label="Toggle Evaluations menu" @click="menus.evaluations = !menus.evaluations" :aria-expanded="menus.evaluations.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.evaluations ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+        <div x-show="menus.evaluations" class="mt-1 ml-5 space-y-1 border-l border-gray-200 pl-3" x-cloak>
+            <a class="block rounded-md px-3 py-2 text-sm bg-indigo-50 text-indigo-700 font-medium" href="http://localhost/teacher-evaluations">All evaluations</a>
+                            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=annual">Add annual appraisal</a>
+                <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=event">Add event review</a>
+                        <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/hr/teachers">Browse teachers</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations#templates">Download templates</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/instructions">How to use evaluations</a>
+        </div>
+    </div>
+
+        
+        
+        
+        
+        
+        
+        
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <form method="POST" action="http://localhost/logout">
+                <input type="hidden" name="_token" value="2V4xxDyPdXAQmfpvAWec0HYjqpGqFZ7uWuptTLMu" autocomplete="off">                <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    <span>Logout</span>
+                </button>
+            </form>
+        </div>
+    </nav>
+        </div>
+    </div>
+</div>
+
+            <div class="lg:pl-64">
+                <div class="hidden lg:block">
+    <div class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+        <div class="flex items-center gap-3">
+            <div class="inline-flex items-center justify-center rounded-md bg-gray-200 text-gray-700 font-semibold h-8 w-8 rounded-md object-cover" aria-label="Laravel logo">
+        <span>L</span>
+    </div>
+            <div>
+                <div class="text-sm text-gray-600">Welcome,</div>
+                <div class="text-lg font-semibold text-gray-900">Carmella Ernser</div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <div class="text-right">
+                
+                <div id="colombo_time" class="text-sm font-medium text-gray-900">22-10-2026 20:45</div>
+            </div>
+            <form method="POST" action="http://localhost/academic-year" class="flex items-center gap-2">
+                <input type="hidden" name="_token" value="2V4xxDyPdXAQmfpvAWec0HYjqpGqFZ7uWuptTLMu" autocomplete="off">                <label for="academic_year" class="text-sm text-gray-600">Select Academic Year</label>
+                <select
+                    id="academic_year"
+                    name="academic_year"
+                    class="border-gray-300 rounded-md shadow-sm text-sm"
+                    onchange="this.form.submit()"
+                >
+                                            <option value="2024-2025" >2024-2025</option>
+                                            <option value="2025-2026" >2025-2026</option>
+                                            <option value="2026-2027" selected>2026-2027</option>
+                                            <option value="2027-2028" >2027-2028</option>
+                                            <option value="2028-2029" >2028-2029</option>
+                                            <option value="2029-2030" >2029-2030</option>
+                                            <option value="2030-2031" >2030-2031</option>
+                                    </select>
+            </form>
+
+
+
+            <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100" title="Notifications">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+                    <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+            </button>
+
+            <div class="relative" x-data="{ open: false }" @click.outside="open = false" @close.stop="open = false">
+    <div @click="open = ! open">
+        <button class="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-gray-700">
+                            C
+                        </span>
+                        <span class="hidden xl:inline">Carmella Ernser</span>
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+    </div>
+
+    <div x-show="open"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="absolute z-50 mt-2 w-48 rounded-md shadow-lg ltr:origin-top-right rtl:origin-top-left end-0"
+            style="display: none;"
+            @click="open = false">
+        <div class="rounded-md ring-1 ring-black ring-opacity-5 py-1 bg-white">
+            <a class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out" href="http://localhost/profile">Profile</a>
+
+                    <form method="POST" action="http://localhost/logout">
+                        <input type="hidden" name="_token" value="2V4xxDyPdXAQmfpvAWec0HYjqpGqFZ7uWuptTLMu" autocomplete="off">                        <a class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out" href="http://localhost/logout" onclick="event.preventDefault(); this.closest('form').submit();">Log Out</a>
+                    </form>
+        </div>
+    </div>
+</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const el = document.getElementById('colombo_time');
+        if (!el) return;
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false, timeZone: 'Asia/Colombo'
+        });
+        const startClient = Date.now();
+        // Server timestamp in ms for accuracy across timezones
+        const serverTs = 1792682136557;
+        function tick() {
+            const elapsed = Date.now() - startClient;
+            const d = new Date(serverTs + elapsed);
+            el.textContent = formatter.format(d).replace(',', '');
+        }
+        tick();
+        setInterval(tick, 1000);
+    })();
+</script>
+
+                <main class="pt-14 lg:pt-0">
+                                            <div class="bg-white border-b border-gray-200">
+                            <div class="px-4 sm:px-6 lg:px-8 py-4">
+                                <div class="flex flex-wrap items-center justify-between gap-4"><div><h2 class="text-2xl font-semibold">Teacher Evaluations</h2><p class="text-sm text-gray-600 mt-1">Annual appraisals and event evidence, feedback and development plans.</p></div><a class="text-indigo-600 underline" href="http://localhost/teacher-evaluations/instructions">English instructions</a></div>
+                            </div>
+                        </div>
+                    
+                    <div class="px-4 sm:px-6 lg:px-8">
+                        <div class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+                        <div class="flex flex-wrap gap-3">
+            <a href="http://localhost/teacher-evaluations/create?type=annual" class="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-semibold">New annual appraisal</a><a href="http://localhost/teacher-evaluations/create?type=event" class="rounded-lg bg-gray-800 text-white px-4 py-2 text-sm font-semibold">New event review</a>        </div>
+        <section id="templates" class="profile-panel profile-templates">
+        <div class="profile-panel-heading"><span class="profile-panel-icon tone-purple"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 001 1h14a1 1 0 001-1v-4"/></svg>
+</span><div><h3>Download a blank form</h3><p>Print a form, complete it by hand, then enter the details.</p></div></div>
+        <div class="profile-template-list is-general">
+                            <div class="profile-template-card tone-purple">
+                    <div class="profile-template-title"><span class="profile-template-icon"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9zM14 3v6h6M8 13h8M8 17h5"/>
+    </svg>
+</span><div><h4>Annual appraisal</h4><p>13 performance areas with up to 3 supervisors.</p></div></div>
+                    <div class="profile-template-formats">
+                                                    <a href="http://localhost/teacher-evaluations/template?type=annual&amp;format=pdf" class="profile-format-button is-pdf" aria-label="Download Annual appraisal template as PDF"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 001 1h14a1 1 0 001-1v-4"/></svg>
+<span>PDF</span></a>
+                                                    <a href="http://localhost/teacher-evaluations/template?type=annual&amp;format=xlsx" class="profile-format-button is-xlsx" aria-label="Download Annual appraisal template as Excel"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 001 1h14a1 1 0 001-1v-4"/></svg>
+<span>Excel</span></a>
+                                            </div>
+                </div>
+                            <div class="profile-template-card tone-teal">
+                    <div class="profile-template-title"><span class="profile-template-icon"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2"/></svg>
+</span><div><h4>Event review</h4><p>Evidence, feedback and development actions.</p></div></div>
+                    <div class="profile-template-formats">
+                                                    <a href="http://localhost/teacher-evaluations/template?type=event&amp;format=pdf" class="profile-format-button is-pdf" aria-label="Download Event review template as PDF"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 001 1h14a1 1 0 001-1v-4"/></svg>
+<span>PDF</span></a>
+                                                    <a href="http://localhost/teacher-evaluations/template?type=event&amp;format=xlsx" class="profile-format-button is-xlsx" aria-label="Download Event review template as Excel"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 3v12m-4-4 4 4 4-4M4 16v4a1 1 0 001 1h14a1 1 0 001-1v-4"/></svg>
+<span>Excel</span></a>
+                                            </div>
+                </div>
+                        <p class="profile-template-note"><svg width="20" height="20" class="profile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9zM14 3v6h6M8 13h8M8 17h5"/>
+    </svg>
+Includes writing spaces and English instructions.</p>
+        </div>
+    </section>
+        <form method="GET" action="http://localhost/teacher-evaluations" class="bg-white border rounded-xl p-5 space-y-4">
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div><label class="block text-sm mb-1" for="type">Report type</label><select class="w-full rounded-md border-gray-300" name="type" id="type"><option value="">All types</option><option value="annual" >Annual appraisal</option><option value="event" >Event review</option></select></div>
+                <div><label class="block text-sm mb-1" for="teacher_id">Teacher</label><select class="w-full rounded-md border-gray-300" name="teacher_id" id="teacher_id"><option value="">All teachers</option><option value="1" >Kurt Hoeger</option></select></div>
+                <div>
+    <label for="field_year" class="block text-sm font-medium text-gray-700 mb-1">Appraisal year (annual reports only)</label>
+            <input id="field_year" name="year" type="number" value="" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" min="2000" max="2100">
+        </div>
+                <div><label class="block text-sm mb-1" for="section">Section</label><select class="w-full rounded-md border-gray-300" name="section" id="section"><option value="">All sections</option><option >Preschool</option><option >Primary</option><option >Secondary</option><option >Other</option></select></div>
+                <div><label class="block text-sm mb-1" for="status">Status</label><select class="w-full rounded-md border-gray-300" name="status" id="status"><option value="">All statuses</option><option value="draft" >Draft</option><option value="completed" >Completed</option></select></div>
+                <div>
+    <label for="field_q" class="block text-sm font-medium text-gray-700 mb-1">Teacher, staff ID, evaluator or event</label>
+            <input id="field_q" name="q" type="text" value="" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" maxlength="120">
+        </div>
+                <div>
+    <label for="field_event_from" class="block text-sm font-medium text-gray-700 mb-1">Event date from</label>
+            <input id="field_event_from" name="event_from" type="date" value="" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+                <div>
+    <label for="field_event_to" class="block text-sm font-medium text-gray-700 mb-1">Event date to</label>
+            <input id="field_event_to" name="event_to" type="date" value="" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+                <div>
+    <label for="field_review_from" class="block text-sm font-medium text-gray-700 mb-1">Review date from</label>
+            <input id="field_review_from" name="review_from" type="date" value="" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+                <div>
+    <label for="field_review_to" class="block text-sm font-medium text-gray-700 mb-1">Review date to</label>
+            <input id="field_review_to" name="review_to" type="date" value="" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+        </div>
+                <div><label class="block text-sm mb-1" for="follow_up">Follow-up</label><select class="w-full rounded-md border-gray-300" name="follow_up" id="follow_up"><option value="">All follow-ups</option><option value="overdue" >Overdue</option><option value="completed" >Reviewed / completed</option></select></div>
+            </div>
+            <p class="text-xs text-gray-500">Appraisal year restricts results to annual reports. Event dates restrict results to event reports. Leave either blank to include both report types.</p>
+            <div class="flex flex-wrap items-center gap-4"><button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+    Apply filters
+</button>
+<a href="http://localhost/teacher-evaluations" class="text-sm underline">Reset filters</a><button formaction="http://localhost/teacher-evaluations/export" name="format" value="pdf" class="rounded-md border px-4 py-2 text-sm">Export filtered PDF</button><button formaction="http://localhost/teacher-evaluations/export" name="format" value="xlsx" class="rounded-md border px-4 py-2 text-sm">Export filtered Excel</button></div>
+        </form>
+        <p class="text-sm text-gray-500">0 matching evaluation(s). Exports include the full matching reports (up to 100 per export).</p>
+        <div class="bg-white border rounded-xl overflow-x-auto"><table class="w-full text-sm"><thead class="bg-gray-50 text-left"><tr><th class="p-4">Teacher / section</th><th class="p-4">Report</th><th class="p-4">Evaluator / review date</th><th class="p-4">Status / score</th><th class="p-4">Follow-up</th><th class="p-4"></th></tr></thead><tbody class="divide-y">
+            <tr><td class="p-8 text-center text-gray-500" colspan="6">No evaluations match these filters.</td></tr>        </tbody></table></div>
+    </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+            </body>
+</html>
