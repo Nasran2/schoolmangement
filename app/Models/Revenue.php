@@ -26,6 +26,9 @@ class Revenue extends Model
         'paid_at',
         'notes',
         'created_by',
+        'class_fee_schedule_id',
+        'class_fee_due_date',
+        'class_fee_submission_id',
     ];
 
     protected $casts = [
@@ -35,6 +38,7 @@ class Revenue extends Model
         'cancelled_at' => 'datetime',
         'payment_meta' => 'array',
         'amount' => 'decimal:2',
+        'class_fee_due_date' => 'date',
     ];
 
     protected static function booted()
@@ -47,6 +51,11 @@ class Revenue extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(RevenueCategory::class, 'revenue_category_id');
+    }
+
+    public function classFeeSchedule(): BelongsTo
+    {
+        return $this->belongsTo(ClassFeeSchedule::class);
     }
 
     public function student(): BelongsTo

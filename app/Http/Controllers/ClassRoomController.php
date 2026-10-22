@@ -4,12 +4,31 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassRoom;
 use App\Models\RevenueCategory;
+use App\Services\Billing\ClassFeeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ClassRoomController extends Controller
 {
+    private function feeRules(Request $request): array
+    {
+        $rules = [];
+        foreach (['exam', 'facility'] as $type) {
+            $rules[$type.'_fee'] = ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'];
+            $rules[$type.'_fee_start_date'] = [Rule::requiredIf(fn () => (float) $request->input($type.'_fee', 0) > 0), 'nullable', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'];
+        }
+
+        $rules['exam_terms'] = ['nullable', 'array', 'size:3'];
+        $rules['exam_terms.*.start'] = ['required_with:exam_terms', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'];
+        $rules['exam_terms.*.end'] = ['required_with:exam_terms', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'];
+
+        return $rules;
+    }
+
     private function nextAvailableLevel(): int
     {
         $levels = ClassRoom::query()
@@ -76,7 +95,8 @@ class ClassRoomController extends Controller
         return view('classrooms.create', [
             'monthlyCategories' => RevenueCategory::query()
                 ->where('active', true)
-                ->whereNotNull('interval_months')
+                ->whereNull('class_fee_type')
+                ->where(fn ($q) => $q->where('interval_months', 1)->orWhere('payment_type', 'monthly'))
                 ->orderBy('name')
                 ->get(),
             'suggestedLevel' => $this->nextAvailableLevel(),
@@ -85,13 +105,13 @@ class ClassRoomController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        $data = $request->validate($this->feeRules($request) + [
             'name' => ['required', 'string', 'max:255', 'unique:class_rooms,name'],
             'level' => ['nullable', 'integer', 'min:0', 'unique:class_rooms,level'],
             'description' => ['nullable', 'string', 'max:255'],
             'active' => ['nullable', 'boolean'],
             'monthly_fee' => ['nullable', 'numeric', 'min:0'],
-            'monthly_fee_revenue_category_id' => ['nullable', 'integer', 'exists:revenue_categories,id'],
+            'monthly_fee_revenue_category_id' => ['nullable', 'integer', Rule::exists('revenue_categories', 'id')->whereNull('class_fee_type')],
         ]);
 
         $data['active'] = (bool) ($data['active'] ?? false);
@@ -111,7 +131,10 @@ class ClassRoomController extends Controller
             $data['level'] = $this->nextAvailableLevel();
         }
 
-        ClassRoom::create($data);
+        DB::transaction(function () use ($data) {
+            $class = ClassRoom::create(Arr::except($data, ['exam_fee', 'exam_fee_start_date', 'exam_terms', 'facility_fee', 'facility_fee_start_date']));
+            app(ClassFeeService::class)->configure($class, $data);
+        });
 
         return redirect()->route('classrooms.index')->with('status', 'Class room created.');
     }
@@ -120,9 +143,11 @@ class ClassRoomController extends Controller
     {
         return view('classrooms.edit', [
             'item' => $classroom,
+            'classFeeValues' => app(ClassFeeService::class)->formValues($classroom),
             'monthlyCategories' => RevenueCategory::query()
                 ->where('active', true)
-                ->whereNotNull('interval_months')
+                ->whereNull('class_fee_type')
+                ->where(fn ($q) => $q->where('interval_months', 1)->orWhere('payment_type', 'monthly'))
                 ->orderBy('name')
                 ->get(),
         ]);
@@ -130,13 +155,13 @@ class ClassRoomController extends Controller
 
     public function update(Request $request, ClassRoom $classroom): RedirectResponse
     {
-        $data = $request->validate([
+        $data = $request->validate($this->feeRules($request) + [
             'name' => ['required', 'string', 'max:255', 'unique:class_rooms,name,'.$classroom->id],
             'level' => ['nullable', 'integer', 'min:0', 'unique:class_rooms,level,'.$classroom->id],
             'description' => ['nullable', 'string', 'max:255'],
             'active' => ['nullable', 'boolean'],
             'monthly_fee' => ['nullable', 'numeric', 'min:0'],
-            'monthly_fee_revenue_category_id' => ['nullable', 'integer', 'exists:revenue_categories,id'],
+            'monthly_fee_revenue_category_id' => ['nullable', 'integer', Rule::exists('revenue_categories', 'id')->whereNull('class_fee_type')],
         ]);
 
         $data['active'] = (bool) ($data['active'] ?? false);
@@ -152,13 +177,20 @@ class ClassRoomController extends Controller
                 ->value('id');
         }
 
-        $classroom->update($data);
+        DB::transaction(function () use ($classroom, $data) {
+            ClassRoom::whereKey($classroom->id)->lockForUpdate()->firstOrFail();
+            $classroom->update(Arr::except($data, ['exam_fee', 'exam_fee_start_date', 'exam_terms', 'facility_fee', 'facility_fee_start_date']));
+            app(ClassFeeService::class)->configure($classroom, $data);
+        });
 
         return redirect()->route('classrooms.index')->with('status', 'Class room updated.');
     }
 
     public function destroy(ClassRoom $classroom): RedirectResponse
     {
+        if (\App\Models\ClassFeePaymentHistory::whereHas('classFeeSchedule', fn ($q) => $q->where('class_room_id', $classroom->id))->exists() || \App\Models\Revenue::whereHas('classFeeSchedule', fn ($q) => $q->where('class_room_id', $classroom->id))->exists()) {
+            return back()->withErrors(['classroom' => 'This class has exam or facility fee receipts. Deactivate it to preserve its fee history.']);
+        }
         $classroom->delete();
 
         return redirect()->route('classrooms.index')->with('status', 'Class room deleted.');

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClassRoom extends Model
 {
@@ -45,5 +46,10 @@ class ClassRoom extends Model
     public function students()
     {
         return $this->hasMany(Student::class, 'class_room_id');
+    }
+
+    public function feeSchedules(): HasMany
+    {
+        return $this->hasMany(ClassFeeSchedule::class);
     }
 }

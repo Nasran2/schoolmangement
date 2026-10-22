@@ -50,6 +50,14 @@
                 </div>
             </div>
 
+            @canany(['class_fees.view', 'revenue.add', 'revenue.manage', 'revenue.categories.manage'])
+                <div class="mb-6 bg-white rounded-lg p-5 shadow-sm flex flex-wrap gap-4">
+                    @foreach(\App\Models\ClassFeeSchedule::TYPES as $feeType => $feeLabel)
+                        <a class="rounded-md bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700" href="{{ route('class-fees.index', ['class_room_id' => $classroom->id, 'type' => $feeType]) }}">{{ $feeLabel }} — Paid / Unpaid</a>
+                    @endforeach
+                </div>
+            @endcanany
+
             {{-- Students Table --}}
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">

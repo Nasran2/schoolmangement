@@ -20,6 +20,7 @@ class ModulePermissionCoverageTest extends TestCase
             ['students.manage', 'students.index'], ['students.add', 'students.create'],
             ['teachers.manage', 'teachers.index'], ['teachers.add', 'teachers.create'],
             ['classrooms.view', 'classrooms.index'], ['classrooms.create', 'classrooms.create'],
+            ['class_fees.view', 'class-fees.index'],
             ['revenue.manage', 'revenue.items.index'], ['revenue.add', 'revenue.items.create'],
             ['expense.manage', 'expense.items.index'], ['expense.add', 'expense.items.create'],
             ['revenue.categories.manage', 'revenue.categories.index'], ['expense.categories.manage', 'expense.categories.index'],

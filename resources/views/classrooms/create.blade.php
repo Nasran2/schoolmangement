@@ -42,6 +42,8 @@
                         </div>
                     </div>
 
+                    @include('classrooms.partials.recurring-fees')
+
                     <div>
                         <x-input-label for="description" value="Description" />
                         <x-text-input id="description" name="description" class="mt-1 block w-full" :value="old('description')" />

@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-bold text-2xl text-gray-900">All Outflows</h2>
-                <p class="text-gray-600 text-sm mt-1">Expenses + salary payments + seminar/extra class teacher payouts</p>
+                <p class="text-gray-600 text-sm mt-1">Expenses + salary payments + teacher payouts + owner transfers</p>
             </div>
             <a class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition" href="{{ route('reports.index') }}">← Back to Reports</a>
         </div>

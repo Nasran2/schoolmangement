@@ -24,6 +24,8 @@ class RbacSeeder extends Seeder
         $adminRole = Role::firstOrCreate(['name' => 'Admin']);
         $adminRole->syncPermissions(Permission::all());
 
+        Role::findOrCreate('HR admin', 'web')->syncPermissions(\App\Services\TeacherEvaluations\EvaluationForm::HR_PERMISSIONS);
+
         $developerRole = Role::firstOrCreate(['name' => 'Developer']);
         $developerRole->syncPermissions([]);
 

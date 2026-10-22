@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             RbacSeeder::class,
             DefaultRevenueCategoriesSeeder::class,
             DefaultExpenseCategoriesSeeder::class,
+            CashBalanceSeeder::class,
         ]);
     }
 }

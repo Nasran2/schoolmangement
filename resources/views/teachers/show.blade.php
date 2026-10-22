@@ -5,6 +5,9 @@
     $canAccessSalaryPayments = $canViewSalaryAmounts || (auth()->user()?->can('teachers.salary.pay') ?? false);
     @endphp
     <x-slot name="header">
+        @can('hr.directory.view')
+            <a href="{{ route('hr.teachers.show', $teacher) }}" class="mb-3 inline-flex items-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100">View teacher profile &amp; evaluations <span aria-hidden="true">&rarr;</span></a>
+        @endcan
         <div class="flex items-center justify-between">
             <div>
                 <h2 class="font-bold text-2xl text-gray-900">Teacher Details</h2>

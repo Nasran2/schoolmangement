@@ -144,8 +144,12 @@ class RevenueCategoryController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, RevenueCategory $category, RevenueCategoryScheduleService $schedule): View
+    public function show(Request $request, RevenueCategory $category, RevenueCategoryScheduleService $schedule): View|RedirectResponse
     {
+        if ($category->class_fee_type) {
+            return redirect()->route('class-fees.index', ['type' => $category->class_fee_type]);
+        }
+
         $category->load('classRooms');
 
         $classRoomsQuery = ClassRoom::query()
@@ -258,8 +262,12 @@ class RevenueCategoryController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(RevenueCategory $category): View
+    public function edit(RevenueCategory $category): View|RedirectResponse
     {
+        if ($category->class_fee_type) {
+            return redirect()->route('class-fees.index', ['type' => $category->class_fee_type])
+                ->with('status', 'Set exam and facility fee amounts and starting dates in Class Rooms → Edit.');
+        }
         return view('revenue.categories.edit', [
             'category' => $category,
             'classRooms' => ClassRoom::query()
@@ -276,6 +284,9 @@ class RevenueCategoryController extends Controller
      */
     public function update(Request $request, RevenueCategory $category): RedirectResponse
     {
+        if ($category->class_fee_type) {
+            return back()->withErrors(['category' => 'Set this fee amount and starting date in Class Rooms → Edit to preserve installment history.']);
+        }
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:100', 'unique:revenue_categories,name,'.$category->id],
             'payment_type' => ['required', 'in:monthly,one_time,yearly,2_months,3_months,6_months,custom_months'],
@@ -366,6 +377,9 @@ class RevenueCategoryController extends Controller
      */
     public function destroy(RevenueCategory $category): RedirectResponse
     {
+        if (\App\Models\ClassFeeSchedule::where('revenue_category_id', $category->id)->exists()) {
+            return back()->withErrors(['category' => 'This category is used by class fee schedules. Manage its fees from the class settings.']);
+        }
         RevenueCategory::destroy($category->id);
 
         return redirect()->route('revenue.categories.index')->with('status', 'Revenue category deleted.');

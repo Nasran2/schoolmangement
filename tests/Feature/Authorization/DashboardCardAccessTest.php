@@ -28,6 +28,8 @@ class DashboardCardAccessTest extends TestCase
             ['enrollment_trend', 'Student Enrollment Trend ('],
             ['notifications', 'System Notifications & Reminders'],
             ['recent_activity', 'Filtered audit logs'],
+            ['exam_fees', 'data-fee-widget="exam"'],
+            ['facility_fees', 'data-fee-widget="facility"'],
         ];
     }
 
@@ -46,6 +48,46 @@ class DashboardCardAccessTest extends TestCase
         }
         $user->revokePermissionTo('dashboard.widget.'.$widget.'.view');
         $this->get(route('dashboard'))->assertOk()->assertDontSee($title, false);
+    }
+
+    public function test_financial_cards_and_charts_match_and_exclude_unconfirmed_payments(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::findOrCreate('Admin', 'web'));
+        $category = \App\Models\RevenueCategory::create(['name' => 'Fees', 'payment_type' => 'one_time']);
+        foreach (['confirmed' => 1500, 'hold' => 2000, 'rejected' => 3000] as $status => $amount) {
+            Revenue::create(['revenue_category_id' => $category->id, 'amount' => $amount, 'payment_status' => $status, 'paid_at' => now()->toDateString()]);
+        }
+        $expenseCategory = \App\Models\ExpenseCategory::create(['name' => 'Supplies']);
+        \App\Models\Expense::create(['expense_category_id' => $expenseCategory->id, 'amount' => 500, 'expense_date' => now()->toDateString()]);
+        $teacher = \App\Models\Teacher::create(['name' => 'Paid Teacher', 'salary_amount' => 200, 'active' => true]);
+        \App\Models\TeacherSalaryPayment::create(['teacher_id' => $teacher->id, 'amount' => 200, 'base_salary' => 200, 'paid_at' => now()->toDateString(), 'payment_month' => now()->format('Y-m')]);
+        $this->actingAs($user)->get(route('dashboard', ['range' => 'today']))->assertOk()
+            ->assertViewHas('totalRevenue', 1500.0)->assertViewHas('totalExpenses', 700.0)->assertViewHas('netProfit', 800.0)
+            ->assertViewHas('dashboardData', fn ($data) => array_sum($data['monthly']['revenue']) === 1500.0
+                && array_sum($data['monthly']['expense']) === 700.0
+                && array_sum($data['cashFlow']['data']) === 800.0
+                && array_sum($data['expCats']['data']) === 700.0);
+    }
+
+    public function test_due_cards_use_current_balances_and_full_counts_before_limiting_lists(): void
+    {
+        $user = User::factory()->create();
+        $user->assignRole(Role::findOrCreate('Admin', 'web'));
+        $category = \App\Models\RevenueCategory::create(['name' => 'Monthly Fee', 'payment_type' => 'monthly', 'active' => true]);
+        $class = \App\Models\ClassRoom::create(['name' => 'Grade 1', 'monthly_fee' => 5000, 'monthly_fee_revenue_category_id' => $category->id]);
+        for ($i = 1; $i <= 7; $i++) {
+            \App\Models\Student::create(['admission_number' => 'DUE'.$i, 'name' => 'Due Student '.$i,
+                'class_room_id' => $class->id, 'monthly_fee' => 5000, 'due_amount' => 0,
+                'fee_start_date' => now()->startOfMonth()->toDateString(), 'active' => true]);
+            \App\Models\Teacher::create(['name' => 'Due Teacher '.$i, 'salary_amount' => 1000, 'active' => true]);
+        }
+        \App\Models\Teacher::create(['name' => 'No Salary Teacher', 'salary_amount' => 0, 'active' => true]);
+        $this->actingAs($user)->get(route('dashboard'))->assertOk()
+            ->assertViewHas('dueStudentCount', 7)->assertViewHas('dueTeacherCount', 7)
+            ->assertViewHas('dueStudents', fn ($students) => $students->count() === 5)
+            ->assertViewHas('dueTeachers', fn ($teachers) => $teachers->count() === 5)
+            ->assertViewHas('dueTeachersTotal', 7000.0);
     }
 
     public function test_dashboard_only_access_does_not_expose_chart_data(): void

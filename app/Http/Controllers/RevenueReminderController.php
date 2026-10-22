@@ -23,6 +23,7 @@ class RevenueReminderController extends Controller
 
         $categories = RevenueCategory::query()
             ->where('active', true)
+            ->whereNull('class_fee_type')
             ->orderBy('name')
             ->get();
 

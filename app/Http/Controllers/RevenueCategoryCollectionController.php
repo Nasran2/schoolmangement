@@ -17,8 +17,12 @@ use Illuminate\View\View;
 
 class RevenueCategoryCollectionController extends Controller
 {
-    public function class(Request $request, RevenueCategory $category, ClassRoom $classRoom, RevenueCategoryScheduleService $schedule): View
+    public function class(Request $request, RevenueCategory $category, ClassRoom $classRoom, RevenueCategoryScheduleService $schedule): View|RedirectResponse
     {
+        if ($category->class_fee_type) {
+            return redirect()->route('class-fees.index', ['type' => $category->class_fee_type, 'class_room_id' => $classRoom->id]);
+        }
+
         // Guard: ensure class is applicable
         if (! $category->applies_to_all) {
             $category->load('classRooms');
@@ -85,6 +89,11 @@ class RevenueCategoryCollectionController extends Controller
         BillNumberService $billNumbers,
         AuditLogger $audit
     ): RedirectResponse {
+        if ($category->class_fee_type) {
+            return redirect()->route('class-fees.index', ['type' => $category->class_fee_type, 'class_room_id' => $classRoom->id])
+                ->withErrors(['amount' => 'Choose an installment and student in the fee tracker before collecting.']);
+        }
+
         // Guard class applicability
         if (! $category->applies_to_all) {
             $category->load('classRooms');

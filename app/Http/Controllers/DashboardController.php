@@ -11,6 +11,7 @@ use App\Models\RevenueCategory;
 use App\Models\Student;
 use App\Models\Teacher;
 use App\Models\TeacherSalaryPayment;
+use App\Services\Billing\ClassFeeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +34,7 @@ class DashboardController extends Controller
 
         // NOTE: pending/rejected cheques are not counted as revenue until confirmed.
         $revenueQuery = Revenue::query()
-            ->where('payment_status', 'confirmed')
+            ->whereIn('payment_status', ['confirmed', 'paid'])
             ->whereBetween('paid_at', [$rangeStart, $rangeEnd]);
         $expenseQuery = Expense::query()->whereBetween('expense_date', [$rangeStart, $rangeEnd]);
         $salaryQuery = TeacherSalaryPayment::query()->whereBetween('paid_at', [$rangeStart, $rangeEnd]);
@@ -51,7 +52,7 @@ class DashboardController extends Controller
             $rangeEnd,
             $granularity,
             fn ($s, $e) => (float) Revenue::query()
-                ->where('payment_status', 'confirmed')
+                ->whereIn('payment_status', ['confirmed', 'paid'])
                 ->whereBetween('paid_at', [$s, $e])
                 ->sum('amount'),
             fn ($s, $e) => (float) Expense::query()->whereBetween('expense_date', [$s, $e])->sum('amount') + (float) TeacherSalaryPayment::query()->whereBetween('paid_at', [$s, $e])->sum('amount'),
@@ -95,6 +96,11 @@ class DashboardController extends Controller
             $expCatData[] = $total;
         }
 
+        if ($salaryExpenses > 0) {
+            $expCatLabels[] = 'Teacher Salaries';
+            $expCatData[] = $salaryExpenses;
+        }
+
         [$enrollLabels, $enrollData] = $this->buildSingleTrend(
             $rangeStart,
             $rangeEnd,
@@ -102,12 +108,21 @@ class DashboardController extends Controller
             fn ($s, $e) => (int) Student::query()->whereBetween('created_at', [$s, $e])->count(),
         );
 
-        $dueStudents = Student::query()
-            ->where('active', true)
-            ->where('due_amount', '>', 0)
-            ->orderByDesc('due_amount')
-            ->limit(5)
-            ->get();
+        $dueStudents = collect();
+        $dueStudentCount = 0;
+        if ($user->can('dashboard.widget.due_students.view')) {
+            // Stored opening dues can be zero even when monthly fees are now overdue.
+            // Use the same current balance as the student's statement.
+            $balances = Student::query()->with('classRoom')->where('active', true)->where('alumni', false)
+                ->get()->map(function (Student $student) {
+                    $student->setAttribute('dashboard_due_amount', $student->computed_due_amount);
+
+                    return $student;
+                })->filter(fn (Student $student) => $student->dashboard_due_amount > 0)
+                ->sortByDesc('dashboard_due_amount')->values();
+            $dueStudentCount = $balances->count();
+            $dueStudents = $balances->take(5);
+        }
 
         $monthStart = $today->copy()->startOfMonth();
         $monthEnd = $today->copy()->endOfMonth();
@@ -117,17 +132,12 @@ class DashboardController extends Controller
             ->pluck('teacher_id')
             ->filter()
             ->values();
-        $dueTeachers = Teacher::query()
-            ->where('active', true)
-            ->when($paidTeacherIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $paidTeacherIds))
-            ->orderBy('name')
-            ->limit(5)
-            ->get();
-
-        $dueTeachersTotal = (float) Teacher::query()
-            ->where('active', true)
-            ->when($paidTeacherIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $paidTeacherIds))
-            ->sum('salary_amount');
+        $dueTeachersQuery = Teacher::query()
+            ->where('active', true)->where('salary_amount', '>', 0)
+            ->when($paidTeacherIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $paidTeacherIds));
+        $dueTeacherCount = (clone $dueTeachersQuery)->count();
+        $dueTeachers = (clone $dueTeachersQuery)->orderBy('name')->limit(5)->get();
+        $dueTeachersTotal = (float) (clone $dueTeachersQuery)->sum('salary_amount');
 
         $salaryDeadline = null;
         $salaryDeadlineDay = null;
@@ -145,7 +155,7 @@ class DashboardController extends Controller
 
         $recentRevenues = Revenue::query()
             ->with(['category', 'student'])
-            ->where('payment_status', 'confirmed')
+            ->whereIn('payment_status', ['confirmed', 'paid'])
             ->whereBetween('paid_at', [$rangeStart, $rangeEnd])
             ->orderByDesc('paid_at')
             ->limit(6)
@@ -207,8 +217,8 @@ class DashboardController extends Controller
             if ($deadline->gt($today->copy()->endOfMonth())) {
                 $deadline = $today->copy()->endOfMonth();
             }
-            if ($today->greaterThanOrEqualTo($deadline) && $dueTeachers->count() > 0) {
-                $alerts->push($dueTeachers->count().' teacher'.($dueTeachers->count()>1?'s':'').' have no salary recorded for this month.');
+            if ($today->greaterThanOrEqualTo($deadline) && $dueTeacherCount > 0) {
+                $alerts->push($dueTeacherCount.' teacher'.($dueTeacherCount > 1 ? 's' : '').' have no salary recorded for this month.');
             }
         } catch (\Throwable $e) {
             // ignore alert if something goes wrong
@@ -314,7 +324,15 @@ class DashboardController extends Controller
                 return $item;
             });
 
+        $classFeeSummaries = [];
+        foreach (['exam', 'facility'] as $feeType) {
+            if ($user->can('dashboard.widget.'.$feeType.'_fees.view')) {
+                $classFeeSummaries[$feeType] = app(ClassFeeService::class)->dashboard($feeType, $rangeStart, $rangeEnd);
+            }
+        }
+
         return view('dashboard', [
+            'classFeeSummaries' => $classFeeSummaries,
             'totalRevenue' => $totalRevenue,
             'totalExpenses' => $totalExpenses,
             'netProfit' => $netProfit,
@@ -326,7 +344,9 @@ class DashboardController extends Controller
             'chequeAutoPassDays' => $chequeAutoPassDays,
             'canViewChequeAlerts' => $canViewChequeAlerts,
             'dueStudents' => $dueStudents,
+            'dueStudentCount' => $dueStudentCount,
             'dueTeachers' => $dueTeachers,
+            'dueTeacherCount' => $dueTeacherCount,
             'dueTeachersTotal' => $dueTeachersTotal,
             'salaryDeadline' => $salaryDeadline,
             'salaryDeadlineDay' => $salaryDeadlineDay,

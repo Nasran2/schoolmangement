@@ -200,6 +200,45 @@ Route::get('/storage/{path}', [StorageController::class, 'show'])
     ->name('storage.show');
 
 Route::middleware('auth')->group(function () {
+    Route::prefix('hr')->name('hr.')->middleware('permission:hr.directory.view')->group(function () {
+        Route::get('teachers', [\App\Http\Controllers\Hr\DirectoryController::class, 'index'])->name('teachers.index');
+        Route::get('teachers/{teacher}', [\App\Http\Controllers\Hr\DirectoryController::class, 'teacher'])->whereNumber('teacher')->name('teachers.show');
+        Route::get('students', [\App\Http\Controllers\Hr\DirectoryController::class, 'index'])->name('students.index');
+        Route::get('students/{student}', [\App\Http\Controllers\Hr\DirectoryController::class, 'student'])->whereNumber('student')->name('students.show');
+    });
+    Route::prefix('teacher-evaluations')->name('teacher-evaluations.')->middleware('permission:teacher_evaluations.view')->group(function () {
+        Route::get('/', [\App\Http\Controllers\TeacherEvaluationController::class, 'index'])->name('index');
+        Route::view('instructions', 'teacher-evaluations.instructions')->name('instructions');
+        Route::get('template', [\App\Http\Controllers\TeacherEvaluationController::class, 'template'])->middleware('permission:teacher_evaluations.export')->name('template');
+        Route::get('export', [\App\Http\Controllers\TeacherEvaluationController::class, 'export'])->middleware('permission:teacher_evaluations.export')->name('export');
+        Route::get('create', [\App\Http\Controllers\TeacherEvaluationController::class, 'create'])->middleware('permission:teacher_evaluations.manage')->name('create');
+        Route::post('/', [\App\Http\Controllers\TeacherEvaluationController::class, 'store'])->middleware('permission:teacher_evaluations.manage')->name('store');
+        Route::get('{evaluation}', [\App\Http\Controllers\TeacherEvaluationController::class, 'show'])->whereNumber('evaluation')->name('show');
+        Route::get('{evaluation}/edit', [\App\Http\Controllers\TeacherEvaluationController::class, 'edit'])->whereNumber('evaluation')->middleware('permission:teacher_evaluations.manage')->name('edit');
+        Route::put('{evaluation}', [\App\Http\Controllers\TeacherEvaluationController::class, 'update'])->whereNumber('evaluation')->middleware('permission:teacher_evaluations.manage')->name('update');
+        Route::delete('{evaluation}', [\App\Http\Controllers\TeacherEvaluationController::class, 'destroy'])->whereNumber('evaluation')->middleware('permission:teacher_evaluations.delete')->name('destroy');
+        Route::get('{evaluation}/download', [\App\Http\Controllers\TeacherEvaluationController::class, 'download'])->whereNumber('evaluation')->middleware('permission:teacher_evaluations.export')->name('download');
+    });
+    Route::get('/class-fees', [\App\Http\Controllers\ClassFeeController::class, 'index'])
+        ->middleware('permission:class_fees.view|revenue.add|revenue.manage|revenue.categories.manage')->name('class-fees.index');
+    Route::get('/class-fees/bulk', [\App\Http\Controllers\ClassFeePaymentController::class, 'bulk'])
+        ->middleware('permission:revenue.add')->name('class-fees.bulk');
+    Route::post('/class-fees/bulk', [\App\Http\Controllers\ClassFeePaymentController::class, 'storeBulk'])
+        ->middleware('permission:revenue.add')->name('class-fees.bulk.store');
+    Route::get('/class-fees/payments/{source}/{payment}/edit', [\App\Http\Controllers\ClassFeePaymentController::class, 'edit'])
+        ->middleware('permission:revenue.manage')->name('class-fees.payments.edit');
+    Route::put('/class-fees/payments/{source}/{payment}', [\App\Http\Controllers\ClassFeePaymentController::class, 'update'])
+        ->middleware('permission:revenue.manage')->name('class-fees.payments.update');
+    Route::delete('/class-fees/payments/{source}/{payment}', [\App\Http\Controllers\ClassFeePaymentController::class, 'destroy'])
+        ->middleware('permission:revenue.delete')->name('class-fees.payments.destroy');
+    Route::post('/class-fees/{classroom}/{type}', [\App\Http\Controllers\ClassFeeController::class, 'store'])
+        ->middleware('permission:revenue.add')->name('class-fees.store');
+
+    Route::get('/owner-transfers', [\App\Http\Controllers\OwnerTransferController::class, 'index'])
+        ->middleware('permission:owner_transfers.manage')->name('owner-transfers.index');
+    Route::post('/owner-transfers', [\App\Http\Controllers\OwnerTransferController::class, 'store'])
+        ->middleware('permission:owner_transfers.manage')->name('owner-transfers.store');
+
     Route::post('/academic-year', AcademicYearController::class)->name('academic-year.set');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -319,6 +358,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('reports')->name('reports.')->middleware('permission:reports.view')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('/overview/{metric}', [\App\Http\Controllers\ReportOverviewController::class, 'show'])->name('overview.details');
 
         Route::get('/exports', [ReportController::class, 'exports'])->name('exports');
         Route::get('/download-all', [ReportController::class, 'downloadAllPdfBundle'])

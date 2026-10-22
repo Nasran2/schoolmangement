@@ -403,6 +403,9 @@ class TeacherController extends Controller
      */
     public function destroy(Teacher $teacher): RedirectResponse
     {
+        if ($teacher->evaluations()->exists()) {
+            return back()->withErrors(['teacher' => 'This teacher has evaluation records. Deactivate the teacher to preserve their history.']);
+        }
         $teacher->delete();
 
         return redirect()->route('teachers.index')->with('status', 'Teacher deleted.');

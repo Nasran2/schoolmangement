@@ -12,6 +12,7 @@ class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
+
     use HasRoles;
 
     /**
@@ -47,6 +48,8 @@ class User extends Authenticatable
 
         $destinations = [
             'dashboard.view' => 'dashboard',
+            'teacher_evaluations.view' => 'teacher-evaluations.index',
+            'hr.directory.view' => 'hr.teachers.index',
             'students.manage' => 'students.index',
             'students.add' => 'students.create',
             'teachers.manage' => 'teachers.index',
@@ -55,7 +58,9 @@ class User extends Authenticatable
             'revenue.add' => 'revenue.items.create',
             'expense.manage' => 'expense.items.index',
             'expense.add' => 'expense.items.create',
+            'owner_transfers.manage' => 'owner-transfers.index',
             'classrooms.view' => 'classrooms.index',
+            'class_fees.view' => 'class-fees.index',
             'classrooms.create' => 'classrooms.create',
             'seminars.manage' => 'seminars.index',
             'extra_classes.manage' => 'extra-classes.index',

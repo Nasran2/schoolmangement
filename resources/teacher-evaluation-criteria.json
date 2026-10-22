@@ -1,0 +1,80 @@
+[
+  {
+    "id": "1",
+    "area": "Attendance and punctuality",
+    "standard": "Regular attendance, compliance with leave procedures and consistent arrival before 7:30 AM.",
+    "weight": 10
+  },
+  {
+    "id": "2",
+    "area": "Documentation and deadlines",
+    "standard": "Accurate and timely monthly test marks, term marks, reports, lesson plans, schemes of work and student records.",
+    "weight": 10
+  },
+  {
+    "id": "3",
+    "area": "Teaching quality and academic delivery",
+    "standard": "Subject knowledge, lesson preparation, syllabus coverage, student engagement and assessment practices.",
+    "weight": 15
+  },
+  {
+    "id": "4",
+    "area": "Classroom management",
+    "standard": "Safe, organised and positive learning environment, effective routines and student discipline.",
+    "weight": 10
+  },
+  {
+    "id": "5",
+    "area": "Innovation and teaching strategies",
+    "standard": "Creative, inclusive teaching methods, suitable technology and activities that improve learning.",
+    "weight": 5
+  },
+  {
+    "id": "6",
+    "area": "Student care and development",
+    "standard": "Student wellbeing, fair treatment, safeguarding awareness and support for different learning needs.",
+    "weight": 8
+  },
+  {
+    "id": "7",
+    "area": "School events and extracurricular activities",
+    "standard": "Preparation and participation in assemblies, sports, exhibitions, concerts and other assigned events.",
+    "weight": 8
+  },
+  {
+    "id": "8",
+    "area": "Contribution to school development",
+    "standard": "Initiative, practical ideas, improvement of systems and support for school projects and reputation.",
+    "weight": 8
+  },
+  {
+    "id": "9",
+    "area": "Teamwork and professional conduct",
+    "standard": "Cooperation, respectful conduct, compliance with policies and constructive response to feedback.",
+    "weight": 8
+  },
+  {
+    "id": "10",
+    "area": "Parent communication",
+    "standard": "Professional and timely communication with parents and responsible handling of concerns.",
+    "weight": 5
+  },
+  {
+    "id": "11",
+    "area": "Accountability and assigned duties",
+    "standard": "Reliability, ownership of tasks, following instructions and meeting deadlines.",
+    "weight": 5
+  },
+  {
+    "id": "12",
+    "area": "Professional development and leadership",
+    "standard": "Training, skill development, sharing good practice and readiness for additional responsibilities.",
+    "weight": 4
+  },
+  {
+    "id": "13",
+    "area": "Student progress and parent confidence",
+    "standard": "Evidence of student progress and contribution to positive parent relationships and school standards.",
+    "weight": 4
+  }
+]

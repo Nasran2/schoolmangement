@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Rbac;
 
 use App\Http\Controllers\Controller;
-use App\Services\AuditLogger;
 use App\Services\AccessControl;
+use App\Services\AuditLogger;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -37,12 +37,15 @@ class RoleController extends Controller
             'Activity Logs' => ['audit_logs.'],
             'Students' => ['students.'],
             'Teachers' => ['teachers.'],
+            'HR and Teacher Evaluations' => ['hr.', 'teacher_evaluations.'],
             'Seminars' => ['seminars.'],
             'Extra Classes' => ['extra_classes.'],
             'Visiting Teachers' => ['visiting_teachers.'],
             'Revenue' => ['revenue.'],
             'Expense' => ['expense.'],
+            'Owner bank account' => ['owner_transfers.'],
             'Classrooms' => ['classrooms.'],
+            'Class Fees' => ['class_fees.'],
             'Reports' => ['reports.'],
             'SMS' => ['sms.'],
         ];
@@ -65,6 +68,11 @@ class RoleController extends Controller
         }
 
         $labels = [
+            'hr.directory.view' => 'Read Teacher and Student Details (No Financial Information)',
+            'teacher_evaluations.view' => 'View Teacher Evaluations',
+            'teacher_evaluations.manage' => 'Create and Edit Teacher Evaluations',
+            'teacher_evaluations.export' => 'Download Evaluation Templates and Reports',
+            'teacher_evaluations.delete' => 'Delete Teacher Evaluations',
             // Dashboard
             'dashboard.view' => 'Access Dashboard',
             'dashboard.widget.total_revenue.view' => 'Widget: Total Revenue',
@@ -79,6 +87,8 @@ class RoleController extends Controller
             'dashboard.widget.enrollment_trend.view' => 'Widget: Enrollment Trend',
             'dashboard.widget.notifications.view' => 'Widget: Notifications',
             'dashboard.widget.recent_activity.view' => 'Widget: Recent Activity',
+            'dashboard.widget.exam_fees.view' => 'Widget: Exam Fee Collections and Dues',
+            'dashboard.widget.facility_fees.view' => 'Widget: Facility Fee Collections and Dues',
 
             // Settings
             'settings.manage' => 'Manage All Settings',
@@ -104,6 +114,7 @@ class RoleController extends Controller
             'classrooms.create' => 'Create Classrooms',
             'classrooms.update' => 'Edit Classrooms',
             'classrooms.delete' => 'Delete Classrooms',
+            'class_fees.view' => 'View Exam and Facility Fee Installments and Unpaid Students',
 
             // Revenue
             'revenue.add' => 'Add Revenue',
@@ -118,6 +129,7 @@ class RoleController extends Controller
             'expense.delete' => 'Delete Expense Records',
             'expense.reports.download' => 'Download Expense Reports',
             'expense.categories.manage' => 'Manage Expense Categories',
+            'owner_transfers.manage' => 'Record and View Transfers to Owner bank account',
 
             // Students
             'students.add' => 'Add Students',
@@ -178,7 +190,6 @@ class RoleController extends Controller
             // Activity Logs
             'audit_logs.view' => 'View Activity Logs',
         ];
-
 
         return view('rbac.roles.edit', [
             'role' => $role,

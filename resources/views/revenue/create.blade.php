@@ -41,6 +41,13 @@ $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $
 
     <div class="py-8 bg-gradient-to-b from-slate-50 to-white min-h-screen">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            @can('revenue.add')
+                <div class="mb-5 rounded-lg bg-indigo-50 p-4 text-sm text-indigo-900 flex flex-wrap gap-3">
+                    <span>Exam and facility fees are collected against their due installments:</span>
+                    <a class="font-semibold underline" href="{{ route('class-fees.index', ['type' => 'exam', 'student_id' => $initialSelectedStudentId, 'class_room_id' => $selectedStudent?->class_room_id]) }}">Collect Exam Fee</a>
+                    <a class="font-semibold underline" href="{{ route('class-fees.index', ['type' => 'facility', 'student_id' => $initialSelectedStudentId, 'class_room_id' => $selectedStudent?->class_room_id]) }}">Collect Facility Fee</a>
+                </div>
+            @endcan
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8" x-data="revenueForm()">
                 {{-- Left Side: Form --}}
                 <div class="lg:col-span-2">

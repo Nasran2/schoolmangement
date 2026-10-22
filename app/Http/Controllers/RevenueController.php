@@ -216,7 +216,7 @@ class RevenueController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request, BillNumberService $billNumbers): View
+    public function create(Request $request, BillNumberService $billNumbers): View|RedirectResponse
     {
         $selectedStudentId = $request->query('student_id') ?: null;
         $selectedStudent = null;
@@ -224,7 +224,12 @@ class RevenueController extends Controller
             $selectedStudent = Student::query()->with('classRoom')->find($selectedStudentId);
         }
 
-        $categoriesQuery = RevenueCategory::query()->where('active', true);
+        $feeCategory = RevenueCategory::find($request->query('category_id'));
+        if ($feeCategory?->class_fee_type) {
+            return redirect()->route('class-fees.index', ['type' => $feeCategory->class_fee_type, 'class_room_id' => $selectedStudent?->class_room_id, 'student_id' => $selectedStudent?->id]);
+        }
+
+        $categoriesQuery = RevenueCategory::query()->where('active', true)->whereNull('class_fee_type');
         $monthlyCatId = $selectedStudent?->monthlyFeeCategoryId();
         if ($selectedStudent?->class_room_id) {
             $classRoomId = (int) $selectedStudent->class_room_id;
@@ -328,6 +333,9 @@ class RevenueController extends Controller
         // Validate category applicability and, if monthly, compute allocation BEFORE creating revenue
         $student = null;
         $category = RevenueCategory::query()->with('classRooms')->find((int) $validated['revenue_category_id']);
+        if ($category?->class_fee_type) {
+            return back()->withInput()->withErrors(['revenue_category_id' => 'Use Exam & Facility Fees to choose the installment for this payment.']);
+        }
         if (! empty($validated['student_id'])) {
             $student = Student::query()->with('classRoom')->find((int) $validated['student_id']);
             if ($student && $student->class_room_id && $category) {
@@ -489,8 +497,12 @@ class RevenueController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Revenue $item, BillNumberService $billNumbers): View
+    public function edit(Revenue $item, BillNumberService $billNumbers): View|RedirectResponse
     {
+        if ($item->class_fee_schedule_id) {
+            return redirect()->route('class-fees.payments.edit', ['source' => 'revenue', 'payment' => $item->id]);
+        }
+
         if ($item->isCancelled()) {
             abort(403, 'Cancelled revenue bills cannot be edited.');
         }
@@ -533,6 +545,10 @@ class RevenueController extends Controller
      */
     public function update(Request $request, Revenue $item, MonthlyFeeAllocator $allocator): RedirectResponse
     {
+        if ($item->class_fee_schedule_id) {
+            return back()->withErrors(['amount' => 'Use the fee payment editor in Exam & Facility Fees to correct amounts or revenue inclusion. Student and installment assignments are retained.']);
+        }
+
         if ($item->isCancelled()) {
             abort(403, 'Cancelled revenue bills cannot be edited.');
         }
@@ -585,6 +601,9 @@ class RevenueController extends Controller
 
         $student = null;
         $category = RevenueCategory::query()->with('classRooms')->find((int) $validated['revenue_category_id']);
+        if ($category?->class_fee_type) {
+            return back()->withInput()->withErrors(['revenue_category_id' => 'Use Exam & Facility Fees to choose the installment for this payment.']);
+        }
         if (! empty($validated['student_id'])) {
             $student = Student::query()->with('classRoom')->find((int) $validated['student_id']);
             if ($student && $student->class_room_id && $category) {

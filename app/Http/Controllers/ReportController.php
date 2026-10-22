@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ClassRoom;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\OpeningBalance;
 use App\Models\Revenue;
+use App\Models\OwnerTransfer;
+use App\Services\CashBalanceService;
 use App\Models\RevenueCategory;
 use App\Models\RevenueAdjustment;
 use App\Models\SeminarTeacherPayment;
@@ -539,9 +542,11 @@ class ReportController extends Controller
         return "DATE(CASE WHEN {$methodColumn} = 'cheque' THEN COALESCE({$chequeDateColumn}, {$baseDateColumn}) ELSE {$baseDateColumn} END)";
     }
 
-    public function index(): View
+    public function index(Request $request, \App\Services\ReportOverview $overview): View
     {
-        return view('reports.index');
+        $overviewFilters = $overview->filters($request);
+
+        return view('reports.index', ['overviewFilters' => $overviewFilters, 'overviewCards' => $overview->cards($request->user(), $overviewFilters)]);
     }
 
     public function revenue(Request $request)
@@ -776,22 +781,32 @@ class ReportController extends Controller
             return in_array($method ?? 'cash', ['bank_transfer', 'cheque'], true);
         };
 
-        // Opening balance (B.B.F) = Net revenue - expenses before start date
+        $includeOwnerTransfers = in_array($methodFilter, ['all', 'cash'], true);
+        $openingMethodFilter = $methodFilter === 'all' ? 'bank' : $methodFilter;
+
+        // Cash uses saved balances and earlier transfers; other accounts retain their own opening balance.
         $grossBeforeQ = Revenue::query()->whereDate('paid_at', '<', $start->toDateString());
-        $grossBeforeQ = $applyPaymentFilter($grossBeforeQ, 'payment_method');
+        $grossBeforeQ = $this->applyPaymentMethodFilter($grossBeforeQ, 'payment_method', $openingMethodFilter);
         $grossBefore = (float) $grossBeforeQ->sum('amount');
 
         $refundBeforeQ = DB::table('revenue_adjustments')
             ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
             ->where('revenue_adjustments.type', 'refund')
             ->whereDate('revenues.paid_at', '<', $start->toDateString());
-        $refundBeforeQ = $applyPaymentFilter($refundBeforeQ, 'revenues.payment_method');
+        $refundBeforeQ = $this->applyPaymentMethodFilter($refundBeforeQ, 'revenues.payment_method', $openingMethodFilter);
         $refundBefore = (float) $refundBeforeQ->sum('revenue_adjustments.amount');
 
         $expenseBeforeQ = Expense::query()->whereDate('expense_date', '<', $start->toDateString());
-        $expenseBeforeQ = $applyPaymentFilter($expenseBeforeQ, 'payment_method');
+        $expenseBeforeQ = $this->applyPaymentMethodFilter($expenseBeforeQ, 'payment_method', $openingMethodFilter);
         $expenseBefore = (float) $expenseBeforeQ->sum('amount');
-        $openingBalance = ($grossBefore - $refundBefore) - $expenseBefore; // can be negative
+        $ownerTransfers = $includeOwnerTransfers
+            ? OwnerTransfer::whereDate('transferred_at', '>=', $start->toDateString())->whereDate('transferred_at', '<=', $end->toDateString())->orderBy('transferred_at')->orderBy('id')->get()
+            : collect();
+        $openingBalance = ($grossBefore - $refundBefore) - $expenseBefore;
+        if ($includeOwnerTransfers) {
+            $cashOpening = app(CashBalanceService::class)->openingOn($start->toDateString());
+            $openingBalance = $methodFilter === 'all' ? $openingBalance + $cashOpening : $cashOpening;
+        }
 
         $days = [];
         if ($groupDaily) {
@@ -905,7 +920,9 @@ class ReportController extends Controller
 
                 $incomeTotal = array_sum(array_map(fn($i) => (float) $i['amount'], array_merge($incomes, $refunds)));
                 $expenseTotal = array_sum(array_map(fn($c) => (float) $c['amount'], $expenses));
-                $closing = $runningOpening + $incomeTotal - $expenseTotal;
+                $dayTransfers = $ownerTransfers->filter(fn ($transfer) => $transfer->transferred_at->toDateString() === $dateStr)->values();
+                $transferTotal = (float) $dayTransfers->sum('amount');
+                $closing = $runningOpening + $incomeTotal - $expenseTotal - $transferTotal;
 
                 $bbfDate = $cursor->copy()->subDay()->format('M d, Y');
 
@@ -923,6 +940,8 @@ class ReportController extends Controller
                     'income_total' => $incomeTotal,
                     'expense_total' => $expenseTotal,
                     'closing' => $closing,
+                    'owner_transfers' => $dayTransfers,
+                    'transfer_total' => $transferTotal,
                 ];
 
                 $runningOpening = $closing;
@@ -1005,7 +1024,8 @@ class ReportController extends Controller
 
             $incomeTotal = $revenueSum - $refundSum;
             $expenseTotal = $expenseSum;
-            $closing = $openingBalance + $incomeTotal - $expenseTotal;
+            $transferTotal = (float) $ownerTransfers->sum('amount');
+            $closing = $openingBalance + $incomeTotal - $expenseTotal - $transferTotal;
 
             $bbfDate = $start->copy()->subDay()->format('M d, Y');
             $days[] = [
@@ -1026,6 +1046,8 @@ class ReportController extends Controller
                 'income_total' => $incomeTotal,
                 'expense_total' => $expenseTotal,
                 'closing' => $closing,
+                'owner_transfers' => $ownerTransfers,
+                'transfer_total' => $transferTotal,
             ];
         }
 
@@ -1077,13 +1099,14 @@ class ReportController extends Controller
                     'income_bank' => (float) ($d['income_bank'] ?? 0.0),
                     'expense_cash' => (float) ($d['expense_cash'] ?? 0.0),
                     'expense_bank' => (float) ($d['expense_bank'] ?? 0.0),
+                    'owner_transfers' => (float) ($d['transfer_total'] ?? 0.0),
                 ];
             });
 
             return $this->downloadTable(
                 $request,
                 'financial-summary-' . now()->format('Y-m-d'),
-                ['Date', 'Opening', 'Income Total', 'Expense Total', 'Closing', 'Income Cash', 'Income Bank', 'Expense Cash', 'Expense Bank'],
+                ['Date', 'Opening', 'Income Total', 'Expense Total', 'Closing', 'Income Cash', 'Income Bank', 'Expense Cash', 'Expense Bank', 'Owner bank account transfers'],
                 $rows,
                 fn($r) => [
                     $r['date'],
@@ -1095,6 +1118,7 @@ class ReportController extends Controller
                     $r['income_bank'],
                     $r['expense_cash'],
                     $r['expense_bank'],
+                    $r['owner_transfers'],
                 ]
             );
         }
@@ -1299,7 +1323,20 @@ class ReportController extends Controller
             ];
         });
 
+        $ownerTransfers = in_array($methodFilter, ['all', 'cash'], true)
+            ? OwnerTransfer::whereDate('transferred_at', '>=', $start->toDateString())->whereDate('transferred_at', '<=', $end->toDateString())->get()->map(fn ($transfer) => [
+                'date' => $transfer->transferred_at->toDateString(),
+                'type' => 'Transfer',
+                'category' => 'Owner transfer',
+                'party' => OwnerTransfer::DESTINATION,
+                'method' => 'Cash',
+                'amount' => (float) $transfer->amount,
+                'notes' => trim(($transfer->reference ?? '').' '.($transfer->notes ?? '')),
+            ])
+            : collect();
+
         $rows = $expenses
+            ->concat($ownerTransfers)
             ->concat($salary)
             ->concat($seminarPayouts)
             ->concat($extraPayouts)
@@ -1394,8 +1431,7 @@ class ReportController extends Controller
         // Opening balance as of day before $start
         $bbfDate = $start->copy()->subDay();
 
-        $obRecord = \App\Models\OpeningBalance::where('date', $bbfDate->toDateString())->first();
-        $baseAmount = $obRecord ? (float) $obRecord->amount : 0.0;
+        $baseAmount = app(CashBalanceService::class)->openingOn($start->toDateString());
 
         $openingBalanceCash = in_array($methodFilter, ['all', 'cash'], true) ? $baseAmount : 0.0;
         $openingBalanceBank = 0.0;
@@ -1743,14 +1779,18 @@ class ReportController extends Controller
 
         $totalIn = (float) $revenues->sum('in');
         $totalOut = (float) $allExpenses->sum('out');
-        $closingBalance = $openingBalance + $totalIn - $totalOut;
+        $ownerTransfers = in_array($methodFilter, ['all', 'cash'], true)
+            ? OwnerTransfer::whereDate('transferred_at', '>=', $start->toDateString())->whereDate('transferred_at', '<=', $end->toDateString())->orderBy('transferred_at')->orderBy('id')->get()
+            : collect();
+        $totalTransfers = (float) $ownerTransfers->sum('amount');
+        $closingBalance = $openingBalance + $totalIn - $totalOut - $totalTransfers;
 
         $totalInCash = (float) $revenues->where('account', 'cash')->sum('in');
         $totalInBank = (float) $revenues->where('account', 'bank')->sum('in');
         $totalOutCash = (float) $allExpenses->where('account', 'cash')->sum('out');
         $totalOutBank = (float) $allExpenses->where('account', 'bank')->sum('out');
 
-        $closingBalanceCash = $openingBalanceCash + $totalInCash - $totalOutCash;
+        $closingBalanceCash = $openingBalanceCash + $totalInCash - $totalOutCash - $totalTransfers;
         $closingBalanceBank = $openingBalanceBank + $totalInBank - $totalOutBank;
 
         $filters = [
@@ -1778,6 +1818,8 @@ class ReportController extends Controller
                 'openingBalanceBank' => $openingBalanceBank,
                 'revenues' => $revenues,
                 'expenses' => $allExpenses,
+                'ownerTransfers' => $ownerTransfers,
+                'totalTransfers' => $totalTransfers,
                 'totalIn' => $totalIn,
                 'totalOut' => $totalOut,
                 'closingBalance' => $closingBalance,
@@ -1835,6 +1877,18 @@ class ReportController extends Controller
                 ];
             }
 
+            foreach ($ownerTransfers as $transfer) {
+                $rows[] = [
+                    'Section' => 'Transfer',
+                    'Date' => $transfer->transferred_at->toDateString(),
+                    'Ref' => $transfer->reference ?: 'OT-'.$transfer->id,
+                    'Description' => OwnerTransfer::DESTINATION.($transfer->notes ? ' - '.$transfer->notes : ''),
+                    'Method' => 'Cash',
+                    'Amount In' => 0.0,
+                    'Amount Out' => (float) $transfer->amount,
+                ];
+            }
+
             return $this->downloadTable(
                 $request,
                 'daily-ledger-' . now()->format('Y-m-d'),
@@ -1864,6 +1918,8 @@ class ReportController extends Controller
             'openingBalanceBank' => $openingBalanceBank,
             'revenues' => $revenues,
             'expenses' => $allExpenses,
+            'ownerTransfers' => $ownerTransfers,
+            'totalTransfers' => $totalTransfers,
             'totalIn' => $totalIn,
             'totalOut' => $totalOut,
             'closingBalance' => $closingBalance,
@@ -1874,130 +1930,287 @@ class ReportController extends Controller
 
     public function cashTransactions(Request $request)
     {
-        $from = (string) ($request->input('from') ?: now()->toDateString());
-        $to = (string) ($request->input('to') ?: now()->toDateString());
+        $period = (string) $request->input('period', '');
+        $isAllTime = $period === 'all' || $request->boolean('all_time') || (! $request->filled('from') && ! $request->filled('to') && $period === '');
+
+        if ($isAllTime) {
+            $period = 'all';
+            $from = null;
+            $to = null;
+        } elseif ($period === 'today') {
+            $from = now()->toDateString();
+            $to = now()->toDateString();
+        } elseif ($period === 'this_week') {
+            $from = now()->startOfWeek()->toDateString();
+            $to = now()->endOfWeek()->toDateString();
+        } elseif ($period === 'this_month') {
+            $from = now()->startOfMonth()->toDateString();
+            $to = now()->endOfMonth()->toDateString();
+        } elseif ($period === 'this_year') {
+            $from = now()->startOfYear()->toDateString();
+            $to = now()->endOfYear()->toDateString();
+        } else {
+            $from = (string) $request->input('from', now()->toDateString());
+            $to = (string) $request->input('to', $from);
+            $period = 'custom';
+        }
+
+        $cashService = app(CashBalanceService::class);
+        $liveCashToday = $cashService->balanceOn(now()->toDateString());
+
+        if ($isAllTime) {
+            $firstSnapshot = OpeningBalance::orderBy('date')->first();
+            $openingBalance = $firstSnapshot ? (float) $firstSnapshot->amount : 0.0;
+        } else {
+            $openingBalance = $cashService->openingOn($from);
+        }
 
         $rows = collect();
 
-        $revenues = Revenue::query()
+        // 1. Revenues (Cash)
+        $revQuery = Revenue::query()
             ->with(['category', 'student'])
-            ->whereDate('paid_at', '>=', $from)
-            ->whereDate('paid_at', '<=', $to)
             ->where(function ($q) {
                 $q->where('payment_method', 'cash')->orWhereNull('payment_method');
             })
-            ->orderByDesc('paid_at')
-            ->get();
+            ->where(fn ($q) => $q->whereIn('payment_status', ['confirmed', 'paid'])->orWhereNull('payment_status'))
+            ->whereNull('cancelled_at');
 
-        foreach ($revenues as $r) {
+        if ($from) {
+            $revQuery->whereDate('paid_at', '>=', $from);
+        }
+        if ($to) {
+            $revQuery->whereDate('paid_at', '<=', $to);
+        }
+
+        foreach ($revQuery->get() as $r) {
             $desc = $r->student?->name ?: ($r->category?->name ?: 'Income');
             if (! empty($r->notes)) {
                 $desc .= ' - ' . $r->notes;
             }
-            if (($r->payment_status ?? null) === 'cancelled') {
-                $cancelDetail = $r->cancel_reason ?: $r->notes;
-                $desc = 'Cancelled' . (! empty($cancelDetail) ? ' - ' . $cancelDetail : '');
-            }
             $rows->push([
+                'id' => 'rev-' . $r->id,
                 'date' => $r->paid_at ? Carbon::parse($r->paid_at) : null,
-                'type' => 'Income',
-                'ref' => $r->bill_no ?: '—',
+                'raw_type' => 'revenue',
+                'type' => 'Revenue',
+                'ref' => $r->bill_no ?: 'REV-'.$r->id,
                 'description' => $desc,
-                'method' => (($r->payment_status ?? null) === 'cancelled') ? 'Cancelled' : $this->paymentMethodLabel($r->payment_method),
-                'status' => (string) ($r->payment_status ?? ''),
+                'method' => 'Cash',
+                'status' => (string) ($r->payment_status ?? 'confirmed'),
                 'in' => (float) $r->amount,
                 'out' => 0.0,
             ]);
         }
 
-        $refunds = DB::table('revenue_adjustments')
+        // 2. Refunds (Cash)
+        $refQuery = DB::table('revenue_adjustments')
             ->join('revenues', 'revenues.id', '=', 'revenue_adjustments.revenue_id')
             ->where('revenue_adjustments.type', 'refund')
-            ->whereDate('revenues.paid_at', '>=', $from)
-            ->whereDate('revenues.paid_at', '<=', $to)
             ->where(function ($q) {
                 $q->where('revenues.payment_method', 'cash')->orWhereNull('revenues.payment_method');
-            })
-            ->orderByDesc('revenues.paid_at')
-            ->select([
-                'revenues.paid_at as paid_at',
-                'revenues.bill_no as bill_no',
-                'revenues.notes as notes',
-                'revenues.payment_method as payment_method',
-                'revenue_adjustments.amount as amount',
-            ])
-            ->get();
+            });
 
-        foreach ($refunds as $r) {
+        if ($from) {
+            $refQuery->whereDate('revenues.paid_at', '>=', $from);
+        }
+        if ($to) {
+            $refQuery->whereDate('revenues.paid_at', '<=', $to);
+        }
+
+        foreach ($refQuery->select([
+            'revenues.paid_at as paid_at',
+            'revenues.bill_no as bill_no',
+            'revenues.notes as notes',
+            'revenue_adjustments.id as adjustment_id',
+            'revenue_adjustments.amount as amount',
+            'revenue_adjustments.reason as reason',
+        ])->get() as $rf) {
             $desc = 'Refund';
-            if (! empty($r->notes)) {
-                $desc .= ' - ' . $r->notes;
+            if (! empty($rf->reason)) {
+                $desc .= ' - ' . $rf->reason;
+            } elseif (! empty($rf->notes)) {
+                $desc .= ' - ' . $rf->notes;
             }
             $rows->push([
-                'date' => $r->paid_at ? Carbon::parse($r->paid_at) : null,
+                'id' => 'ref-' . $rf->adjustment_id,
+                'date' => $rf->paid_at ? Carbon::parse($rf->paid_at) : null,
+                'raw_type' => 'refund',
                 'type' => 'Refund',
-                'ref' => $r->bill_no ?: '—',
+                'ref' => $rf->bill_no ?: 'REF-'.$rf->adjustment_id,
                 'description' => $desc,
-                'method' => $this->paymentMethodLabel($r->payment_method),
+                'method' => 'Cash',
+                'status' => 'confirmed',
                 'in' => 0.0,
-                'out' => (float) $r->amount,
+                'out' => (float) $rf->amount,
             ]);
         }
 
-        $expenses = Expense::query()
+        // 3. Expenses (Cash)
+        $expQuery = Expense::query()
             ->with(['category'])
-            ->whereDate('expense_date', '>=', $from)
-            ->whereDate('expense_date', '<=', $to)
             ->where(function ($q) {
                 $q->where('payment_method', 'cash')->orWhereNull('payment_method');
-            })
-            ->orderByDesc('expense_date')
-            ->get();
+            });
 
-        foreach ($expenses as $e) {
+        if ($from) {
+            $expQuery->whereDate('expense_date', '>=', $from);
+        }
+        if ($to) {
+            $expQuery->whereDate('expense_date', '<=', $to);
+        }
+
+        foreach ($expQuery->get() as $e) {
             $desc = $e->category?->name ?: 'Expense';
             if (! empty($e->notes)) {
                 $desc .= ' - ' . $e->notes;
             }
             $rows->push([
+                'id' => 'exp-' . $e->id,
                 'date' => $e->expense_date ? Carbon::parse($e->expense_date) : null,
+                'raw_type' => 'expense',
                 'type' => 'Expense',
-                'ref' => (string) $e->id,
+                'ref' => 'EXP-' . $e->id,
                 'description' => $desc,
-                'method' => $this->paymentMethodLabel($e->payment_method),
+                'method' => 'Cash',
+                'status' => 'confirmed',
                 'in' => 0.0,
                 'out' => (float) $e->amount,
             ]);
         }
 
-        $rows = $rows
-            ->sortByDesc(fn($r) => $r['date']?->timestamp ?? 0)
-            ->values();
+        // 4. Teacher Salary Payments (Cash)
+        $salQuery = TeacherSalaryPayment::query()
+            ->leftJoin('teachers', 'teachers.id', '=', 'teacher_salary_payments.teacher_id')
+            ->where(function ($q) {
+                $q->where('teacher_salary_payments.payment_method', 'cash')->orWhereNull('teacher_salary_payments.payment_method');
+            });
 
-        $totalIn = (float) $rows->sum('in');
-        $totalOut = (float) $rows->sum('out');
+        if ($from) {
+            $salQuery->whereDate('teacher_salary_payments.paid_at', '>=', $from);
+        }
+        if ($to) {
+            $salQuery->whereDate('teacher_salary_payments.paid_at', '<=', $to);
+        }
+
+        foreach ($salQuery->select([
+            'teacher_salary_payments.id',
+            'teacher_salary_payments.paid_at',
+            'teacher_salary_payments.amount',
+            'teacher_salary_payments.payment_month',
+            'teacher_salary_payments.notes',
+            'teachers.name as teacher_name',
+        ])->get() as $s) {
+            $desc = 'Salary — ' . ($s->teacher_name ?: 'Teacher');
+            if (! empty($s->payment_month)) {
+                $desc .= ' (' . $s->payment_month . ')';
+            }
+            if (! empty($s->notes)) {
+                $desc .= ' - ' . $s->notes;
+            }
+            $rows->push([
+                'id' => 'sal-' . $s->id,
+                'date' => $s->paid_at ? Carbon::parse($s->paid_at) : null,
+                'raw_type' => 'salary',
+                'type' => 'Salary',
+                'ref' => 'SAL-' . $s->id,
+                'description' => $desc,
+                'method' => 'Cash',
+                'status' => 'confirmed',
+                'in' => 0.0,
+                'out' => (float) $s->amount,
+            ]);
+        }
+
+        // 5. Owner Transfers (Cash)
+        $transQuery = OwnerTransfer::query();
+        if ($from) {
+            $transQuery->whereDate('transferred_at', '>=', $from);
+        }
+        if ($to) {
+            $transQuery->whereDate('transferred_at', '<=', $to);
+        }
+
+        foreach ($transQuery->get() as $transfer) {
+            $rows->push([
+                'id' => 'trans-' . $transfer->id,
+                'date' => $transfer->transferred_at ? Carbon::parse($transfer->transferred_at) : null,
+                'raw_type' => 'transfer',
+                'type' => 'Owner Transfer',
+                'ref' => $transfer->reference ?: 'OT-'.$transfer->id,
+                'description' => OwnerTransfer::DESTINATION . ($transfer->notes ? ' - ' . $transfer->notes : ''),
+                'method' => 'Cash',
+                'status' => 'confirmed',
+                'in' => 0.0,
+                'out' => (float) $transfer->amount,
+            ]);
+        }
+
+        // Chronological sort to calculate running cash balance
+        $sorted = $rows->sortBy(function ($r) {
+            return ($r['date'] instanceof Carbon) ? $r['date']->timestamp : 0;
+        })->values();
+
+        $running = $openingBalance;
+        foreach ($sorted as $idx => $r) {
+            $running = round($running + (float) $r['in'] - (float) $r['out'], 2);
+            $r['balance'] = $running;
+            $sorted[$idx] = $r;
+        }
+
+        $totalIn = (float) $sorted->sum('in');
+        $totalOut = (float) $sorted->sum('out');
+        $closingBalance = $running;
+
+        // Apply type and search filters on the computed rows
+        $typeFilter = (string) $request->input('type', 'all');
+        $search = trim((string) $request->input('search', ''));
+
+        $filteredRows = $sorted;
+        if ($typeFilter !== 'all' && $typeFilter !== '') {
+            $filteredRows = $filteredRows->filter(fn ($r) => ($r['raw_type'] ?? '') === $typeFilter)->values();
+        }
+        if ($search !== '') {
+            $needle = mb_strtolower($search);
+            $filteredRows = $filteredRows->filter(function ($r) use ($needle) {
+                return str_contains(mb_strtolower($r['ref'] ?? ''), $needle)
+                    || str_contains(mb_strtolower($r['description'] ?? ''), $needle)
+                    || str_contains(mb_strtolower($r['type'] ?? ''), $needle);
+            })->values();
+        }
+
+        // Reverse chronological order for display (newest first)
+        $displayRows = $filteredRows->reverse()->values();
 
         if ($request->boolean('pdf')) {
             $this->authorizeDownload($request);
+            @ini_set('memory_limit', '512M');
+            @set_time_limit(180);
             $html = view('reports.transactions-pdf', [
-                'title' => 'Cash Transactions',
+                'title' => 'Cash in Hand & Transactions Report',
                 'account' => 'cash',
-                'rows' => $rows,
-                'filters' => ['from' => $from, 'to' => $to],
+                'rows' => $displayRows,
+                'filters' => [
+                    'from' => $isAllTime ? 'All Time (Start)' : $from,
+                    'to' => $isAllTime ? 'Present' : $to,
+                    'period' => $period,
+                ],
+                'openingBalance' => $openingBalance,
+                'closingBalance' => $closingBalance,
+                'liveCashToday' => $liveCashToday,
                 'totalIn' => $totalIn,
                 'totalOut' => $totalOut,
             ])->render();
-            $pdf = Pdf::loadHTML($html)->setPaper('a4');
-            return $pdf->download('cash-transactions-' . now()->format('Y-m-d') . '.pdf');
+            $pdf = Pdf::loadHTML($html)->setPaper('a4', 'landscape');
+            return $pdf->download('cash-in-hand-' . now()->format('Y-m-d') . '.pdf');
         }
 
         if ($request->boolean('download') || $request->boolean('excel') || strtolower((string) $request->query('format')) === 'xlsx') {
             $this->authorizeDownload($request);
             return $this->downloadTable(
                 $request,
-                'cash-transactions-' . now()->format('Y-m-d'),
-                ['Date', 'Type', 'Ref', 'Description', 'Method', 'Amount In', 'Amount Out'],
-                $rows,
+                'cash-in-hand-' . now()->format('Y-m-d'),
+                ['Date', 'Type', 'Ref', 'Description', 'Method', 'Amount In (Rs)', 'Amount Out (Rs)', 'Cash in Hand (Rs)'],
+                $displayRows,
                 fn($r) => [
                     $r['date']?->format('Y-m-d'),
                     $r['type'],
@@ -2006,16 +2219,17 @@ class ReportController extends Controller
                     $r['method'],
                     (float) $r['in'],
                     (float) $r['out'],
+                    (float) ($r['balance'] ?? 0),
                 ]
             );
         }
 
         $page = max(1, (int) $request->input('page', 1));
         $perPage = 50;
-        $paged = $rows->forPage($page, $perPage)->values();
+        $paged = $displayRows->forPage($page, $perPage)->values();
         $paginator = new LengthAwarePaginator(
             $paged,
-            $rows->count(),
+            $displayRows->count(),
             $perPage,
             $page,
             ['path' => $request->url(), 'query' => $request->query()]
@@ -2025,7 +2239,17 @@ class ReportController extends Controller
             'title' => 'Cash Transactions',
             'account' => 'cash',
             'items' => $paginator,
-            'filters' => ['from' => $from, 'to' => $to],
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+                'period' => $period,
+                'is_all_time' => $isAllTime,
+                'type' => $typeFilter,
+                'search' => $search,
+            ],
+            'openingBalance' => $openingBalance,
+            'closingBalance' => $closingBalance,
+            'liveCashToday' => $liveCashToday,
             'totalIn' => $totalIn,
             'totalOut' => $totalOut,
         ]);

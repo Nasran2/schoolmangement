@@ -41,6 +41,10 @@
                             Add Expense
                         </a>
                     @endcan
+                    @can('revenue.add')
+                        <a href="{{ route('class-fees.index', ['type' => 'exam']) }}" class="inline-flex items-center rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">Collect Exam Fee</a>
+                        <a href="{{ route('class-fees.index', ['type' => 'facility']) }}" class="inline-flex items-center rounded-md bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">Collect Facility Fee</a>
+                    @endcan
                     @if(auth()->user()->can('sms.send.bulk') && auth()->user()->can('students.manage'))
                         <a href="{{ route('students.index') }}" class="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-800 shadow hover:bg-gray-200">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10"/><path d="M3 15l9 6 9-6"/></svg>
@@ -132,6 +136,8 @@
             </div>
             @endif
         </div>
+
+        @include('dashboard.class-fees')
 
         @if(($canViewChequeAlerts ?? false) && (($pendingChequeCount ?? 0) > 0))
             <div class="mt-6" x-data="{ open: true, passModal: false, passAction: '', passMode: 'today', passDate: '{{ now()->toDateString() }}', today: '{{ now()->toDateString() }}' }" x-show="open" x-cloak>
@@ -298,7 +304,8 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Students with Due Payments</div>
-                    <div class="mt-2 text-2xl font-semibold text-gray-900">{{ ($dueStudents ?? collect())->count() }}</div>
+                    <div class="mt-2 text-2xl font-semibold text-gray-900">{{ $dueStudentCount ?? 0 }}</div>
+                    @if(($dueStudentCount ?? 0) > 5)<p class="mt-1 text-xs text-gray-500">Showing the five highest balances.</p>@endif
                     <div class="mt-4 divide-y rounded border">
                         @forelse(($dueStudents ?? collect()) as $student)
                             <div class="flex items-center justify-between px-4 py-3">
@@ -309,7 +316,7 @@
                                         <div class="text-xs text-gray-600 truncate">{{ $student->class }} {{ $student->year ? '· '.$student->year : '' }}</div>
                                     </div>
                                 </div>
-                                <div class="text-sm font-semibold text-red-600">Rs {{ number_format($student->computed_due_amount ?? $student->due_amount, 2) }}</div>
+                                <div class="text-sm font-semibold text-red-600">Rs {{ number_format($student->dashboard_due_amount ?? $student->computed_due_amount, 2) }}</div>
                             </div>
                         @empty
                             <div class="px-4 py-3 text-sm text-gray-600">No overdue payments.</div>
@@ -355,7 +362,8 @@
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Upcoming Teacher Salary Payments</div>
-                    <div class="mt-2 text-2xl font-semibold text-gray-900">{{ ($dueTeachers ?? collect())->count() }}</div>
+                    <div class="mt-2 text-2xl font-semibold text-gray-900">{{ $dueTeacherCount ?? 0 }}</div>
+                    @if(($dueTeacherCount ?? 0) > 5)<p class="mt-1 text-xs text-gray-500">Showing five teachers. Open the full list below.</p>@endif
                     @can('teachers.salary.amounts.view')
                         <div class="mt-1 text-sm font-semibold text-red-600">Rs {{ number_format($dueTeachersTotal ?? 0, 2) }}</div>
                     @else
@@ -420,8 +428,8 @@
         </div>
 
         @if($canWidgetRecentActivity)
-        <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+        <div class="mt-6 grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-2">
+            <div class="min-w-0 bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <div class="text-base font-semibold text-gray-900">Recent Financial Activity</div>
                     <div class="mt-4 divide-y rounded border">
@@ -442,19 +450,19 @@
                 </div>
             </div>
 
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+            <section id="recent-activity" aria-labelledby="recent-activity-title" class="min-w-0 bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="space-y-4">
                         <div>
-                            <div class="text-base font-semibold text-gray-900">Recent Activity</div>
+                            <h3 id="recent-activity-title" class="text-base font-semibold text-gray-900">Recent Activity</h3>
                             <div class="mt-1 text-xs text-gray-500">Filtered audit logs (who did what and when)</div>
                         </div>
 
-                        <form method="GET" class="w-full sm:w-auto">
-                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3 items-end">
-                                <div class="col-span-1">
-                                    <label class="block text-xs font-medium text-gray-600">Range</label>
-                                    <select name="activity_range" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
+                        <form method="GET" action="{{ route('dashboard') }}#recent-activity" class="min-w-0 rounded-lg border border-gray-100 bg-gray-50 p-4" aria-label="Filter recent activity">
+                            <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div class="min-w-0">
+                                    <label for="activity_range" class="block text-xs font-medium text-gray-600">Range</label>
+                                    <select id="activity_range" name="activity_range" class="mt-1 w-full min-w-0 border-gray-300 rounded-md shadow-sm text-sm">
                                     <option value="today" @selected(($activityFilters['range'] ?? '')==='today')>Today</option>
                                     <option value="last_7_days" @selected(($activityFilters['range'] ?? '')==='last_7_days')>Last 7 Days</option>
                                     <option value="last_30_days" @selected(($activityFilters['range'] ?? '')==='last_30_days')>Last 30 Days</option>
@@ -463,9 +471,9 @@
                                     </select>
                                 </div>
 
-                                <div class="col-span-1">
-                                    <label class="block text-xs font-medium text-gray-600">Action</label>
-                                    <select name="activity_action" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
+                                <div class="min-w-0">
+                                    <label for="activity_action" class="block text-xs font-medium text-gray-600">Action</label>
+                                    <select id="activity_action" name="activity_action" class="mt-1 w-full min-w-0 border-gray-300 rounded-md shadow-sm text-sm">
                                     <option value="">All</option>
                                     @foreach(($activityFilters['actions'] ?? collect()) as $act)
                                         <option value="{{ $act }}" @selected(($activityFilters['action'] ?? '')===$act)>{{ $act }}</option>
@@ -473,9 +481,9 @@
                                     </select>
                                 </div>
 
-                                <div class="col-span-1">
-                                    <label class="block text-xs font-medium text-gray-600">User</label>
-                                    <select name="activity_user" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
+                                <div class="min-w-0">
+                                    <label for="activity_user" class="block text-xs font-medium text-gray-600">User</label>
+                                    <select id="activity_user" name="activity_user" class="mt-1 w-full min-w-0 border-gray-300 rounded-md shadow-sm text-sm">
                                     <option value="">All</option>
                                     @foreach(($activityFilters['users'] ?? collect()) as $u)
                                         <option value="{{ $u->id }}" @selected(($activityFilters['user'] ?? '')==$u->id)>{{ $u->name }}</option>
@@ -483,14 +491,14 @@
                                     </select>
                                 </div>
 
-                                <div class="col-span-2 sm:col-span-1">
-                                    <label class="block text-xs font-medium text-gray-600">Search</label>
-                                    <input type="text" name="activity_q" value="{{ $activityFilters['q'] ?? '' }}" placeholder="Description / metadata" class="mt-1 w-full border-gray-300 rounded-md shadow-sm text-xs">
+                                <div class="min-w-0">
+                                    <label for="activity_q" class="block text-xs font-medium text-gray-600">Search</label>
+                                    <input id="activity_q" type="search" name="activity_q" value="{{ $activityFilters['q'] ?? '' }}" placeholder="Description / metadata" class="mt-1 w-full min-w-0 border-gray-300 rounded-md shadow-sm text-sm">
                                 </div>
 
-                                <div class="col-span-2 sm:col-span-1 flex gap-2">
-                                    <button type="submit" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700">Apply</button>
-                                    <a href="{{ route('dashboard') }}" class="flex-1 inline-flex items-center justify-center px-3 py-2 bg-gray-100 border border-transparent rounded-md font-semibold text-xs text-gray-800 uppercase tracking-widest hover:bg-gray-200">Reset</a>
+                                <div class="col-span-full flex flex-wrap justify-end gap-2 border-t border-gray-200 pt-3">
+                                    <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-gray-900 border border-transparent rounded-md font-semibold text-xs text-white hover:bg-gray-700">Apply filters</button>
+                                    <a href="{{ route('dashboard') }}#recent-activity" class="inline-flex items-center justify-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 hover:bg-gray-100">Reset</a>
                                 </div>
                             </div>
                         </form>
@@ -504,7 +512,7 @@
                                     <span class="text-gray-300">•</span>
                                     <span>{{ $log->user?->name ?? 'System' }}</span>
                                     <span class="text-gray-300">•</span>
-                                    <span class="text-[11px] rounded bg-gray-100 px-2 py-0.5 text-gray-700 max-w-full truncate">{{ $log->action }}</span>
+                                    <span class="text-[11px] rounded bg-gray-100 px-2 py-0.5 text-gray-700 max-w-full [overflow-wrap:anywhere]">{{ $log->action }}</span>
                                 </div>
 
                                 <div class="mt-1 text-sm text-gray-800 break-words">{{ $log->description }}</div>
@@ -521,7 +529,7 @@
                                 @if(!empty($log->metadata))
                                     <details class="mt-2 rounded-md bg-gray-50 px-3 py-2">
                                         <summary class="cursor-pointer select-none text-xs font-semibold text-gray-700">Metadata</summary>
-                                        <pre class="mt-2 text-[11px] text-gray-700 whitespace-pre-wrap break-words">{{ json_encode($log->metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                        <pre class="mt-2 text-[11px] text-gray-700 whitespace-pre-wrap [overflow-wrap:anywhere]">{{ json_encode($log->metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
                                     </details>
                                 @endif
                             </div>
@@ -530,7 +538,7 @@
                         @endforelse
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
         @endif
     </div>

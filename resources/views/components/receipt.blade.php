@@ -357,6 +357,9 @@ if (empty($studentAddress) && $student) {
             </span>
         </div>
         
+        @if($revenue->class_fee_due_date)
+            <div class="mt-2 text-sm"><b>Installment due:</b> {{ $revenue->class_fee_due_date->format('d-m-Y') }}</div>
+        @endif
         @if($revenue->payment_method === 'bank_transfer')
             <div class="mt-2 text-sm">
                 <span class="mr-2 font-semibold">Note:</span>

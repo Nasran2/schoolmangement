@@ -57,7 +57,16 @@
                         </div>
                     </form>
 
-                    <div class="mt-6 flex flex-wrap gap-3">
+                    <div class="mt-6 flex flex-wrap items-center gap-3">
+                        <a href="{{ route('reports.daily_ledger', array_merge(request()->query(), ['method' => 'cash'])) }}"
+                           class="px-4 py-2 text-sm rounded-full font-semibold transition {{ ($filters['method'] ?? '') === 'cash' ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400' : 'border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100' }}">
+                            💵 Only Cash in Hand
+                        </a>
+                        <a href="{{ route('reports.cash_transactions', ['period' => 'all']) }}"
+                           class="px-4 py-2 text-sm rounded-full border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium transition flex items-center gap-1.5">
+                            ★ Whole Time Cash Report →
+                        </a>
+
                         @foreach([
                             'today' => ['from' => now()->toDateString(), 'to' => now()->toDateString(), 'label' => 'Today'],
                             '1w' => ['from' => now()->copy()->subDays(6)->toDateString(), 'to' => now()->toDateString(), 'label' => 'Last 1 Week'],
@@ -180,10 +189,13 @@
                         </table>
                     </div>
 
-                    <div class="mt-8 border-t pt-4 flex items-center justify-between">
+                    @include('reports.partials.owner-transfers')
+
+                    <div class="mt-8 border-t pt-4 flex flex-wrap gap-4 items-center justify-between">
                         <div class="text-sm text-gray-600">Opening: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $openingBalance, 2) }}</span></div>
                         <div class="text-sm text-gray-600">Revenue: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalIn, 2) }}</span></div>
                         <div class="text-sm text-gray-600">Expense: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalOut, 2) }}</span></div>
+                        <div class="text-sm text-gray-600">Owner transfers: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalTransfers, 2) }}</span></div>
                         <div class="text-right">
                             <div class="text-lg font-extrabold">Closing Balance: Rs {{ number_format((float) $closingBalance, 2) }}</div>
                             <div class="mt-1 text-sm text-gray-600 space-y-1">

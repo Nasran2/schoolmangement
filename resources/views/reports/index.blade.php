@@ -13,6 +13,8 @@
 
     <div class="py-8">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            @if($errors->any())<div class="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+            @include('reports.partials.overview')
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900">
                     @php
@@ -84,9 +86,9 @@
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 @can('reports.cash_transactions.view')
                                     <a href="{{ route('reports.cash_transactions') }}" class="{{ $card }}">
-                                        <div class="{{ $bar }} from-gray-600 to-gray-800"></div>
-                                        <div class="{{ $title }}">Cash Transactions</div>
-                                        <div class="{{ $desc }}">Cash in/out (includes refunds as outflow).</div>
+                                        <div class="{{ $bar }} from-emerald-600 to-teal-700"></div>
+                                        <div class="{{ $title }}">Cash in Hand & Transactions</div>
+                                        <div class="{{ $desc }}">Whole-time cash in hand, live balance, receipts, expenses, transfers & running balance.</div>
                                     </a>
                                 @endcan
                                 @can('reports.bank_transactions.view')

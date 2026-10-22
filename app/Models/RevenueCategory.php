@@ -18,6 +18,7 @@ class RevenueCategory extends Model
         'applies_to_all',
         'description',
         'active',
+        'class_fee_type',
     ];
 
     protected $casts = [
