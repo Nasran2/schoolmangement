@@ -129,7 +129,7 @@ class RoleController extends Controller
             'expense.delete' => 'Delete Expense Records',
             'expense.reports.download' => 'Download Expense Reports',
             'expense.categories.manage' => 'Manage Expense Categories',
-            'owner_transfers.manage' => 'Record and View Transfers to Owner bank account',
+            'owner_transfers.manage' => 'Manage Owner Bank Transfers, Returns and Corrections',
 
             // Students
             'students.add' => 'Add Students',

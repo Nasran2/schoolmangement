@@ -82,12 +82,11 @@ class RevenueController extends Controller
             return back()->withErrors(['cheque' => 'This cheque is not on hold.']);
         }
 
-        $passedDate = (string) ($request->input('passed_date') ?: now()->toDateString());
-        try {
-            $passedDate = Carbon::parse($passedDate)->toDateString();
-        } catch (\Throwable $e) {
-            return back()->withErrors(['passed_date' => 'Invalid passed date. Use YYYY-MM-DD.']);
-        }
+        $request->merge(['passed_date' => $request->input('passed_date') ?: today()->toDateString()]);
+        $passedDate = $request->validate(['passed_date' => array_filter([
+            'required', 'date_format:Y-m-d', 'before_or_equal:today',
+            $item->cheque_date ? 'after_or_equal:'.$item->cheque_date->toDateString() : null,
+        ])])['passed_date'];
 
         $confirmedAt = Carbon::parse($passedDate)->setTimeFrom(now());
 
@@ -125,7 +124,7 @@ class RevenueController extends Controller
      */
     public function index(Request $request): View
     {
-        $query = Revenue::query()->with(['category', 'student']);
+        $query = Revenue::query()->with(['category', 'student', 'classFeeSchedule.classRoom.feeSchedules']);
 
         if ($request->filled('q')) {
             $raw = (string) $request->string('q');
@@ -216,8 +215,11 @@ class RevenueController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request, BillNumberService $billNumbers): View|RedirectResponse
+    public function create(Request $request, BillNumberService $billNumbers): View|RedirectResponse|\Illuminate\Http\JsonResponse
     {
+        if (in_array($request->query('quick'), ['exam', 'facility'], true)) {
+            return app(ClassFeeCollectionController::class)->show($request, $request->query('quick'), app(\App\Services\Billing\ClassFeeService::class));
+        }
         $selectedStudentId = $request->query('student_id') ?: null;
         $selectedStudent = null;
         if ($selectedStudentId) {
@@ -226,15 +228,16 @@ class RevenueController extends Controller
 
         $feeCategory = RevenueCategory::find($request->query('category_id'));
         if ($feeCategory?->class_fee_type) {
-            return redirect()->route('class-fees.index', ['type' => $feeCategory->class_fee_type, 'class_room_id' => $selectedStudent?->class_room_id, 'student_id' => $selectedStudent?->id]);
+            return redirect()->route('revenue.items.create', ['quick' => $feeCategory->class_fee_type, 'student_id' => $selectedStudent?->id]);
         }
 
-        $categoriesQuery = RevenueCategory::query()->where('active', true)->whereNull('class_fee_type');
+        $categoriesQuery = RevenueCategory::query()->where('active', true);
         $monthlyCatId = $selectedStudent?->monthlyFeeCategoryId();
         if ($selectedStudent?->class_room_id) {
             $classRoomId = (int) $selectedStudent->class_room_id;
             $categoriesQuery->where(function ($q) use ($classRoomId) {
                 $q->where('applies_to_all', true)
+                    ->orWhereNotNull('class_fee_type')
                     ->orWhereHas('classRooms', function ($q2) use ($classRoomId) {
                         $q2->where('class_rooms.id', $classRoomId);
                     });
@@ -791,7 +794,12 @@ class RevenueController extends Controller
      */
     public function receipt(Revenue $item): View
     {
-        $item->load(['student.classRoom', 'category', 'allocations']);
+        abort_unless(auth()->user()->can('revenue.manage')
+            || (auth()->user()->can('revenue.add') && (int) $item->created_by === (int) auth()->id()), 403);
+        $item->load(['student.classRoom', 'category', 'allocations', 'classFeeSchedule.classRoom']);
+        $feeCycle = $item->classFeeSchedule && $item->class_fee_due_date
+            ? app(\App\Services\Billing\ClassFeeService::class)->cycles(collect([$item->classFeeSchedule]), $item->class_fee_due_date->copy(), $item->class_fee_due_date->copy())
+                ->get($item->class_fee_schedule_id.':'.$item->class_fee_due_date->toDateString()) : null;
 
         $settings = app('settings');
         $schoolInfo = [
@@ -819,6 +827,7 @@ class RevenueController extends Controller
             'schoolInfo' => $schoolInfo,
             'autoPrint' => $autoPrint,
             'schoolLogoDataUri' => $logoDataUri,
+            'feeCycle' => $feeCycle,
         ]);
     }
 

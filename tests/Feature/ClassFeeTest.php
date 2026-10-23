@@ -126,7 +126,7 @@ class ClassFeeTest extends TestCase
             ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0 && $tracker['unpaid_students'] === 1);
         $this->assertDatabaseCount('revenues', 2);
         $this->assertDatabaseCount('expenses', 0);
-        $this->get(route('revenue.items.receipt', Revenue::first()))->assertOk()->assertSee('Installment due:')->assertSee('20-04-2026');
+        $this->get(route('revenue.items.receipt', Revenue::first()))->assertOk()->assertSee('Term paid:')->assertSee('20-04-2026');
     }
 
     public function test_partial_payments_finish_the_same_installment_and_retry_is_idempotent(): void
@@ -151,6 +151,7 @@ class ClassFeeTest extends TestCase
         $this->collect($class, $payload)->assertSessionHasNoErrors();
         $this->tracker($class)->assertOk()->assertSee('Pending cheque')->assertSee('0 of 3 paid');
         $this->collect($class, $this->payload($class, $student))->assertSessionHasErrors('amount');
+        $this->travelTo(Carbon::parse('2026-10-21'));
         $this->post(route('revenue.items.cheque.passed', Revenue::first()))->assertSessionHasNoErrors();
         $this->tracker($class)->assertOk()->assertSee('1 of 3 paid');
     }
@@ -170,14 +171,75 @@ class ClassFeeTest extends TestCase
         $this->tracker($class)->assertOk()->assertViewHas('tracker', fn ($tracker) => $tracker['paid'] === 0.0 && $tracker['due'] === 3000.0);
     }
 
-    public function test_new_students_are_not_charged_for_installments_before_joining(): void
+    public function test_new_students_skip_earlier_exam_terms_but_owe_the_facility_fee_for_their_joining_year(): void
     {
         $class = $this->schoolClass();
         $student = $this->student($class, ['joining_date' => '2026-08-01']);
         $this->tracker($class)->assertOk()->assertSee('Not applicable')->assertSee('0 of 1 paid')
             ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 1000.0);
         $this->collect($class, $this->payload($class, $student))->assertSessionHasErrors('cycle');
-        $this->tracker($class, 'facility')->assertOk()->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 0.0);
+        $this->tracker($class, 'facility')->assertOk()->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0);
+    }
+
+    public function test_facility_fees_apply_from_the_joining_year_for_every_admission_month(): void
+    {
+        $class = $this->schoolClass(['facility_fee_start_date' => '2025-01-15']);
+        foreach (['2025-12-31', '2026-01-01', '2026-06-30', '2026-12-31', '2027-01-01'] as $joined) {
+            $this->student($class, ['joining_date' => $joined]);
+        }
+        $this->tracker($class, 'facility')->assertOk()
+            ->assertViewHas('tracker', function ($tracker) {
+                $dues = $tracker['rows']->mapWithKeys(fn ($row) => [$row['student']->joining_date->toDateString() => $row['due']]);
+
+                return $tracker['due'] === 8000.0 && $tracker['unpaid_students'] === 4
+                    && $dues->get('2026-12-31') === 2000.0 && $dues->get('2027-01-01') === 0.0;
+            });
+        $this->tracker($class, 'facility', ['year' => 2025])->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0 && $tracker['unpaid_students'] === 1);
+        $this->travelTo(Carbon::parse('2027-10-20'));
+        $this->tracker($class, 'facility', ['year' => 2027])->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 10000.0 && $tracker['unpaid_students'] === 5);
+    }
+
+    public function test_facility_fee_uses_fallback_admission_dates_when_joining_date_is_missing(): void
+    {
+        $class = $this->schoolClass(['facility_fee_start_date' => '2025-01-15']);
+        $this->student($class, ['joining_date' => null, 'fee_start_date' => '2026-09-01']);
+        $this->student($class, ['joining_date' => null, 'fee_start_date' => null]);
+        $this->tracker($class, 'facility')->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 4000.0);
+        $this->tracker($class, 'facility', ['year' => 2025])->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 0.0);
+    }
+
+    public function test_late_joiners_can_pay_the_annual_facility_fee_through_individual_collection(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class, ['joining_date' => '2026-10-01']);
+        $this->collect($class, $this->payload($class, $student, '2026-01-15', type: 'facility'), 'facility')
+            ->assertSessionHasNoErrors();
+        $this->tracker($class, 'facility')->assertOk()->assertSee('1 of 1 paid')
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 0.0 && $tracker['paid'] === 2000.0);
+    }
+
+    public function test_facility_fee_is_charged_once_per_year_after_a_class_transfer(): void
+    {
+        $old = $this->schoolClass();
+        $new = $this->schoolClass(['facility_fee_start_date' => '2026-09-15']);
+        $student = $this->student($new, ['joining_date' => '2026-03-01']);
+        $move = StudentPromotionHistory::create(['student_id' => $student->id, 'from_class_room_id' => $old->id, 'to_class_room_id' => $new->id, 'action' => 'transfer']);
+        $move->forceFill(['created_at' => Carbon::parse('2026-08-01')])->save();
+        $this->tracker($old, 'facility', ['include_former' => 1])->assertOk()->assertSee($student->name)
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0);
+        $this->tracker($new, 'facility')->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 0.0);
+        $this->collect($new, $this->payload($new, $student, '2026-09-15', type: 'facility'), 'facility')->assertSessionHasErrors('cycle');
+        $this->collect($old, $this->payload($old, $student, '2026-01-15', type: 'facility'), 'facility')->assertSessionHasNoErrors();
+        $this->travelTo(Carbon::parse('2027-10-20'));
+        $this->tracker($old, 'facility', ['year' => 2027])->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 0.0);
+        $this->tracker($new, 'facility', ['year' => 2027])->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0);
     }
 
     public function test_promoted_students_keep_the_old_class_dues_and_are_not_double_charged(): void
@@ -187,7 +249,7 @@ class ClassFeeTest extends TestCase
         $student = $this->student($new);
         $move = StudentPromotionHistory::create(['student_id' => $student->id, 'from_class_room_id' => $old->id, 'to_class_room_id' => $new->id, 'action' => 'promote']);
         $move->forceFill(['created_at' => Carbon::parse('2026-08-01')])->save();
-        $this->tracker($old)->assertOk()->assertSee($student->name)->assertSee('0 of 2 paid')
+        $this->tracker($old, filters: ['include_former' => 1])->assertOk()->assertSee($student->name)->assertSee('0 of 2 paid')
             ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0);
         $this->tracker($new)->assertOk()->assertSee('0 of 1 paid')
             ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 1000.0);

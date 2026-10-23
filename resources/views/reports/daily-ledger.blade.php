@@ -195,7 +195,7 @@
                         <div class="text-sm text-gray-600">Opening: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $openingBalance, 2) }}</span></div>
                         <div class="text-sm text-gray-600">Revenue: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalIn, 2) }}</span></div>
                         <div class="text-sm text-gray-600">Expense: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalOut, 2) }}</span></div>
-                        <div class="text-sm text-gray-600">Owner transfers: <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalTransfers, 2) }}</span></div>
+                        <div class="text-sm text-gray-600">Owner transfers (net): <span class="font-semibold text-gray-900">Rs {{ number_format((float) $totalTransfers, 2) }}</span></div>
                         <div class="text-right">
                             <div class="text-lg font-extrabold">Closing Balance: Rs {{ number_format((float) $closingBalance, 2) }}</div>
                             <div class="mt-1 text-sm text-gray-600 space-y-1">

@@ -147,7 +147,7 @@
             <div class="num"><span class="k">Revenue:</span> Rs {{ number_format((float) $totalIn, 2) }}</div>
         </div>
         <div class="rowline">
-            <div><span class="k">Owner transfers:</span> Rs {{ number_format((float) $totalTransfers, 2) }}</div>
+            <div><span class="k">Owner transfers (net):</span> Rs {{ number_format((float) $totalTransfers, 2) }}</div>
             <div><span class="k">Expense:</span> Rs {{ number_format((float) $totalOut, 2) }}</div>
             <div class="num closing"><span class="k">Closing Balance:</span> Rs {{ number_format((float) $closingBalance, 2) }}</div>
         </div>

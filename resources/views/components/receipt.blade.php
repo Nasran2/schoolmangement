@@ -1,4 +1,4 @@
-@props(['revenue', 'student', 'category', 'schoolInfo', 'schoolLogoDataUri' => null])
+@props(['revenue', 'student', 'category', 'schoolInfo', 'schoolLogoDataUri' => null, 'feeCycle' => null])
 
 @php
 // Simple number to words (en) helper used for the "sum of" line
@@ -40,9 +40,10 @@ $amount = (float) ($revenue->amount ?? 0);
 $amountWords = ucwords(numberToWords($amount)) . ' Rupees Only';
 // Fee type helpers based on category.payment_type
 $paymentType = strtolower($category->payment_type ?? '');
-$isMonthly = !empty($category?->interval_months) || $paymentType === 'monthly';
+$classFeeType = $category?->class_fee_type;
+$isMonthly = !$classFeeType && (!empty($category?->interval_months) || $paymentType === 'monthly');
 $isAdmission = $paymentType === 'admission' || stripos($category->name ?? '', 'admission') !== false;
-$isFacilities = $paymentType === 'facilities';
+$isFacilities = $classFeeType === 'facility' || $paymentType === 'facilities';
 $isTerm = in_array($paymentType, ['term','semester','term_fee']);
 $studentMonthlyFee = (float) ($student?->monthly_fee ?? $student?->classRoom?->monthly_fee ?? 0);
 
@@ -245,6 +246,9 @@ if (empty($studentAddress) && $student) {
 @endphp
 
 <div id="receipt-print" class="bg-white p-6 mx-auto receipt-page" style="font-family: 'Courier New', monospace;">
+    @if($isPendingCheque)
+        <div style="border:2px solid #a16207;padding:8px;margin-bottom:12px;text-align:center;font-weight:bold;">CHEQUE PENDING — not counted as paid until clearance.</div>
+    @endif
     @if($isCancelledPayment)
         <div class="receipt-watermark">{{ $cancelledLabel }}</div>
         <div class="relative z-10 mb-3 border-2 border-rose-700 bg-rose-50 px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wide text-rose-800">
@@ -358,7 +362,10 @@ if (empty($studentAddress) && $student) {
         </div>
         
         @if($revenue->class_fee_due_date)
-            <div class="mt-2 text-sm"><b>Installment due:</b> {{ $revenue->class_fee_due_date->format('d-m-Y') }}</div>
+            <div class="mt-2 text-sm">@if($classFeeType === 'exam' && $revenue->exam_term_label)<b>Term paid:</b> {{ $revenue->exam_term_label }} · {{ $revenue->class_fee_due_date->format('d-m-Y') }}@else<b>Installment due:</b> {{ $revenue->class_fee_due_date->format('d-m-Y') }}@endif</div>
+            @if($feeCycle)
+                <div class="mt-1 text-sm">{{ isset($feeCycle['term']) ? 'Term '.$feeCycle['term'] : ($classFeeType === 'facility' ? 'Facility year '.$revenue->class_fee_due_date->year : 'Exam installment') }}@if(isset($feeCycle['end'])) · {{ $feeCycle['due']->format('d-m-Y') }} to {{ $feeCycle['end']->format('d-m-Y') }}@endif · {{ $feeCycle['schedule']->classRoom?->name }}</div>
+            @endif
         @endif
         @if($revenue->payment_method === 'bank_transfer')
             <div class="mt-2 text-sm">
@@ -413,7 +420,7 @@ if (empty($studentAddress) && $student) {
                     <div class="flex justify-between"><span>{{ $isAdmission ? 'II.' : 'I.' }} Monthly fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($singleMonthlyReceiptAmount,2) }}</span></div>
                 @endif
                 @if($isFacilities)
-                    <div class="flex justify-between"><span>{{ ($isAdmission || $isMonthly) ? 'III.' : 'I.' }} Facilities fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                    <div class="flex justify-between"><span>{{ ($isAdmission || $isMonthly) ? 'III.' : 'I.' }} {{ $classFeeType === 'facility' ? 'Facility fee' : 'Facilities fee' }} :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                 @endif
                 @if(!$isAdmission && !$isMonthly && !$isFacilities)
                     <div class="flex justify-between"><span>{{ $category->name }} :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>

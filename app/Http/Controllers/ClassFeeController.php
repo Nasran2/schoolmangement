@@ -30,6 +30,7 @@ class ClassFeeController extends Controller
             'status' => ['nullable', 'in:all,paid,unpaid,partial,pending'],
             'q' => ['nullable', 'string', 'max:100'],
             'include_inactive' => ['nullable', 'boolean'],
+            'include_former' => ['nullable', 'boolean'],
             'all_years' => ['nullable', 'boolean'],
             'include_facility' => ['nullable', 'boolean'],
             'exam_selection' => ['nullable', 'boolean'],
@@ -61,16 +62,17 @@ class ClassFeeController extends Controller
             ? $examOptions->intersect($filters['exam_dates'] ?? [])->values()->all() : $examOptions->all();
         $selectionQuery = [
             'include_facility' => (int) $includeFacility, 'exam_selection' => 1, 'exam_dates' => $selectedExamDates,
+            'include_former' => (int) $request->boolean('include_former'),
         ];
         $filters = array_replace($filters, $selectionQuery, ['selection_scope' => $scope]);
         $schedules = $class ? $rulesFor($class) : collect();
         $allStudents = Student::with('promotionHistories')
             ->when($class, fn ($q) => $q->where(fn ($q) => $q->where('class_room_id', $class->id)
-                ->orWhereHas('promotionHistories', fn ($q) => $q->where('from_class_room_id', $class->id)->orWhere('to_class_room_id', $class->id))))
+                ->when($request->boolean('include_former'), fn ($q) => $q->orWhereHas('promotionHistories', fn ($q) => $q->where('from_class_room_id', $class->id)->orWhere('to_class_room_id', $class->id)))))
             ->when(! $request->boolean('include_inactive'), fn ($q) => $q->where('active', true)->where('alumni', false))
             ->orderBy('name')->get();
         $membersFor = fn ($option) => $allStudents->filter(fn ($student) => (int) $student->class_room_id === (int) $option->id
-            || $student->promotionHistories->contains(fn ($move) => (int) $move->from_class_room_id === (int) $option->id || (int) $move->to_class_room_id === (int) $option->id));
+            || ($request->boolean('include_former') && $student->promotionHistories->contains(fn ($move) => (int) $move->from_class_room_id === (int) $option->id || (int) $move->to_class_room_id === (int) $option->id)));
         $students = $class ? $membersFor($class) : collect();
         $tracker = $fees->tracker($schedules, $students, $fromFor($schedules), $to, $selectedExamDates);
         $allRows = $tracker['rows'];
@@ -87,12 +89,13 @@ class ClassFeeController extends Controller
                 if ($summary['rows']->isEmpty() && ($members->isNotEmpty() || ! empty($filters['q']) || ($filters['status'] ?? 'all') !== 'all')) {
                     continue;
                 }
-                $classSummaries->push(['class' => $option] + $summary);
+                $classSummaries->push(['class' => $option, 'schedules' => $rules] + $summary);
             }
             $tracker['paid'] = (float) $classSummaries->sum('paid');
             $tracker['due'] = (float) $classSummaries->sum('due');
             $tracker['unpaid_students'] = $classSummaries->flatMap(fn ($summary) => $summary['rows']->where('due', '>', 0)->pluck('student.id'))->unique()->count();
         }
+        $dueBreakdown = $fees->dueBreakdown($class ? collect([['schedules' => $schedules] + $tracker]) : $classSummaries);
         $selectedStudentId = old('student_id', $filters['student_id'] ?? null);
         $selectedStudent = is_numeric($selectedStudentId) ? $students->firstWhere('id', (int) $selectedStudentId) : null;
         $selectedCycleKey = old('cycle', $filters['cycle'] ?? null);
@@ -107,7 +110,7 @@ class ClassFeeController extends Controller
             ->orderByDesc('paid_at')->get() : collect();
         $reportTitle = $type === 'exam' && $includeFacility ? 'Exam & Facility Fees' : ClassFeeSchedule::TYPES[$type];
         $data = compact('type', 'year', 'classes', 'class', 'classSummaries', 'tracker', 'rows', 'students', 'selectedStudent', 'selectedCycle', 'selectedStatus', 'unassigned', 'examOptions', 'examLabels', 'selectedExamDates', 'includeFacility', 'selectionQuery', 'reportTitle') + [
-            'filters' => $filters, 'submissionId' => (string) Str::uuid(),
+            'filters' => $filters, 'submissionId' => (string) Str::uuid(), 'dueBreakdown' => $dueBreakdown,
         ];
         if ($request->boolean('pdf')) {
             $sections = $class ? collect([['class' => $class] + $tracker]) : $classSummaries;
@@ -169,14 +172,39 @@ class ClassFeeController extends Controller
             'cheque_date' => ['required_if:payment_method,cheque', 'nullable', 'date_format:Y-m-d'],
             'cheque_number' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
             'cheque_bank' => ['required_if:payment_method,cheque', 'nullable', 'string', 'max:100'],
+            'cheque_student_name' => ['nullable', 'string', 'max:120'],
+            'bill_no' => ['nullable', 'string', 'max:50'],
+            'view_receipt' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'return_to' => ['nullable', 'in:collection'],
+            'search_class_room_id' => ['nullable', 'integer', 'exists:class_rooms,id'],
+            'search_q' => ['nullable', 'string', 'max:100'],
+            'search_year' => ['nullable', 'integer', 'min:2000', 'max:2099'],
+            'include_inactive' => ['nullable', 'boolean'],
+            'include_former' => ['nullable', 'boolean'],
+            'all_years' => ['nullable', 'boolean'],
         ]);
         $revenue = $payments->collect($classroom, $type, $data, $request->user());
 
-        return redirect()->route('class-fees.index', [
+        $destination = ($data['return_to'] ?? null) === 'collection' ? 'revenue.items.create' : 'class-fees.index';
+        $parameters = $destination === 'revenue.items.create' ? [
+            'quick' => $type, 'class_room_id' => $data['search_class_room_id'] ?? null,
+            'q' => $data['search_q'] ?? null, 'year' => $data['search_year'] ?? $revenue->class_fee_due_date->year,
+            'student_id' => $data['student_id'], 'cycle' => $data['cycle'],
+            'include_inactive' => $request->boolean('include_inactive'), 'all_years' => $request->boolean('all_years'),
+        ] : [
             'type' => $type, 'class_room_id' => $classroom->id, 'year' => $revenue->class_fee_due_date->year,
             'student_id' => $data['student_id'], 'cycle' => $data['cycle'],
-        ])->with('status', $revenue instanceof Revenue ? 'Fee recorded for the selected installment. Bill: '.$revenue->bill_no : 'Historical payment recorded. Revenue and ledger were not increased.')
+            'include_former' => $request->boolean('include_former') || (int) $revenue->student->class_room_id !== (int) $classroom->id,
+        ];
+
+        if ($request->boolean('view_receipt') && $revenue instanceof Revenue) {
+            return redirect()->route('revenue.items.receipt', $revenue)
+                ->with('fee_collection_return_url', route($destination, $parameters));
+        }
+
+        return redirect()->route($destination, $parameters)
+            ->with('status', $revenue instanceof Revenue ? 'Fee recorded for the selected installment. Bill: '.$revenue->bill_no : 'Historical payment recorded. Revenue and ledger were not increased.')
             ->with('class_fee_receipt_id', $revenue instanceof Revenue ? $revenue->id : null);
     }
 }

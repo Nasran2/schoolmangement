@@ -1,0 +1,103 @@
+PAYMENT UI, LIVE SUGGESTIONS, CATEGORY SWITCHING AND BILLS
+
+CPANEL FILE MANAGER - NO TERMINAL REQUIRED
+
+1. Upload payment-ui-search-bill-update.zip into the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract there and overwrite matching files. Do not extract inside public/
+   or an extra wrapper folder. Upload every included file together, especially:
+   public/js/fee-collection.js
+   public/css/fee-collection.css
+   resources/views/class-fees/partials/collection-assets.blade.php
+   resources/views/class-fees/partials/collection-payment-form.blade.php
+
+3. In storage/framework/views/, delete ONLY the compiled .php files.
+   Keep the views folder itself and .gitignore.
+
+4. If bootstrap/cache/routes-v7.php exists, delete that compiled route-cache
+   file so Laravel reads the updated receipt permissions from routes/web.php.
+   Keep the bootstrap/cache folder and its other files. If your route cache has
+   a different version number, delete only the routes-*.php cache file.
+
+5. Hard-refresh the browser (Command + Shift + R on Mac, Ctrl + F5 on Windows).
+
+No new migration, database reset, asset build or terminal command is required.
+All previous annual facility, term-admission and former-class display fixes
+are retained. Existing payment records are not re-entered or changed by upload.
+
+HOW TO USE
+
+Revenue -> Collect Exam Fee / Collect Facility Fee
+
+- Type a name, admission number or phone number. Suggestions appear immediately
+  after a short typing pause. Choose All classes or a specific current class.
+  Arrow keys + Enter select a result; Escape dismisses suggestions.
+- Select a student to show their fee-specific dues in the Billing Summary on
+  the right. Term and annual eligibility use the existing shared billing rules.
+- Change Payment Category to switch between exam, facility and ordinary revenue
+  categories without losing the selected student. The monthly form also now
+  includes the exam/facility categories and opens their installment collector.
+- Choose an installment, enter a full or partial amount and payment date, then
+  choose Cash, Bank Transfer or Cheque using the payment method cards.
+- Save & view bill opens the printable bill. Save payment returns to collection.
+  Bill numbering follows the existing automatic/manual setting. Manual bill
+  numbers must be unique. Bill previews are reserved only on actual saving.
+- Revenue & ledger inclusion is checked by default. Uncheck for historical
+  completed payments that should settle dues without adding income again.
+  Historical entries do not generate a new revenue bill.
+
+CHEQUE RULES
+
+Cheque date, number and bank are required. Name on cheque is optional.
+A cheque starts on hold, reserves the installment balance, and stays outside
+collected income until passed. Returning a pending cheque reopens collection.
+A clearance date cannot be before the cheque date or later than today.
+The daily ledger uses the clearance date. Cheques remain bank income, not cash.
+Pending cheques cannot be entered as settled historical payments or have their
+revenue tracking removed. Already cleared cheques can still be corrected through
+the existing fee payment editor.
+
+BILLS
+
+Print Receipt is available on the generated bill. Exam bills show their term
+and installment date; facility bills show the facility year. Both use the correct
+fee label rather than Monthly fee. Pending-cheque bills include a warning inside
+the printable receipt. Cashiers with only revenue.add may print their own bills;
+revenue.manage retains access to all bills.
+
+VALIDATION
+
+Full PHP suite: 294 tests, 2656 assertions passed.
+JavaScript: 14 tests passed, including suggestions, stale-response prevention,
+keyboard selection, category navigation and cheque tracking state.
+Live browser checks used a separate temporary database: class-filtered
+suggestions, term-three admission, category switching in both directions,
+payment-method fields and saving a pending cheque to its actual receipt.
+The temporary database and preview server were removed after verification.
+No production database data was read or changed by browser tests.
+
+INCLUDED APPLICATION FILES
+- app/Http/Controllers/ClassFeeCollectionController.php
+- app/Http/Controllers/ClassFeeController.php
+- app/Http/Controllers/RevenueController.php
+- app/Models/Student.php
+- app/Services/Billing/ClassFeeService.php
+- app/Services/Billing/ClassFeePaymentService.php
+- resources/views/layouts/sidebar-menu.blade.php
+- resources/views/class-fees/collect.blade.php
+- resources/views/class-fees/index.blade.php
+- resources/views/class-fees/bulk.blade.php
+- resources/views/class-fees/pdf.blade.php
+- resources/views/class-fees/partials/payment-form.blade.php
+- resources/views/class-fees/partials/collection-assets.blade.php
+- resources/views/class-fees/partials/collection-payment-form.blade.php
+- resources/views/classrooms/partials/recurring-fees.blade.php
+- resources/views/class-fees/partials/scripts.blade.php
+- resources/views/revenue/create.blade.php
+- resources/views/revenue/receipt.blade.php
+- resources/views/components/receipt.blade.php
+- public/js/class-fees.js
+- public/js/fee-collection.js
+- public/css/fee-collection.css
+- routes/web.php

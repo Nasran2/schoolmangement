@@ -60,6 +60,7 @@
             </div>
             <div class="flex flex-col justify-end gap-2">
                 <label class="text-xs text-gray-600 flex items-center gap-2"><input type="checkbox" name="include_inactive" value="1" @checked($filters['include_inactive'] ?? false)> Include inactive / alumni</label>
+                <label class="text-xs text-gray-600 flex items-center gap-2"><input type="checkbox" name="include_former" value="1" @checked($filters['include_former'] ?? false)> Include former class students</label>
                 <x-primary-button>Apply filters</x-primary-button>
                 @can('reports.download')
                     <button type="submit" name="pdf" value="1" class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-indigo-700">Download PDF</button>
@@ -96,13 +97,34 @@
                 @endif
             </div>
         </form>
-        <p class="text-xs text-gray-500">The year filters installment due dates, including payments made later. Term fees become due at the start; unpaid terms become overdue after their ending date. Future terms do not count as due. Students who moved classes retain their earlier installment history.</p>
+        <p class="text-xs text-gray-500">The year filters installment due dates, including payments made later. Term fees become due at the start; unpaid terms become overdue after their ending date. Future terms do not count as due. Facility fees apply from the student’s joining year, regardless of the joining month. Students joining during a term owe that term; completed terms before admission do not apply. Only current class members are shown by default. Select Include former class students to view earlier dues and payments.</p>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="rounded-lg bg-white p-5 shadow-sm"><div class="text-sm text-gray-500">Payments recorded for selected {{ ($filters['all_years'] ?? false) ? 'installments' : $year.' installments' }}</div><div class="mt-1 text-2xl font-semibold">Rs {{ number_format($tracker['paid'], 2) }}</div></div>
             <div class="rounded-lg bg-white p-5 shadow-sm"><div class="text-sm text-gray-500">Outstanding due now</div><div class="mt-1 text-2xl font-semibold text-red-700">Rs {{ number_format($tracker['due'], 2) }}</div></div>
             <div class="rounded-lg bg-white p-5 shadow-sm"><div class="text-sm text-gray-500">Students with unpaid installments</div><div class="mt-1 text-2xl font-semibold">{{ $tracker['unpaid_students'] }}</div></div>
         </div>
+
+        <section aria-label="Fee dues by term">
+            <style>
+                .class-fee-due-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+                .class-fee-due-card { border-top: 3px solid #6366f1; min-width: 0; }
+                .class-fee-due-card[data-fee="facility"] { border-top-color: #0d9488; }
+                .class-fee-due-amount { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+                @media (min-width: 640px) { .class-fee-due-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+                @media (min-width: 1024px) { .class-fee-due-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+            </style>
+            <div class="class-fee-due-cards">
+                @foreach($dueBreakdown as $feeKey => $card)
+                    <div class="class-fee-due-card rounded-lg bg-white p-5 shadow-sm" data-fee="{{ $feeKey }}">
+                        <h3 class="text-sm font-semibold text-gray-700">{{ $card['label'] }}</h3>
+                        <div class="class-fee-due-amount mt-1 text-2xl font-semibold {{ $card['due'] > 0 ? 'text-red-700' : 'text-gray-900' }}">Rs {{ number_format($card['due'], 2) }}</div>
+                        <p class="mt-2 text-xs text-gray-500">{{ $card['selected'] ? 'Outstanding due now' : 'No selected fees in this period' }}</p>
+                    </div>
+                @endforeach
+            </div>
+            <p class="mt-2 text-xs text-gray-500">These balances follow the filters above. Future fees are excluded until their starting date.</p>
+        </section>
 
         @if($class && $tracker['cycles']->isEmpty())
             <div class="rounded-lg bg-white p-6 shadow-sm text-sm text-gray-600">
@@ -117,29 +139,7 @@
                     <h3 class="text-lg font-semibold">Collect {{ \App\Models\ClassFeeSchedule::TYPES[$selectedCycle['schedule']->fee_type] }} — {{ $selectedStudent->name }}</h3>
                     <p class="mt-1 mb-5 text-sm text-gray-600">{{ $class->name }} · Due {{ $selectedCycle['due']->format('d M Y') }} · Fee Rs {{ number_format($selectedCycle['amount'], 2) }} · Paid Rs {{ number_format($selectedStatus['paid'], 2) }} · Pending Rs {{ number_format($selectedStatus['pending'], 2) }}</p>
                     @if($selectedStatus['collectable'] > 0)
-                        <form method="POST" action="{{ route('class-fees.store', ['classroom' => $class->id, 'type' => $selectedCycle['schedule']->fee_type]) }}" class="space-y-4" x-data="{ method: @js(old('payment_method', 'cash')), saving: false }" @submit="saving = true">
-                            @csrf
-                            <input type="hidden" name="student_id" value="{{ $selectedStudent->id }}">
-                            <input type="hidden" name="cycle" value="{{ $selectedCycle['key'] }}">
-                            <input type="hidden" name="submission_id" value="{{ old('submission_id', $submissionId) }}">
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div><x-input-label for="amount" value="Amount to collect (Rs)" /><x-text-input id="amount" name="amount" type="number" min="0.01" step="0.01" :max="$selectedStatus['collectable']" :value="old('amount', $selectedStatus['collectable'])" required class="mt-1 w-full" /></div>
-                                <div><x-input-label for="paid_at" value="Payment date" /><x-text-input id="paid_at" name="paid_at" type="date" :max="today()->toDateString()" :value="old('paid_at', today()->toDateString())" required class="mt-1 w-full" /></div>
-                                <div><x-input-label for="payment_method" value="Payment method" /><select name="payment_method" id="payment_method" x-model="method" class="mt-1 w-full rounded-md border-gray-300"><option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option><option value="cheque">Cheque (pending until passed)</option></select></div>
-                            </div>
-                            <div x-show="method === 'bank_transfer'" x-cloak class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div><x-input-label for="bank_name" value="Bank name" /><x-text-input id="bank_name" name="bank_name" :value="old('bank_name')" class="mt-1 w-full" /></div>
-                                <div><x-input-label for="bank_ref_no" value="Bank reference (optional)" /><x-text-input id="bank_ref_no" name="bank_ref_no" :value="old('bank_ref_no')" class="mt-1 w-full" /></div>
-                            </div>
-                            <div x-show="method === 'cheque'" x-cloak class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <div><x-input-label for="cheque_bank" value="Cheque bank" /><x-text-input id="cheque_bank" name="cheque_bank" :value="old('cheque_bank')" class="mt-1 w-full" /></div>
-                                <div><x-input-label for="cheque_number" value="Cheque number" /><x-text-input id="cheque_number" name="cheque_number" :value="old('cheque_number')" class="mt-1 w-full" /></div>
-                                <div><x-input-label for="cheque_date" value="Cheque date" /><x-text-input id="cheque_date" name="cheque_date" type="date" :value="old('cheque_date')" class="mt-1 w-full" /></div>
-                            </div>
-                            <div class="rounded-lg bg-indigo-50 p-4"><input type="hidden" name="record_revenue" value="0"><label class="flex items-center gap-2 text-sm font-semibold text-indigo-900"><input type="checkbox" name="record_revenue" value="1" @checked(old('record_revenue', true)) class="rounded border-gray-300 text-indigo-600"> Include in revenue &amp; ledger</label><p class="mt-1 text-xs text-indigo-800">Uncheck when entering a payment already made in an earlier term, to settle the fee without adding income again.</p></div>
-                            <div><x-input-label for="notes" value="Notes (optional)" /><x-text-input id="notes" name="notes" maxlength="1000" :value="old('notes')" class="mt-1 w-full" /></div>
-                            <x-primary-button x-bind:disabled="saving" x-text="saving ? 'Saving…' : 'Record payment'">Record payment</x-primary-button>
-                        </form>
+                        @include('class-fees.partials.payment-form')
                         @if($unassigned->isNotEmpty())
                             <details class="mt-5 border-t pt-4">
                                 <summary class="cursor-pointer text-sm font-semibold text-indigo-700">Assign an earlier receipt to this installment</summary>
@@ -194,7 +194,7 @@
                                         @if($installment['waived'] > 0)<div class="text-xs text-gray-600">Waived {{ number_format($installment['waived'], 2) }}</div>@endif
                                         @can('revenue.add')
                                             @if($installment['collectable'] > 0 && $row['student']->active && ! $row['student']->alumni)
-                                                <a class="text-xs font-semibold text-indigo-700 underline" href="{{ route('class-fees.index', ['type' => $tracker['cycles'][$key]['schedule']->fee_type, 'class_room_id' => $class->id, 'year' => $tracker['cycles'][$key]['due']->year, 'student_id' => $row['student']->id, 'cycle' => $key]) }}#collect-fee">{{ $tracker['cycles'][$key]['due']->gt(today()) ? 'Pay in advance' : 'Collect' }}</a>
+                                                <a class="text-xs font-semibold text-indigo-700 underline" href="{{ route('class-fees.index', ['type' => $tracker['cycles'][$key]['schedule']->fee_type, 'class_room_id' => $class->id, 'year' => $tracker['cycles'][$key]['due']->year, 'student_id' => $row['student']->id, 'cycle' => $key, 'include_former' => $filters['include_former'] ?? 0, 'include_inactive' => $filters['include_inactive'] ?? 0]) }}#collect-fee">{{ $tracker['cycles'][$key]['due']->gt(today()) ? 'Pay in advance' : 'Collect' }}</a>
                                             @endif
                                         @endcan
                                     @endif

@@ -52,7 +52,7 @@
         <div>
             @if($type === 'exam')<b>Exam installments:</b> {{ count($selectedExamDates) }} selected &nbsp; | &nbsp;@endif
             <b>Facility fee:</b> {{ $includeFacility ? 'Included' : 'Excluded' }} &nbsp; | &nbsp;
-            <b>Students:</b> {{ ($filters['include_inactive'] ?? false) ? 'Including inactive / alumni' : 'Active students' }}
+            <b>Students:</b> {{ ($filters['include_inactive'] ?? false) ? 'Including inactive / alumni' : 'Active students' }} | {{ ($filters['include_former'] ?? false) ? 'Including former class students' : 'Current class members only' }}
         </div>
         @if(! empty($filters['q']))<div><b>Student search:</b> {{ $filters['q'] }}</div>@endif
     </div>
@@ -116,6 +116,6 @@
     @empty
         <div class="empty">No students or installments match the selected filters.</div>
     @endforelse
-    <div class="note">Balances, counts, and the paid/unpaid filter use only the selected installments. Upcoming installments are not overdue. Pending cheques are not counted as paid. Historical payments settle fees but are excluded from revenue and ledger totals. Waivers settle balances without adding to collected income. Student rows may include the same student under different classes if they moved class.</div>
+    <div class="note">Balances, counts, and the paid/unpaid filter use only the selected installments. Upcoming installments are not overdue. Pending cheques are not counted as paid. Historical payments settle fees but are excluded from revenue and ledger totals. Waivers settle balances without adding to collected income. Former class students are included only when the Include former class students filter is selected.</div>
 </body>
 </html>

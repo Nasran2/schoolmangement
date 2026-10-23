@@ -1,0 +1,83 @@
+REVENUE EXAM / FACILITY COLLECTION AND CURRENT CLASS LISTS
+
+CPANEL FILE MANAGER - NO TERMINAL REQUIRED
+
+1. Upload revenue-fee-collection-update.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract there and overwrite matching files. Extract directly into the
+   application root, NOT inside public/ and NOT inside another wrapper folder.
+   Upload all included files together: the register now shares its payment form
+   with the Revenue collection pages.
+
+3. Open storage/framework/views/ in that application folder. Delete ONLY the
+   compiled .php files inside. Keep the views folder itself and .gitignore.
+
+4. Hard-refresh the browser (Command + Shift + R on Mac, Ctrl + F5 on Windows).
+
+No new migration, database reset, asset build, terminal command or route-cache
+refresh is required. New collection pages use the existing Revenue create route.
+
+WHERE TO COLLECT
+
+Revenue -> Collect Exam Fee
+Revenue -> Collect Facility Fee
+
+Search a name or admission number across all classes, or choose a class before
+searching. Click Search students, then select the student from the results on
+the left. A unique matching student is selected automatically. The right panel
+shows only the selected fee type's dues, recorded payments and pending cheques.
+The search results use the student's current class. Inactive/alumni require the
+explicit checkbox.
+
+Earlier years are included by default. Uncheck Include earlier years to see only
+the chosen installment year. Select Collect on a term or annual fee to choose a
+different installment, then enter the amount, payment date and method. The
+oldest collectable installment is selected automatically. Partial amounts are
+supported. Pending cheques reserve their amounts; paid fees cannot be charged
+again. Saving returns to the selected student with refreshed balances.
+
+Include in revenue & ledger is checked by default. Uncheck only when recording
+a historical payment whose income should not be counted again. Existing payment
+edit/delete tools remain available in the fee register.
+
+FORMER CLASS STUDENTS
+
+The Exam & Facility Fees register and its PDF now show only current class
+members by default. Include former class students allows their historical class
+records to be viewed. Old payments and balances are retained. The collection
+page for an individual student still includes that student's applicable earlier
+class dues so a cashier can settle them without adding former students to the
+current class roster. Dashboard financial calculations are preserved.
+
+PREVIOUS FIXES RETAINED
+
+- A student joining anytime through a configured term's ending date owes that
+  term and following terms; completed terms before admission do not apply.
+- Annual facility fees apply from the joining calendar year regardless of month.
+- Individual, bulk and historical payments share the same balance calculations.
+- The standalone term/bulk controls and guarded script loader are included.
+
+VALIDATION
+Full automated suite passed: 285 tests, 2560 assertions.
+Student search, class filters, both fee types, late admissions, previous years,
+partial payments, overpayment rejection, retry protection, historical payments,
+pending cheques, permissions and former class filtering are covered.
+The desktop search/dues panel and payment form were visually checked in browser.
+
+INCLUDED APPLICATION FILES
+- app/Http/Controllers/ClassFeeCollectionController.php
+- app/Http/Controllers/ClassFeeController.php
+- app/Http/Controllers/RevenueController.php
+- app/Models/Student.php
+- app/Services/Billing/ClassFeeService.php
+- app/Services/Billing/ClassFeePaymentService.php
+- resources/views/layouts/sidebar-menu.blade.php
+- resources/views/class-fees/collect.blade.php
+- resources/views/class-fees/index.blade.php
+- resources/views/class-fees/bulk.blade.php
+- resources/views/class-fees/pdf.blade.php
+- resources/views/class-fees/partials/payment-form.blade.php
+- resources/views/classrooms/partials/recurring-fees.blade.php
+- resources/views/class-fees/partials/scripts.blade.php
+- public/js/class-fees.js

@@ -1,0 +1,77 @@
+EXAM FEE TERM DETAILS FIX
+
+Exam payment details identify the paid term, for example:
+  Exam Fee - Term 1 (2026)
+  Exam Fee - Term 2 (2026)
+
+This applies to the daily ledger, revenue reports, PDF/export notes, Revenue
+manage list, financial details and cash/bank/cheque history. Printed exam bills
+show Term paid instead of Installment due.
+
+When multiple terms are paid through bulk collection, every term retains its
+own payment and bill. Each report entry identifies the term it settles, with
+its correct amount and bill reference. Transactions are not combined into a
+single bill by this display update.
+
+Existing linked receipts use their saved calendars without rewriting stored
+notes, amounts, dates or bill numbers. Staff notes are retained. Converted
+quarterly receipts use the mapped terms. Earlier quarterly schedules use the
+chronological charge number within the due year. Configured terms spanning two
+calendar years keep their saved term number. Unassigned receipts retain their
+original notes rather than guessing a term from their payment date.
+
+CPANEL FILE MANAGER - NO TERMINAL REQUIRED
+
+1. Upload exam-fee-term-details-fix.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract there and overwrite matching files. Apply all files together.
+   Do not extract inside public/ or an extra wrapper folder.
+
+3. Open storage/framework/views/ and delete ONLY the compiled .php files.
+   Keep the views folder itself and .gitignore.
+
+4. If bootstrap/cache/routes-v7.php exists, delete that route cache file.
+   Keep the folder and other cache files. This retains the earlier cashier
+   receipt-permission update included in the complete package.
+
+5. Hard-refresh the report and download a fresh PDF for updated labels.
+
+No new migration, database reset, terminal command or asset build is needed.
+Previous live-search, payment UI, cheque/bill and eligibility fixes are included.
+Do not re-enter payments that have already been recorded.
+
+VALIDATION
+Full suite passed: 301 tests, 2706 assertions. Regression checks cover older
+receipts, calendar conversion, staff notes, multiple-term bulk payments, bill
+amounts, cross-year terms, PDF details, cancellations and unchanged totals.
+
+INCLUDED APPLICATION FILES
+- app/Http/Controllers/ClassFeeCollectionController.php
+- app/Http/Controllers/ClassFeeController.php
+- app/Http/Controllers/RevenueController.php
+- app/Models/Student.php
+- app/Services/Billing/ClassFeeService.php
+- app/Services/Billing/ClassFeePaymentService.php
+- resources/views/layouts/sidebar-menu.blade.php
+- resources/views/class-fees/collect.blade.php
+- resources/views/class-fees/index.blade.php
+- resources/views/class-fees/bulk.blade.php
+- resources/views/class-fees/pdf.blade.php
+- resources/views/class-fees/partials/payment-form.blade.php
+- resources/views/class-fees/partials/collection-assets.blade.php
+- resources/views/class-fees/partials/collection-payment-form.blade.php
+- resources/views/classrooms/partials/recurring-fees.blade.php
+- resources/views/class-fees/partials/scripts.blade.php
+- resources/views/revenue/create.blade.php
+- resources/views/revenue/receipt.blade.php
+- resources/views/components/receipt.blade.php
+- public/js/class-fees.js
+- public/js/fee-collection.js
+- public/css/fee-collection.css
+- routes/web.php
+- app/Models/Revenue.php
+- app/Http/Controllers/ReportController.php
+- resources/views/revenue/index.blade.php
+- resources/views/reports/revenue.blade.php
+- resources/views/reports/revenue-pdf.blade.php

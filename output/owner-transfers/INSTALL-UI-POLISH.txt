@@ -1,0 +1,29 @@
+OWNER TRANSFER UI POLISH
+
+The transfer table now uses consistent spacing, typography and light amount
+badges instead of full-height coloured columns. Return rows are grouped beneath
+their transfer, with a subtle green accent and clear status labels. Zero returns
+use a neutral badge. Deleted transfers remain visibly red with their reason.
+Action buttons share the same size, border and focus treatment. The return popup
+uses the same palette and fits mobile screens.
+
+This is a UI patch for the installed Owner Transfer edit/return update.
+No database change, terminal command or asset build is needed.
+
+CPANEL FILE MANAGER
+
+1. Upload owner-transfer-ui-polish.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract there and overwrite these two matching files:
+   resources/views/owner-transfers/index.blade.php
+   resources/views/owner-transfers/styles.blade.php
+
+3. In storage/framework/views/, delete only the compiled .php files.
+   Preserve the folder and .gitignore.
+
+4. Hard-refresh Owner Bank Transfer.
+
+Validation: all 51 transfer tests passed (402 assertions). The actual rendered
+Blade page and return popup were visually checked at desktop and 390px mobile
+widths using sample records in an in-memory database. No live data was changed.

@@ -205,7 +205,7 @@
                             </div>
                         </div>
 
-                        @include('reports.partials.owner-transfers', ['ownerTransfers' => $d['owner_transfers'], 'totalTransfers' => $d['transfer_total']])
+                        @include('reports.partials.owner-transfers', ['ownerTransfers' => $d['owner_transfers'], 'totalTransfers' => $d['transfer_total'], 'ownerTransferReturns' => $d['owner_transfer_returns'], 'grossTransfers' => $d['transfer_gross'], 'totalTransferReturns' => $d['transfer_returned']])
 
                         <div class="mt-4 text-sm text-gray-600 flex flex-wrap gap-4">
                             <div>Cash In: <span class="font-semibold text-gray-900">Rs {{ number_format((float) ($d['income_cash'] ?? 0), 2) }}</span></div>

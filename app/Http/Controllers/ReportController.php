@@ -8,6 +8,7 @@ use App\Models\ExpenseCategory;
 use App\Models\OpeningBalance;
 use App\Models\Revenue;
 use App\Models\OwnerTransfer;
+use App\Services\OwnerTransferReportService;
 use App\Services\CashBalanceService;
 use App\Models\RevenueCategory;
 use App\Models\RevenueAdjustment;
@@ -551,7 +552,7 @@ class ReportController extends Controller
 
     public function revenue(Request $request)
     {
-        $query = Revenue::query()->with(['category', 'student']);
+        $query = Revenue::query()->with(['category', 'student', 'classFeeSchedule.classRoom.feeSchedules']);
 
         $isExport = $request->boolean('pdf') || $request->boolean('download');
         $from = $request->input('from');
@@ -618,7 +619,7 @@ class ReportController extends Controller
                         $row->category?->name,
                         $row->student?->name,
                         (float) $row->amount,
-                        $row->notes,
+                        $row->display_notes,
                     ];
                 }
             );
@@ -799,9 +800,9 @@ class ReportController extends Controller
         $expenseBeforeQ = Expense::query()->whereDate('expense_date', '<', $start->toDateString());
         $expenseBeforeQ = $this->applyPaymentMethodFilter($expenseBeforeQ, 'payment_method', $openingMethodFilter);
         $expenseBefore = (float) $expenseBeforeQ->sum('amount');
-        $ownerTransfers = $includeOwnerTransfers
-            ? OwnerTransfer::whereDate('transferred_at', '>=', $start->toDateString())->whereDate('transferred_at', '<=', $end->toDateString())->orderBy('transferred_at')->orderBy('id')->get()
-            : collect();
+        $transferLedger = app(OwnerTransferReportService::class)->forPeriod($start->toDateString(), $end->toDateString());
+        $ownerTransfers = $includeOwnerTransfers ? $transferLedger['transfers'] : collect();
+        $ownerTransferReturns = $includeOwnerTransfers ? $transferLedger['returns'] : collect();
         $openingBalance = ($grossBefore - $refundBefore) - $expenseBefore;
         if ($includeOwnerTransfers) {
             $cashOpening = app(CashBalanceService::class)->openingOn($start->toDateString());
@@ -816,7 +817,7 @@ class ReportController extends Controller
             while ($cursor->lte($end)) {
                 $dateStr = $cursor->toDateString();
 
-                $incomeQuery = Revenue::query()
+                $incomeQuery = Revenue::query()->with('classFeeSchedule.classRoom.feeSchedules')
                     ->leftJoin('students', 'students.id', '=', 'revenues.student_id')
                     ->leftJoin('revenue_categories', 'revenue_categories.id', '=', 'revenues.revenue_category_id')
                     ->whereDate('revenues.paid_at', $dateStr)
@@ -826,6 +827,8 @@ class ReportController extends Controller
                         'revenues.bill_no',
                         'revenues.amount',
                         'revenues.notes',
+                        'revenues.class_fee_schedule_id',
+                        'revenues.class_fee_due_date',
                         'students.name as student_name',
                         'revenue_categories.name as category_name',
                         'revenues.payment_method',
@@ -835,8 +838,8 @@ class ReportController extends Controller
                 $incomes = $incomeQuery->get()
                     ->map(function ($r) use ($isBankMethod) {
                         $desc = $r->student_name ? $r->student_name : ($r->category_name ?: 'Income');
-                        if (!empty($r->notes)) {
-                            $desc .= ' - ' . $r->notes;
+                        if (!empty($r->display_notes)) {
+                            $desc .= ' - ' . $r->display_notes;
                         }
 
                         $pm = (string) ($r->payment_method ?? 'cash');
@@ -921,7 +924,10 @@ class ReportController extends Controller
                 $incomeTotal = array_sum(array_map(fn($i) => (float) $i['amount'], array_merge($incomes, $refunds)));
                 $expenseTotal = array_sum(array_map(fn($c) => (float) $c['amount'], $expenses));
                 $dayTransfers = $ownerTransfers->filter(fn ($transfer) => $transfer->transferred_at->toDateString() === $dateStr)->values();
-                $transferTotal = (float) $dayTransfers->sum('amount');
+                $dayReturns = $ownerTransferReturns->filter(fn ($return) => $return->returned_at->toDateString() === $dateStr)->values();
+                $transferGross = (float) $dayTransfers->sum('effective_amount');
+                $transferReturned = (float) $dayReturns->sum('effective_amount');
+                $transferTotal = $transferGross - $transferReturned;
                 $closing = $runningOpening + $incomeTotal - $expenseTotal - $transferTotal;
 
                 $bbfDate = $cursor->copy()->subDay()->format('M d, Y');
@@ -941,6 +947,9 @@ class ReportController extends Controller
                     'expense_total' => $expenseTotal,
                     'closing' => $closing,
                     'owner_transfers' => $dayTransfers,
+                    'owner_transfer_returns' => $dayReturns,
+                    'transfer_gross' => $transferGross,
+                    'transfer_returned' => $transferReturned,
                     'transfer_total' => $transferTotal,
                 ];
 
@@ -1024,7 +1033,9 @@ class ReportController extends Controller
 
             $incomeTotal = $revenueSum - $refundSum;
             $expenseTotal = $expenseSum;
-            $transferTotal = (float) $ownerTransfers->sum('amount');
+            $transferGross = (float) $ownerTransfers->sum('effective_amount');
+            $transferReturned = (float) $ownerTransferReturns->sum('effective_amount');
+            $transferTotal = $transferGross - $transferReturned;
             $closing = $openingBalance + $incomeTotal - $expenseTotal - $transferTotal;
 
             $bbfDate = $start->copy()->subDay()->format('M d, Y');
@@ -1047,6 +1058,9 @@ class ReportController extends Controller
                 'expense_total' => $expenseTotal,
                 'closing' => $closing,
                 'owner_transfers' => $ownerTransfers,
+                'owner_transfer_returns' => $ownerTransferReturns,
+                'transfer_gross' => $transferGross,
+                'transfer_returned' => $transferReturned,
                 'transfer_total' => $transferTotal,
             ];
         }
@@ -1100,13 +1114,15 @@ class ReportController extends Controller
                     'expense_cash' => (float) ($d['expense_cash'] ?? 0.0),
                     'expense_bank' => (float) ($d['expense_bank'] ?? 0.0),
                     'owner_transfers' => (float) ($d['transfer_total'] ?? 0.0),
+                    'transfer_gross' => (float) ($d['transfer_gross'] ?? 0.0),
+                    'transfer_returned' => (float) ($d['transfer_returned'] ?? 0.0),
                 ];
             });
 
             return $this->downloadTable(
                 $request,
                 'financial-summary-' . now()->format('Y-m-d'),
-                ['Date', 'Opening', 'Income Total', 'Expense Total', 'Closing', 'Income Cash', 'Income Bank', 'Expense Cash', 'Expense Bank', 'Owner bank account transfers'],
+                ['Date', 'Opening', 'Income Total', 'Expense Total', 'Closing', 'Income Cash', 'Income Bank', 'Expense Cash', 'Expense Bank', 'Owner bank account transfers (net)', 'Gross owner transfers', 'Returned to cash'],
                 $rows,
                 fn($r) => [
                     $r['date'],
@@ -1119,6 +1135,8 @@ class ReportController extends Controller
                     $r['expense_cash'],
                     $r['expense_bank'],
                     $r['owner_transfers'],
+                    $r['transfer_gross'],
+                    $r['transfer_returned'],
                 ]
             );
         }
@@ -1324,19 +1342,26 @@ class ReportController extends Controller
         });
 
         $ownerTransfers = in_array($methodFilter, ['all', 'cash'], true)
-            ? OwnerTransfer::whereDate('transferred_at', '>=', $start->toDateString())->whereDate('transferred_at', '<=', $end->toDateString())->get()->map(fn ($transfer) => [
+            ? OwnerTransfer::active()->whereDate('transferred_at', '>=', $start->toDateString())->whereDate('transferred_at', '<=', $end->toDateString())->get()->map(fn ($transfer) => [
                 'date' => $transfer->transferred_at->toDateString(),
                 'type' => 'Transfer',
                 'category' => 'Owner transfer',
-                'party' => OwnerTransfer::DESTINATION,
+                'party' => $transfer->destination,
                 'method' => 'Cash',
                 'amount' => (float) $transfer->amount,
                 'notes' => trim(($transfer->reference ?? '').' '.($transfer->notes ?? '')),
             ])
             : collect();
 
+        $transferReturns = in_array($methodFilter, ['all', 'cash'], true)
+            ? app(OwnerTransferReportService::class)->forPeriod($start->toDateString(), $end->toDateString())['returns']
+                ->filter(fn ($return) => !$return->transfer->deleted_at)->map(fn ($return) => [
+                    'date' => $return->returned_at->toDateString(), 'type' => 'Transfer return',
+                    'category' => 'Owner transfer return', 'party' => $return->transfer->destination,
+                    'method' => 'Cash', 'amount' => -$return->effective_amount, 'notes' => $return->description,
+                ]) : collect();
         $rows = $expenses
-            ->concat($ownerTransfers)
+            ->concat($ownerTransfers)->concat($transferReturns)
             ->concat($salary)
             ->concat($seminarPayouts)
             ->concat($extraPayouts)
@@ -1438,7 +1463,7 @@ class ReportController extends Controller
         $openingBalance = $openingBalanceCash + $openingBalanceBank;
 
         // Revenues in range
-        $revQ = Revenue::query()
+        $revQ = Revenue::query()->with('classFeeSchedule.classRoom.feeSchedules')
             ->leftJoin('students', 'students.id', '=', 'revenues.student_id')
             ->leftJoin('revenue_categories', 'revenue_categories.id', '=', 'revenues.revenue_category_id')
             ->where(function($q) use ($start, $end) {
@@ -1458,6 +1483,8 @@ class ReportController extends Controller
                 'revenues.created_at',
                 'revenues.amount',
                 'revenues.notes',
+                'revenues.class_fee_schedule_id',
+                'revenues.class_fee_due_date',
                 'revenues.cancel_reason',
                 'revenues.payment_method',
                 'revenues.payment_status',
@@ -1483,8 +1510,8 @@ class ReportController extends Controller
             $student = $r->student_name ?: '—';
             $category = $r->category_name ?: 'Income';
             $desc = $student !== '—' ? $student : $category;
-            if (! empty($r->notes)) {
-                $desc .= ' - ' . $r->notes;
+            if (! empty($r->display_notes)) {
+                $desc .= ' - ' . $r->display_notes;
             }
             if ($status === 'cancelled') {
                 $cancelDetail = $r->cancel_reason ?: $r->notes;
@@ -1779,10 +1806,13 @@ class ReportController extends Controller
 
         $totalIn = (float) $revenues->sum('in');
         $totalOut = (float) $allExpenses->sum('out');
-        $ownerTransfers = in_array($methodFilter, ['all', 'cash'], true)
-            ? OwnerTransfer::whereDate('transferred_at', '>=', $start->toDateString())->whereDate('transferred_at', '<=', $end->toDateString())->orderBy('transferred_at')->orderBy('id')->get()
-            : collect();
-        $totalTransfers = (float) $ownerTransfers->sum('amount');
+        $transferLedger = app(OwnerTransferReportService::class)->forPeriod($start->toDateString(), $end->toDateString());
+        $includeTransfers = in_array($methodFilter, ['all', 'cash'], true);
+        $ownerTransfers = $includeTransfers ? $transferLedger['transfers'] : collect();
+        $ownerTransferReturns = $includeTransfers ? $transferLedger['returns'] : collect();
+        $grossTransfers = $includeTransfers ? $transferLedger['gross'] : 0.0;
+        $totalTransferReturns = $includeTransfers ? $transferLedger['returned'] : 0.0;
+        $totalTransfers = $includeTransfers ? $transferLedger['net'] : 0.0;
         $closingBalance = $openingBalance + $totalIn - $totalOut - $totalTransfers;
 
         $totalInCash = (float) $revenues->where('account', 'cash')->sum('in');
@@ -1819,6 +1849,9 @@ class ReportController extends Controller
                 'revenues' => $revenues,
                 'expenses' => $allExpenses,
                 'ownerTransfers' => $ownerTransfers,
+                'ownerTransferReturns' => $ownerTransferReturns,
+                'grossTransfers' => $grossTransfers,
+                'totalTransferReturns' => $totalTransferReturns,
                 'totalTransfers' => $totalTransfers,
                 'totalIn' => $totalIn,
                 'totalOut' => $totalOut,
@@ -1882,11 +1915,19 @@ class ReportController extends Controller
                     'Section' => 'Transfer',
                     'Date' => $transfer->transferred_at->toDateString(),
                     'Ref' => $transfer->reference ?: 'OT-'.$transfer->id,
-                    'Description' => OwnerTransfer::DESTINATION.($transfer->notes ? ' - '.$transfer->notes : ''),
+                    'Description' => $transfer->destination.($transfer->deleted_at ? ' — Deleted: '.$transfer->deletion_reason : ($transfer->notes ? ' - '.$transfer->notes : '')),
+                    'Status' => $transfer->deleted_at ? 'Deleted' : 'Recorded',
                     'Method' => 'Cash',
                     'Amount In' => 0.0,
-                    'Amount Out' => (float) $transfer->amount,
+                    'Amount Out' => $transfer->effective_amount,
                 ];
+            }
+
+            foreach ($ownerTransferReturns as $return) {
+                $rows[] = ['Section' => 'Transfer return', 'Date' => $return->returned_at->toDateString(),
+                    'Ref' => 'OTR-'.$return->id, 'Description' => $return->description,
+                    'Method' => 'Cash', 'Status' => $return->transfer->deleted_at ? 'Deleted with transfer' : 'Returned',
+                    'Amount In' => $return->effective_amount, 'Amount Out' => 0.0];
             }
 
             return $this->downloadTable(
@@ -1919,6 +1960,9 @@ class ReportController extends Controller
             'revenues' => $revenues,
             'expenses' => $allExpenses,
             'ownerTransfers' => $ownerTransfers,
+            'ownerTransferReturns' => $ownerTransferReturns,
+            'grossTransfers' => $grossTransfers,
+            'totalTransferReturns' => $totalTransferReturns,
             'totalTransfers' => $totalTransfers,
             'totalIn' => $totalIn,
             'totalOut' => $totalOut,
@@ -1969,7 +2013,7 @@ class ReportController extends Controller
 
         // 1. Revenues (Cash)
         $revQuery = Revenue::query()
-            ->with(['category', 'student'])
+            ->with(['category', 'student', 'classFeeSchedule.classRoom.feeSchedules'])
             ->where(function ($q) {
                 $q->where('payment_method', 'cash')->orWhereNull('payment_method');
             })
@@ -1985,8 +2029,8 @@ class ReportController extends Controller
 
         foreach ($revQuery->get() as $r) {
             $desc = $r->student?->name ?: ($r->category?->name ?: 'Income');
-            if (! empty($r->notes)) {
-                $desc .= ' - ' . $r->notes;
+            if (! empty($r->display_notes)) {
+                $desc .= ' - ' . $r->display_notes;
             }
             $rows->push([
                 'id' => 'rev-' . $r->id,
@@ -2137,12 +2181,20 @@ class ReportController extends Controller
                 'raw_type' => 'transfer',
                 'type' => 'Owner Transfer',
                 'ref' => $transfer->reference ?: 'OT-'.$transfer->id,
-                'description' => OwnerTransfer::DESTINATION . ($transfer->notes ? ' - ' . $transfer->notes : ''),
+                'description' => $transfer->destination . ($transfer->deleted_at ? ' — Deleted: '.$transfer->deletion_reason : ($transfer->notes ? ' - ' . $transfer->notes : '')),
                 'method' => 'Cash',
-                'status' => 'confirmed',
+                'status' => $transfer->deleted_at ? 'cancelled' : 'confirmed',
                 'in' => 0.0,
-                'out' => (float) $transfer->amount,
+                'out' => $transfer->effective_amount,
             ]);
+        }
+
+        foreach (app(OwnerTransferReportService::class)->forPeriod($from ?: null, $to ?: null)['returns'] as $return) {
+            $rows->push(['id' => 'transfer-return-'.$return->id, 'date' => $return->returned_at,
+                'raw_type' => 'transfer', 'type' => 'Owner Transfer Return', 'ref' => 'OTR-'.$return->id,
+                'description' => $return->description.($return->transfer->deleted_at ? ' — Deleted: '.$return->transfer->deletion_reason : ''),
+                'method' => 'Cash', 'status' => $return->transfer->deleted_at ? 'cancelled' : 'confirmed',
+                'in' => $return->effective_amount, 'out' => 0.0]);
         }
 
         // Chronological sort to calculate running cash balance
@@ -2269,7 +2321,7 @@ class ReportController extends Controller
         $expenseEffectiveDateSql = $this->sqlEffectiveDate('expense_date', 'payment_method', 'cheque_date');
 
         $revQ = Revenue::query()
-            ->with(['category', 'student'])
+            ->with(['category', 'student', 'classFeeSchedule.classRoom.feeSchedules'])
             ->whereRaw("{$revenueEffectiveDateSql} >= ? AND {$revenueEffectiveDateSql} <= ?", [$from, $to])
             ->whereIn('payment_method', ['bank_transfer', 'cheque'])
             ->orderByRaw("CASE WHEN payment_method = 'cheque' AND payment_status = 'pending' THEN COALESCE(cheque_date, paid_at) WHEN payment_method = 'cheque' THEN paid_at ELSE paid_at END DESC");
@@ -2279,8 +2331,8 @@ class ReportController extends Controller
 
         foreach ($revenues as $r) {
             $desc = $r->student?->name ?: ($r->category?->name ?: 'Income');
-            if (! empty($r->notes)) {
-                $desc .= ' - ' . $r->notes;
+            if (! empty($r->display_notes)) {
+                $desc .= ' - ' . $r->display_notes;
             }
             if (($r->payment_status ?? null) === 'cancelled') {
                 $cancelDetail = $r->cancel_reason ?: $r->notes;
@@ -2456,7 +2508,7 @@ class ReportController extends Controller
 
         if ($type !== 'expense') {
             $revQ = Revenue::query()
-                ->with(['category', 'student'])
+                ->with(['category', 'student', 'classFeeSchedule.classRoom.feeSchedules'])
                 ->where('payment_method', 'cheque')
                 ->whereRaw("{$revenueChequeDateSql} >= ? AND {$revenueChequeDateSql} <= ?", [$from, $to])
                 ->orderByRaw("COALESCE(cheque_date, paid_at) DESC")
@@ -2484,8 +2536,8 @@ class ReportController extends Controller
 
                 $effectiveDate = $r->cheque_date ?: $r->paid_at;
                 $desc = $r->student?->name ?: ($r->category?->name ?: 'Income');
-                if (! empty($r->notes)) {
-                    $desc .= ' - ' . $r->notes;
+                if (! empty($r->display_notes)) {
+                    $desc .= ' - ' . $r->display_notes;
                 }
 
                 $rows->push([

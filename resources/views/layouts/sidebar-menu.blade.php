@@ -36,9 +36,12 @@
                           @if($canAddRevenue)
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.create') && !request()->has('quick') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.create') }}">Add</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ (request()->routeIs('revenue.items.create') && request()->get('quick')==='monthly') ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200' : 'text-indigo-700 hover:bg-indigo-50' }}" href="{{ route('revenue.items.create', ['quick' => 'monthly']) }}">Quick Monthly Payment</a>
+                        @foreach(['exam' => 'Collect Exam Fee', 'facility' => 'Collect Facility Fee'] as $feeType => $feeTitle)
+                            <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.create') && request()->query('quick') === $feeType ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.create', ['quick' => $feeType]) }}">{{ $feeTitle }}</a>
+                        @endforeach
                           @endif
                           @if($canManageRevenue)
-                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.index') }}">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.items.*') && !request()->routeIs('revenue.items.create') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.items.index') }}">Manage</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.cheques.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.cheques.index') }}">Cheque Payments</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.reminders.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.reminders.index') }}">Reminders</a>
                         <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('revenue.adjustments.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('revenue.adjustments.index') }}">Refund / Waiver</a>

@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="JRjW1w82RUSfAeJKKMqpL6wjln6quSyOnOZ8IPS8">
+
+        <title>Laravel</title>
+
+        
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+
+        <!-- Scripts -->
+        <link rel="preload" as="style" href="http://127.0.0.1:8018/public/build/assets/app-bn267Wj5.css" /><link rel="preload" as="style" href="http://127.0.0.1:8018/public/build/assets/app-DyLtjqsc.css" /><link rel="modulepreload" as="script" href="http://127.0.0.1:8018/public/build/assets/app-BJeF-ZFT.js" /><link rel="stylesheet" href="http://127.0.0.1:8018/public/build/assets/app-bn267Wj5.css" /><link rel="stylesheet" href="http://127.0.0.1:8018/public/build/assets/app-DyLtjqsc.css" /><script type="module" src="http://127.0.0.1:8018/public/build/assets/app-BJeF-ZFT.js"></script>            </head>
+    <body class="font-sans antialiased">
+        <div class="min-h-screen bg-gray-100">
+            <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 hidden lg:flex lg:flex-col">
+    <div class="px-5 py-5 border-b border-gray-200">
+        <div class="flex items-center gap-3">
+            <div class="relative inline-flex items-center justify-center">
+                <div class="inline-flex items-center justify-center rounded-md bg-gray-200 text-gray-700 font-semibold relative h-10 w-10 fill-current text-gray-700" aria-label="Laravel logo">
+        <span>L</span>
+    </div>
+            </div>
+            <div class="min-w-0">
+                <div class="text-sm font-semibold text-gray-900 truncate">
+                    Laravel
+                </div>
+                <div class="text-xs text-gray-600 truncate">
+                    Admin · Adrain Lueilwitz
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ menus: { revenue: true, expense: false, students: false, teachers: false, reports: false, classrooms: false, settings: false, evaluations: false, seminars: false, extraClasses: false } }">
+                    <a href="http://localhost/dashboard"
+               class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>
+                <span>Dashboard</span>
+            </a>
+        
+                    <a href="http://localhost/opening-balances"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg>
+                <span>Opening Balance</span>
+            </a>
+        
+                    <a href="http://localhost/owner-transfers"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18m-5-5 5 5-5 5M3 5h7M3 19h7"/></svg>
+                <span>Owner Bank Transfer</span>
+            </a>
+        
+                    <div class="mt-3">
+                <button type="button" @click="menus.revenue = !menus.revenue" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium bg-indigo-50 text-indigo-700">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg>
+                        <span>Revenue</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.revenue ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.revenue" class="mt-1 space-y-1 pl-8" x-cloak>
+                                                  <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/items/create">Add</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-indigo-700 hover:bg-indigo-50" href="http://localhost/revenue/items/create?quick=monthly">Quick Monthly Payment</a>
+                                                    <a class="block px-3 py-2 rounded-md text-sm bg-indigo-50 text-indigo-700" href="http://localhost/revenue/items/create?quick=exam">Collect Exam Fee</a>
+                                                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/items/create?quick=facility">Collect Facility Fee</a>
+                                                                                                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/items">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/cheques">Cheque Payments</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/reminders">Reminders</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/adjustments">Refund / Waiver</a>
+                                                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/categories">Categories</a>
+                                          </div>
+            </div>
+        
+                    <a href="http://localhost/class-fees" class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
+                <span>Exam &amp; Facility Fees</span>
+            </a>
+        
+                    <div class="mt-2">
+                <button type="button" @click="menus.expense = !menus.expense" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8c-3.314 0-6 1.343-6 3s2.686 3 6 3 6-1.343 6-3-2.686-3-6-3z"/><path d="M6 11v6c0 1.657 2.686 3 6 3s6-1.343 6-3v-6"/><path d="M6 17c0 1.657 2.686 3 6 3s6-1.343 6-3"/></svg>
+                        <span>Expense</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.expense ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.expense" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/expense/items/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/expense/items">Manage</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/expense/categories">Categories</a>
+                                                                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/financial">Revenue vs Expense</a>
+                                                            </div>
+            </div>
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/students" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21v-2a6 6 0 0112 0v2m1-7a5 5 0 015 5v2"/></svg><span>Students</span></a>
+        <button type="button" aria-label="Toggle Students menu" @click="menus.students = !menus.students" :aria-expanded="menus.students.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.students ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.students" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/students">Student Details</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students/alumni">Alumni</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students/bulk/upload">Bulk Upload</a>
+                                    </div>
+            </div>
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/teachers" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0116 0v2"/></svg><span>Teachers</span></a>
+        <button type="button" aria-label="Toggle Teachers menu" @click="menus.teachers = !menus.teachers" :aria-expanded="menus.teachers.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.teachers ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.teachers" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/teachers">Teacher Details</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-evaluations">Evaluation reports</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers/report">Teacher Report</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-salary-payments">Salary Payments</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-salary-payments/summary">Salary Due & Upcoming</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers/bulk/upload">Bulk Upload</a>
+                                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/visiting-teachers">Visiting Teachers</a>
+                                    </div>
+            </div>
+        
+        <div class="mt-2">
+        <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/teacher-evaluations" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4H5v17h14V4h-4M9 3h6v4H9zM8 12h8M8 16h8"/></svg><span>Evaluations</span></a>
+        <button type="button" aria-label="Toggle Evaluations menu" @click="menus.evaluations = !menus.evaluations" :aria-expanded="menus.evaluations.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.evaluations ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+        <div x-show="menus.evaluations" class="mt-1 ml-5 space-y-1 border-l border-gray-200 pl-3" x-cloak>
+            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations">All evaluations</a>
+                            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=annual">Add annual appraisal</a>
+                <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=event">Add event review</a>
+                        <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/hr/teachers">Browse teachers</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations#templates">Download templates</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/instructions">How to use evaluations</a>
+        </div>
+    </div>
+
+                    <div class="mt-2">
+                <button type="button" @click="menus.classrooms = !menus.classrooms" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 10h16"/><path d="M4 14h16"/><path d="M4 18h16"/></svg>
+                        <span>Class Rooms</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.classrooms ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.classrooms" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/classrooms/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/classrooms">Manage</a>
+                                    </div>
+            </div>
+        
+        
+                <!-- Seminars -->
+        <div class="mt-2">
+            <button type="button" @click="menus.seminars = !menus.seminars" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                    <span>Seminars</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="menus.seminars ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="menus.seminars" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars/create">Add New Seminar</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars">Manage</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars">Payment</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars/reports/due">Due Payment Report</a>
+            </div>
+        </div>
+
+        
+                <!-- Extra Classes -->
+        <div class="mt-2">
+            <button type="button" @click="menus.extraClasses = !menus.extraClasses" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 10h16"/><path d="M4 14h16"/><path d="M4 18h16"/></svg>
+                    <span>Extra Classes</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="menus.extraClasses ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="menus.extraClasses" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/extra-classes/create">Add Extra Class</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/extra-classes">Manage</a>
+            </div>
+        </div>
+
+        
+                    <div class="mt-2">
+                <button type="button" @click="menus.reports = !menus.reports" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 13h3v6H7z"/><path d="M12 9h3v10h-3z"/><path d="M17 5h3v14h-3z"/></svg>
+                        <span>Reports</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.reports ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.reports" class="mt-1 space-y-1 pl-8" x-cloak>
+                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports">All Reports</a>
+                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/all">Students Report</a>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/exports">Advanced Exports</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/revenue">Revenue</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/expense">Expense</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/outflows">All Outflows</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/financial">Financial</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/daily-ledger">Daily Ledger</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/transactions/cash">Cash Transactions (Cash in Hand)</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/transactions/bank">Bank Transactions</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/cheques">Cheque History</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/due">Student Due</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/due-aging">Student Due Aging</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/top-due">Top Due Students</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/teacher/epf">Teacher EPF</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/company/epf">Company EPF</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/teacher/etf">Company ETF</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/teacher/epf-etf-totals">EPF/ETF Totals</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-summary">Fee Collection Summary</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-by-class">Fee Collection by Class</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-by-category">Fee Collection by Category</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-vs-expected">Collected vs Expected</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/discounts">Discount/Waiver</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/refunds">Refund/Cancellation</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/seminars/collection">Seminars Collection</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/extra-classes/collection">Extra Classes Collection</a>
+                                    </div>
+            </div>
+        
+                    <div class="mt-2">
+                <button type="button" @click="menus.settings = !menus.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .33 1.87l.06.06a2 2 0 0 1-1.42 3.41h-.2a2 2 0 0 1-1.41-.59l-.06-.06a1.7 1.7 0 0 0-1.87-.33 1.7 1.7 0 0 0-1 1.54V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.54 1.7 1.7 0 0 0-1.87.33l-.06.06A2 2 0 0 1 4.2 20.34H4a2 2 0 0 1-1.42-3.41l.06-.06A1.7 1.7 0 0 0 3 15.4a1.7 1.7 0 0 0-1.54-1H1a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.54-1 1.7 1.7 0 0 0-.33-1.87l-.06-.06A2 2 0 0 1 3.8 4.66H4a2 2 0 0 1 1.41.59l.06.06A1.7 1.7 0 0 0 7.34 5a1.7 1.7 0 0 0 1-1.54V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.54 1.7 1.7 0 0 0 1.87-.33l.06-.06A2 2 0 0 1 19.8 7.66l-.06.06A1.7 1.7 0 0 0 19.4 9.6a1.7 1.7 0 0 0 1.54 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/></svg>
+                        <span>Settings</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.settings ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.settings" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/general">School General</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/status">System Status</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/promotion">Promotion</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/printer">Printer</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/sms">SMS</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/email">Email (SMTP)</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/salary-components">Salary Components</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/backups">Backups</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/opening-balance">Opening Balance</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/users">Users</a>
+                    
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/rbac/roles">Roles & Permissions</a>
+                                    </div>
+            </div>
+        
+                    <div class="mt-2">
+                <a href="http://localhost/audit-logs" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
+                    <span>Activity Logs</span>
+                </a>
+            </div>
+        
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <form method="POST" action="http://localhost/logout">
+                <input type="hidden" name="_token" value="JRjW1w82RUSfAeJKKMqpL6wjln6quSyOnOZ8IPS8" autocomplete="off">                <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    <span>Logout</span>
+                </button>
+            </form>
+        </div>
+    </nav>
+</aside>
+
+<!-- Mobile sidebar -->
+<div x-data="{ open: false }" class="lg:hidden">
+    <div class="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200">
+        <div class="h-14 px-4 flex items-center justify-between">
+            <button type="button" @click="open = true" class="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+            </button>
+            <div class="text-sm font-semibold text-gray-900 truncate">Laravel</div>
+            <div class="w-10"></div>
+        </div>
+    </div>
+
+    <div x-show="open" class="fixed inset-0 z-50" x-cloak>
+        <div class="absolute inset-0 bg-black/30" @click="open = false"></div>
+        <div class="absolute inset-y-0 left-0 w-64 bg-white border-r border-gray-200 overflow-y-auto">
+            <div class="px-5 py-5 border-b border-gray-200 flex items-center justify-between">
+                <div class="text-sm font-semibold text-gray-900 truncate">Laravel</div>
+                <button type="button" @click="open = false" class="p-2 rounded-md text-gray-600 hover:bg-gray-100">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6"/><path d="M6 6l12 12"/></svg>
+                </button>
+            </div>
+    <nav class="flex-1 overflow-y-auto px-3 py-4" x-data="{ menus: { revenue: true, expense: false, students: false, teachers: false, reports: false, classrooms: false, settings: false, evaluations: false, seminars: false, extraClasses: false } }">
+                    <a href="http://localhost/dashboard"
+               class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>
+                <span>Dashboard</span>
+            </a>
+        
+                    <a href="http://localhost/opening-balances"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="22"></line><path d="M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg>
+                <span>Opening Balance</span>
+            </a>
+        
+                    <a href="http://localhost/owner-transfers"
+               class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18m-5-5 5 5-5 5M3 5h7M3 19h7"/></svg>
+                <span>Owner Bank Transfer</span>
+            </a>
+        
+                    <div class="mt-3">
+                <button type="button" @click="menus.revenue = !menus.revenue" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium bg-indigo-50 text-indigo-700">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22"/><path d="M17 5H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H6"/></svg>
+                        <span>Revenue</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.revenue ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.revenue" class="mt-1 space-y-1 pl-8" x-cloak>
+                                                  <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/items/create">Add</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-indigo-700 hover:bg-indigo-50" href="http://localhost/revenue/items/create?quick=monthly">Quick Monthly Payment</a>
+                                                    <a class="block px-3 py-2 rounded-md text-sm bg-indigo-50 text-indigo-700" href="http://localhost/revenue/items/create?quick=exam">Collect Exam Fee</a>
+                                                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/items/create?quick=facility">Collect Facility Fee</a>
+                                                                                                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/items">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/cheques">Cheque Payments</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/reminders">Reminders</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/adjustments">Refund / Waiver</a>
+                                                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/revenue/categories">Categories</a>
+                                          </div>
+            </div>
+        
+                    <a href="http://localhost/class-fees" class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
+                <span>Exam &amp; Facility Fees</span>
+            </a>
+        
+                    <div class="mt-2">
+                <button type="button" @click="menus.expense = !menus.expense" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8c-3.314 0-6 1.343-6 3s2.686 3 6 3 6-1.343 6-3-2.686-3-6-3z"/><path d="M6 11v6c0 1.657 2.686 3 6 3s6-1.343 6-3v-6"/><path d="M6 17c0 1.657 2.686 3 6 3s6-1.343 6-3"/></svg>
+                        <span>Expense</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.expense ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.expense" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/expense/items/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/expense/items">Manage</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/expense/categories">Categories</a>
+                                                                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/financial">Revenue vs Expense</a>
+                                                            </div>
+            </div>
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/students" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="17" cy="8" r="3"/><path d="M2 21v-2a6 6 0 0112 0v2m1-7a5 5 0 015 5v2"/></svg><span>Students</span></a>
+        <button type="button" aria-label="Toggle Students menu" @click="menus.students = !menus.students" :aria-expanded="menus.students.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.students ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.students" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/students">Student Details</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students/alumni">Alumni</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/students/bulk/upload">Bulk Upload</a>
+                                    </div>
+            </div>
+        
+                    <div class="mt-2">
+                <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/hr/teachers" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0116 0v2"/></svg><span>Teachers</span></a>
+        <button type="button" aria-label="Toggle Teachers menu" @click="menus.teachers = !menus.teachers" :aria-expanded="menus.teachers.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.teachers ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+                <div x-show="menus.teachers" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/hr/teachers">Teacher Details</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-evaluations">Evaluation reports</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers">Manage</a>
+                        <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers/report">Teacher Report</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-salary-payments">Salary Payments</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teacher-salary-payments/summary">Salary Due & Upcoming</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/teachers/bulk/upload">Bulk Upload</a>
+                                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/visiting-teachers">Visiting Teachers</a>
+                                    </div>
+            </div>
+        
+        <div class="mt-2">
+        <div class="flex items-center rounded-lg text-gray-700 hover:bg-gray-50">
+            <a href="http://localhost/teacher-evaluations" class="min-w-0 flex-1 flex items-center gap-3 px-3 py-2.5 text-sm font-semibold"><svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 4H5v17h14V4h-4M9 3h6v4H9zM8 12h8M8 16h8"/></svg><span>Evaluations</span></a>
+        <button type="button" aria-label="Toggle Evaluations menu" @click="menus.evaluations = !menus.evaluations" :aria-expanded="menus.evaluations.toString()" class="rounded-lg p-2.5 hover:bg-indigo-100/60">
+        <svg class="h-4 w-4 transition-transform" :class="menus.evaluations ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+</div>
+        <div x-show="menus.evaluations" class="mt-1 ml-5 space-y-1 border-l border-gray-200 pl-3" x-cloak>
+            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations">All evaluations</a>
+                            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=annual">Add annual appraisal</a>
+                <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/create?type=event">Add event review</a>
+                        <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/hr/teachers">Browse teachers</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations#templates">Download templates</a>            <a class="block rounded-md px-3 py-2 text-sm text-gray-600 hover:bg-gray-50" href="http://localhost/teacher-evaluations/instructions">How to use evaluations</a>
+        </div>
+    </div>
+
+                    <div class="mt-2">
+                <button type="button" @click="menus.classrooms = !menus.classrooms" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 10h16"/><path d="M4 14h16"/><path d="M4 18h16"/></svg>
+                        <span>Class Rooms</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.classrooms ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.classrooms" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/classrooms/create">Add</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/classrooms">Manage</a>
+                                    </div>
+            </div>
+        
+        
+                <!-- Seminars -->
+        <div class="mt-2">
+            <button type="button" @click="menus.seminars = !menus.seminars" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                    <span>Seminars</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="menus.seminars ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="menus.seminars" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars/create">Add New Seminar</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars">Manage</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars">Payment</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/seminars/reports/due">Due Payment Report</a>
+            </div>
+        </div>
+
+        
+                <!-- Extra Classes -->
+        <div class="mt-2">
+            <button type="button" @click="menus.extraClasses = !menus.extraClasses" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                <span class="flex items-center gap-3">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16"/><path d="M4 10h16"/><path d="M4 14h16"/><path d="M4 18h16"/></svg>
+                    <span>Extra Classes</span>
+                </span>
+                <svg class="h-4 w-4 transition" :class="menus.extraClasses ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+            </button>
+            <div x-show="menus.extraClasses" class="mt-1 space-y-1 pl-8" x-cloak>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/extra-classes/create">Add Extra Class</a>
+                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/extra-classes">Manage</a>
+            </div>
+        </div>
+
+        
+                    <div class="mt-2">
+                <button type="button" @click="menus.reports = !menus.reports" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 13h3v6H7z"/><path d="M12 9h3v10h-3z"/><path d="M17 5h3v14h-3z"/></svg>
+                        <span>Reports</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.reports ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.reports" class="mt-1 space-y-1 pl-8" x-cloak>
+                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports">All Reports</a>
+                    <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/all">Students Report</a>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/exports">Advanced Exports</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/revenue">Revenue</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/expense">Expense</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/outflows">All Outflows</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/financial">Financial</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/daily-ledger">Daily Ledger</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/transactions/cash">Cash Transactions (Cash in Hand)</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/transactions/bank">Bank Transactions</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/cheques">Cheque History</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/due">Student Due</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/due-aging">Student Due Aging</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/students/top-due">Top Due Students</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/teacher/epf">Teacher EPF</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/company/epf">Company EPF</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/teacher/etf">Company ETF</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/teacher/epf-etf-totals">EPF/ETF Totals</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-summary">Fee Collection Summary</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-by-class">Fee Collection by Class</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-by-category">Fee Collection by Category</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/collection-vs-expected">Collected vs Expected</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/discounts">Discount/Waiver</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/fees/refunds">Refund/Cancellation</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/seminars/collection">Seminars Collection</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/reports/extra-classes/collection">Extra Classes Collection</a>
+                                    </div>
+            </div>
+        
+                    <div class="mt-2">
+                <button type="button" @click="menus.settings = !menus.settings" class="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .33 1.87l.06.06a2 2 0 0 1-1.42 3.41h-.2a2 2 0 0 1-1.41-.59l-.06-.06a1.7 1.7 0 0 0-1.87-.33 1.7 1.7 0 0 0-1 1.54V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.54 1.7 1.7 0 0 0-1.87.33l-.06.06A2 2 0 0 1 4.2 20.34H4a2 2 0 0 1-1.42-3.41l.06-.06A1.7 1.7 0 0 0 3 15.4a1.7 1.7 0 0 0-1.54-1H1a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.54-1 1.7 1.7 0 0 0-.33-1.87l-.06-.06A2 2 0 0 1 3.8 4.66H4a2 2 0 0 1 1.41.59l.06.06A1.7 1.7 0 0 0 7.34 5a1.7 1.7 0 0 0 1-1.54V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.54 1.7 1.7 0 0 0 1.87-.33l.06-.06A2 2 0 0 1 19.8 7.66l-.06.06A1.7 1.7 0 0 0 19.4 9.6a1.7 1.7 0 0 0 1.54 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1z"/></svg>
+                        <span>Settings</span>
+                    </span>
+                    <svg class="h-4 w-4 transition" :class="menus.settings ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                </button>
+                <div x-show="menus.settings" class="mt-1 space-y-1 pl-8" x-cloak>
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/general">School General</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/status">System Status</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/promotion">Promotion</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/printer">Printer</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/sms">SMS</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/email">Email (SMTP)</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/salary-components">Salary Components</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/backups">Backups</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/settings/opening-balance">Opening Balance</a>
+                                                                <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/users">Users</a>
+                    
+                                            <a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="http://localhost/rbac/roles">Roles & Permissions</a>
+                                    </div>
+            </div>
+        
+                    <div class="mt-2">
+                <a href="http://localhost/audit-logs" class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3z"/><path d="M3 12h18v8H3z"/><path d="M7 12v8"/><path d="M12 12v8"/><path d="M17 12v8"/></svg>
+                    <span>Activity Logs</span>
+                </a>
+            </div>
+        
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <form method="POST" action="http://localhost/logout">
+                <input type="hidden" name="_token" value="JRjW1w82RUSfAeJKKMqpL6wjln6quSyOnOZ8IPS8" autocomplete="off">                <button type="submit" class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    <span>Logout</span>
+                </button>
+            </form>
+        </div>
+    </nav>
+        </div>
+    </div>
+</div>
+
+            <div class="lg:pl-64">
+                <div class="hidden lg:block">
+    <div class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+        <div class="flex items-center gap-3">
+            <div class="inline-flex items-center justify-center rounded-md bg-gray-200 text-gray-700 font-semibold h-8 w-8 rounded-md object-cover" aria-label="Laravel logo">
+        <span>L</span>
+    </div>
+            <div>
+                <div class="text-sm text-gray-600">Welcome,</div>
+                <div class="text-lg font-semibold text-gray-900">Adrain Lueilwitz</div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <div class="text-right">
+                
+                <div id="colombo_time" class="text-sm font-medium text-gray-900">23-10-2026 12:00</div>
+            </div>
+            <form method="POST" action="http://localhost/academic-year" class="flex items-center gap-2">
+                <input type="hidden" name="_token" value="JRjW1w82RUSfAeJKKMqpL6wjln6quSyOnOZ8IPS8" autocomplete="off">                <label for="academic_year" class="text-sm text-gray-600">Select Academic Year</label>
+                <select
+                    id="academic_year"
+                    name="academic_year"
+                    class="border-gray-300 rounded-md shadow-sm text-sm"
+                    onchange="this.form.submit()"
+                >
+                                            <option value="2024-2025" >2024-2025</option>
+                                            <option value="2025-2026" >2025-2026</option>
+                                            <option value="2026-2027" selected>2026-2027</option>
+                                            <option value="2027-2028" >2027-2028</option>
+                                            <option value="2028-2029" >2028-2029</option>
+                                            <option value="2029-2030" >2029-2030</option>
+                                            <option value="2030-2031" >2030-2031</option>
+                                    </select>
+            </form>
+
+
+
+            <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-600 hover:bg-gray-100" title="Notifications">
+                <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+                    <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+            </button>
+
+            <div class="relative" x-data="{ open: false }" @click.outside="open = false" @close.stop="open = false">
+    <div @click="open = ! open">
+        <button class="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100">
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-gray-700">
+                            A
+                        </span>
+                        <span class="hidden xl:inline">Adrain Lueilwitz</span>
+                        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+    </div>
+
+    <div x-show="open"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="absolute z-50 mt-2 w-48 rounded-md shadow-lg ltr:origin-top-right rtl:origin-top-left end-0"
+            style="display: none;"
+            @click="open = false">
+        <div class="rounded-md ring-1 ring-black ring-opacity-5 py-1 bg-white">
+            <a class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out" href="http://localhost/profile">Profile</a>
+
+                    <form method="POST" action="http://localhost/logout">
+                        <input type="hidden" name="_token" value="JRjW1w82RUSfAeJKKMqpL6wjln6quSyOnOZ8IPS8" autocomplete="off">                        <a class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition duration-150 ease-in-out" href="http://localhost/logout" onclick="event.preventDefault(); this.closest('form').submit();">Log Out</a>
+                    </form>
+        </div>
+    </div>
+</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const el = document.getElementById('colombo_time');
+        if (!el) return;
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit',
+            hour12: false, timeZone: 'Asia/Colombo'
+        });
+        const startClient = Date.now();
+        // Server timestamp in ms for accuracy across timezones
+        const serverTs = 1792737000000;
+        function tick() {
+            const elapsed = Date.now() - startClient;
+            const d = new Date(serverTs + elapsed);
+            el.textContent = formatter.format(d).replace(',', '');
+        }
+        tick();
+        setInterval(tick, 1000);
+    })();
+</script>
+
+                <main class="pt-14 lg:pt-0">
+                                            <div class="bg-white border-b border-gray-200">
+                            <div class="px-4 sm:px-6 lg:px-8 py-4">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-900">Collect Exam Fee</h2>
+                <p class="mt-1 text-sm text-gray-600">Find a student, review their exam fee balance, and record a payment.</p>
+            </div>
+            <a class="text-sm font-semibold text-indigo-700 underline" href="http://localhost/class-fees?type=exam">View fee register</a>
+        </div>
+                            </div>
+                        </div>
+                    
+                    <div class="px-4 sm:px-6 lg:px-8">
+                        <style>
+        .fee-collection { padding: 24px 0; }
+        .fee-collection-columns { display: grid; gap: 24px; align-items: start; }
+        .fee-collection-card { min-width: 0; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; padding: 20px; }
+        .fee-student-list { margin-top: 16px; display: grid; gap: 8px; }
+        .fee-student-option { display: block; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; }
+        .fee-student-option:hover, .fee-student-option[aria-current="true"] { border-color: #6366f1; background: #eef2ff; }
+        .fee-collection-statistics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+        .fee-collection-statistics > div { padding: 12px; border-radius: 8px; background: #f9fafb; }
+        .fee-collection-statistics strong { display: block; margin-top: 4px; overflow-wrap: anywhere; font-size: 18px; }
+        .fee-installment-scroll { overflow-x: auto; max-height: 360px; margin: 16px 0 24px; }
+        .fee-installments { width: 100%; font-size: 13px; border-collapse: collapse; }
+        .fee-installments th, .fee-installments td { padding: 12px 8px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        .fee-installments th { background: #f9fafb; color: #4b5563; font-weight: 600; }
+        .fee-installments tr[aria-current="true"] { background: #eef2ff; }
+        .fee-collection-empty { padding: 48px 20px; text-align: center; color: #6b7280; }
+        @media (min-width: 1100px) { .fee-collection-columns { grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.5fr); } }
+        @media (max-width: 600px) { .fee-collection-statistics { grid-template-columns: 1fr; } .fee-collection-card { padding: 16px; } }
+    </style>
+    <div class="fee-collection">
+                        <div class="fee-collection-columns">
+            <section class="fee-collection-card" aria-labelledby="find-fee-student">
+                <h3 id="find-fee-student" class="text-lg font-semibold text-gray-900">Find student</h3>
+                <form method="GET" action="http://localhost/revenue/items/create" class="mt-4 space-y-4">
+                    <input type="hidden" name="quick" value="exam">
+                    <div><label class="block font-medium text-sm text-gray-700" for="fee-class">
+    Class
+</label>
+<select id="fee-class" name="class_room_id" class="mt-1 w-full rounded-md border-gray-300"><option value="">All classes</option><option value="1" >Grade 2</option></select></div>
+                    <div><label class="block font-medium text-sm text-gray-700" for="fee-search">
+    Student name / admission number
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="fee-search" type="search" name="q" maxlength="100" value="" placeholder="Search students">
+</div>
+                    <div><label class="block font-medium text-sm text-gray-700" for="fee-year">
+    Installment year
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="fee-year" type="number" name="year" min="2000" max="2099" value="2026" required="required">
+</div>
+                    <input type="hidden" name="all_years" value="0">
+                    <label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" name="all_years" value="1" checked> Include earlier unpaid years</label>
+                    <label class="flex items-center gap-2 text-sm text-gray-600"><input type="checkbox" name="include_inactive" value="1" > Include inactive / alumni</label>
+                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+    Search students
+</button>
+                </form>
+                <p class="mt-4 text-xs text-gray-500">2 matching students · Select a student to see exam fee dues.</p>
+                <div class="fee-student-list">
+                                            <a class="fee-student-option" aria-current="true" href="http://localhost/revenue/items/create?student_id=1&amp;all_years=1&amp;quick=exam#student-fee-dues">
+                            <div class="font-semibold text-gray-900">Ameli Shanalya</div>
+                            <div class="mt-1 text-xs text-gray-500">STU0959 · Grade 2</div>
+                        </a>
+                                            <a class="fee-student-option" aria-current="false" href="http://localhost/revenue/items/create?student_id=2&amp;all_years=1&amp;quick=exam#student-fee-dues">
+                            <div class="font-semibold text-gray-900">Amidu Chenitha</div>
+                            <div class="mt-1 text-xs text-gray-500">STU1066 · Grade 2</div>
+                        </a>
+                                    </div>
+                <div class="mt-4"></div>
+            </section>
+            <section id="student-fee-dues" class="fee-collection-card" aria-labelledby="fee-dues-title">
+                <h3 id="fee-dues-title" class="text-lg font-semibold text-gray-900">Exam Fee due</h3>
+                                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <div><div class="font-semibold text-gray-900">Ameli Shanalya</div><div class="mt-1 text-sm text-gray-500">STU0959 · Grade 2</div></div>
+                        <a class="text-sm font-semibold text-indigo-700 underline" href="http://localhost/revenue/items/create?student_id=1&amp;all_years=1&amp;quick=facility">View facility fees</a>
+                    </div>
+                    <p class="mt-3 text-xs text-gray-500">All installments through 2026. Earlier class dues are included for this student.</p>
+                    <div class="fee-collection-statistics">
+                        <div><span class="text-xs text-gray-500">Exam Fee due now</span><strong class="text-red-700">Rs 2,550.00</strong></div>
+                        <div><span class="text-xs text-gray-500">Payments recorded</span><strong>Rs 0.00</strong></div>
+                        <div><span class="text-xs text-gray-500">Pending cheques</span><strong>Rs 0.00</strong></div>
+                    </div>
+                                            <div class="fee-installment-scroll">
+                            <table class="fee-installments"><thead><tr><th>Installment</th><th>Status</th><th>Balance (Rs)</th><th></th></tr></thead><tbody>
+                                                                                            <tr aria-current="true">
+                                    <td><div class="font-semibold">Term 1 · 01 Jan 2026</div><div class="text-xs text-gray-500">to 30 Apr 2026</div><div class="text-xs text-gray-500">Grade 2 · Fee 850.00</div></td>
+                                    <td>Overdue</td><td>850.00</td>
+                                    <td><a class="font-semibold text-indigo-700 underline" href="http://localhost/revenue/items/create?student_id=1&amp;all_years=1&amp;quick=exam&amp;cycle=1%3A2026-01-01#record-fee-payment">Collect</a></td>
+                                </tr>
+                                                                                            <tr aria-current="false">
+                                    <td><div class="font-semibold">Term 2 · 01 May 2026</div><div class="text-xs text-gray-500">to 31 Aug 2026</div><div class="text-xs text-gray-500">Grade 2 · Fee 850.00</div></td>
+                                    <td>Overdue</td><td>850.00</td>
+                                    <td><a class="font-semibold text-indigo-700 underline" href="http://localhost/revenue/items/create?student_id=1&amp;all_years=1&amp;quick=exam&amp;cycle=1%3A2026-05-01#record-fee-payment">Collect</a></td>
+                                </tr>
+                                                                                            <tr aria-current="false">
+                                    <td><div class="font-semibold">Term 3 · 01 Sep 2026</div><div class="text-xs text-gray-500">to 31 Dec 2026</div><div class="text-xs text-gray-500">Grade 2 · Fee 850.00</div></td>
+                                    <td>Unpaid</td><td>850.00</td>
+                                    <td><a class="font-semibold text-indigo-700 underline" href="http://localhost/revenue/items/create?student_id=1&amp;all_years=1&amp;quick=exam&amp;cycle=1%3A2026-09-01#record-fee-payment">Collect</a></td>
+                                </tr>
+                                                        </tbody></table>
+                        </div>
+                                                    <div id="record-fee-payment" class="border-t border-gray-200 pt-5">
+                                <h4 class="font-semibold text-gray-900">Record exam fee payment</h4>
+                                <p class="mt-1 mb-4 text-sm text-gray-600">Term 1 · 01 Jan 2026 · Grade 2 · Remaining Rs 850.00</p>
+                                <form method="POST" action="http://localhost/class-fees/1/exam" class="space-y-4" x-data="{ method: 'cash', saving: false }" @submit="saving = true">
+    <input type="hidden" name="_token" value="JRjW1w82RUSfAeJKKMqpL6wjln6quSyOnOZ8IPS8" autocomplete="off">            <input type="hidden" name="return_to" value="collection">
+        <input type="hidden" name="search_class_room_id" value="">
+        <input type="hidden" name="search_q" value="">
+        <input type="hidden" name="search_year" value="2026">
+        <input type="hidden" name="all_years" value="1">
+        <input type="hidden" name="include_inactive" value="0">
+    <input type="hidden" name="include_former" value="0">
+    <input type="hidden" name="student_id" value="1">
+    <input type="hidden" name="cycle" value="1:2026-01-01">
+    <input type="hidden" name="submission_id" value="fcb99cc0-791b-451e-9917-c5661997141b">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div><label class="block font-medium text-sm text-gray-700" for="amount">
+    Amount to collect (Rs)
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="amount" name="amount" type="number" min="0.01" step="0.01" max="850" value="850" required="required">
+</div>
+        <div><label class="block font-medium text-sm text-gray-700" for="paid_at">
+    Payment date
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="paid_at" name="paid_at" type="date" max="2026-10-23" value="2026-10-23" required="required">
+</div>
+        <div><label class="block font-medium text-sm text-gray-700" for="payment_method">
+    Payment method
+</label>
+<select name="payment_method" id="payment_method" x-model="method" class="mt-1 w-full rounded-md border-gray-300"><option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option><option value="cheque">Cheque (pending until passed)</option></select></div>
+    </div>
+    <div x-show="method === 'bank_transfer'" x-cloak class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="block font-medium text-sm text-gray-700" for="bank_name">
+    Bank name
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="bank_name" name="bank_name">
+</div>
+        <div><label class="block font-medium text-sm text-gray-700" for="bank_ref_no">
+    Bank reference (optional)
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="bank_ref_no" name="bank_ref_no">
+</div>
+    </div>
+    <div x-show="method === 'cheque'" x-cloak class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div><label class="block font-medium text-sm text-gray-700" for="cheque_bank">
+    Cheque bank
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="cheque_bank" name="cheque_bank">
+</div>
+        <div><label class="block font-medium text-sm text-gray-700" for="cheque_number">
+    Cheque number
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="cheque_number" name="cheque_number">
+</div>
+        <div><label class="block font-medium text-sm text-gray-700" for="cheque_date">
+    Cheque date
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="cheque_date" name="cheque_date" type="date">
+</div>
+    </div>
+    <div class="rounded-lg bg-indigo-50 p-4"><input type="hidden" name="record_revenue" value="0"><label class="flex items-center gap-2 text-sm font-semibold text-indigo-900"><input type="checkbox" name="record_revenue" value="1" checked class="rounded border-gray-300 text-indigo-600"> Include in revenue &amp; ledger</label><p class="mt-1 text-xs text-indigo-800">Uncheck when entering a payment already made in an earlier term, to settle the fee without adding income again.</p></div>
+    <div><label class="block font-medium text-sm text-gray-700" for="notes">
+    Notes (optional)
+</label>
+<input  class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 w-full" id="notes" name="notes" maxlength="1000">
+</div>
+    <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:bg-gray-700 active:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150" x-bind:disabled="saving" x-text="saving ? 'Saving…' : 'Record payment'">
+    Record payment
+</button>
+</form>
+                            </div>
+                                                                        </section>
+        </div>
+    </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+            </body>
+</html>

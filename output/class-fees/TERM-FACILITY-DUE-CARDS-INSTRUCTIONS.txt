@@ -1,0 +1,82 @@
+TERM AND FACILITY DUE CARDS UPDATE
+
+Open Exam & Facility Fees. Below the existing three summary totals you will see:
+  Due in Term 1
+  Due in Term 2
+  Due in Term 3
+  Due in Facility Fees
+
+These are outstanding balances due now, after payments and waivers. They follow
+the applied year/class/student/status filters, selected exam dates, facility
+checkbox and inactive/former-class options. Future fees are excluded until their
+starting dates. Pending cheques remain due until passed. All-years mode groups
+the same term number across included years. The cards reconcile with the existing
+outstanding total. Earlier quarterly calendars with a genuine fourth charge get
+an extra Term 4 card to keep every balance visible.
+
+The four cards appear in one row on desktop and stack on smaller screens.
+
+CPANEL FILE MANAGER - NO TERMINAL REQUIRED
+
+1. Upload term-facility-due-cards-update.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract there and overwrite matching files. Apply all files together.
+   Do not extract inside public/ or an extra wrapper folder.
+
+3. Open storage/framework/views/ and delete ONLY the compiled .php files.
+   Keep the views folder itself and .gitignore.
+
+4. If bootstrap/cache/routes-v7.php exists, delete that route cache file.
+   Keep the folder and other cache files. This package also retains the earlier
+   cashier receipt-permission update.
+
+5. Hard-refresh Exam & Facility Fees, then apply your filters.
+
+No new migration, database reset, terminal command or asset build is needed.
+Previous payment UI, search, bill, cheque, term labels and eligibility fixes are
+included. Existing payments do not need to be re-entered.
+
+VALIDATION
+Full PHP suite passed: 307 tests, 2774 assertions.
+New regressions cover partial payments, historical payments, waivers, pending
+cheques, admission dates, class/search/status filters, selected fees, earlier
+years, future terms, former/inactive students and stable legacy term numbering.
+Desktop and 390px mobile layouts were visually checked with sample balances.
+
+The current card change is in:
+  app/Http/Controllers/ClassFeeController.php
+  app/Services/Billing/ClassFeeService.php
+  resources/views/class-fees/index.blade.php
+
+The ZIP includes the complete previous production update as well.
+
+INCLUDED APPLICATION FILES
+- app/Http/Controllers/ClassFeeCollectionController.php
+- app/Http/Controllers/ClassFeeController.php
+- app/Http/Controllers/RevenueController.php
+- app/Models/Student.php
+- app/Services/Billing/ClassFeeService.php
+- app/Services/Billing/ClassFeePaymentService.php
+- resources/views/layouts/sidebar-menu.blade.php
+- resources/views/class-fees/collect.blade.php
+- resources/views/class-fees/index.blade.php
+- resources/views/class-fees/bulk.blade.php
+- resources/views/class-fees/pdf.blade.php
+- resources/views/class-fees/partials/payment-form.blade.php
+- resources/views/class-fees/partials/collection-assets.blade.php
+- resources/views/class-fees/partials/collection-payment-form.blade.php
+- resources/views/classrooms/partials/recurring-fees.blade.php
+- resources/views/class-fees/partials/scripts.blade.php
+- resources/views/revenue/create.blade.php
+- resources/views/revenue/receipt.blade.php
+- resources/views/components/receipt.blade.php
+- public/js/class-fees.js
+- public/js/fee-collection.js
+- public/css/fee-collection.css
+- routes/web.php
+- app/Models/Revenue.php
+- app/Http/Controllers/ReportController.php
+- resources/views/revenue/index.blade.php
+- resources/views/reports/revenue.blade.php
+- resources/views/reports/revenue-pdf.blade.php

@@ -35,6 +35,10 @@ class ClassFeePaymentService
                 return $duplicate;
             }
             $student = Student::with('promotionHistories')->lockForUpdate()->findOrFail($data['student_id']);
+            if (! ($data['record_revenue'] ?? true) && ($data['payment_method'] ?? 'cash') === 'cheque'
+                && ! ($data['historical_cheque_cleared'] ?? false)) {
+                throw ValidationException::withMessages(['payment_method' => 'Cheque payments must be recorded in revenue so they can remain pending until passed. Historical payments must represent already cleared cash or bank payments.']);
+            }
             $schedules = $classroom->feeSchedules()->where('fee_type', $type)->get();
             $dueDate = explode(':', $data['cycle'], 2)[1];
             try {
@@ -43,7 +47,7 @@ class ClassFeePaymentService
                 throw ValidationException::withMessages(['cycle' => 'Choose a valid installment.']);
             }
             $cycle = $this->fees->cycles($schedules, $due->copy(), $due->copy())->get($data['cycle']);
-            if (! $cycle || ! $this->fees->eligible($student, $cycle['schedule'], $due)) {
+            if (! $cycle || ! $this->fees->eligible($student, $cycle['schedule'], $due, $cycle['end'] ?? null)) {
                 throw ValidationException::withMessages(['cycle' => 'This installment does not apply to this student.']);
             }
             $payments = $this->fees->paymentMap($schedules, collect([$student]));
@@ -74,17 +78,17 @@ class ClassFeePaymentService
                 $method = $data['payment_method'] ?? 'cash';
                 $meta = match ($method) {
                     'bank_transfer' => ['bank' => $data['bank_name'], 'ref_no' => $data['bank_ref_no'] ?? null],
-                    'cheque' => ['bank' => $data['cheque_bank'], 'cheque_number' => $data['cheque_number']],
+                    'cheque' => ['bank' => $data['cheque_bank'], 'cheque_number' => $data['cheque_number'], 'student_name' => $data['cheque_student_name'] ?? $student->name],
                     default => null,
                 };
                 $revenue = Revenue::create($tag + [
-                    'bill_no' => $this->billNumbers->nextRevenueBillNumber(),
+                    'bill_no' => $this->billNumber($data['bill_no'] ?? null),
                     'student_id' => $student->id, 'revenue_category_id' => $cycle['schedule']->revenue_category_id,
                     'amount' => $amount, 'paid_at' => $data['paid_at'], 'payment_method' => $method,
                     'payment_status' => $method === 'cheque' ? 'hold' : 'confirmed',
                     'confirmed_at' => $method === 'cheque' ? null : now(),
                     'payment_meta' => $meta, 'cheque_date' => $method === 'cheque' ? $data['cheque_date'] : null,
-                    'notes' => ClassFeeSchedule::TYPES[$type].' installment due '.$dueDate.(! empty($data['notes']) ? ' — '.$data['notes'] : ''),
+                    'notes' => $this->fees->paymentLabel($cycle['schedule'], $due, $schedules).(! empty($data['notes']) ? ' — '.$data['notes'] : ''),
                     'created_by' => $user->id,
                 ]);
             }
@@ -103,6 +107,20 @@ class ClassFeePaymentService
         abort_unless($payment->class_fee_schedule_id, 404);
 
         return $payment;
+    }
+
+    private function billNumber(?string $requested): string
+    {
+        if (app('settings')->get('billing.revenue.autogenerate', '1') !== '1' && filled($requested)
+            && $requested !== $this->billNumbers->peekNextRevenueBillNumber()) {
+            if (Revenue::where('bill_no', $requested)->exists()) {
+                throw ValidationException::withMessages(['bill_no' => 'This bill number has already been used.']);
+            }
+
+            return $requested;
+        }
+
+        return $this->billNumbers->nextRevenueBillNumber();
     }
 
     public function correct(Revenue|ClassFeePaymentHistory $payment, array $data, User $user): Revenue|ClassFeePaymentHistory
@@ -145,6 +163,12 @@ class ClassFeePaymentService
                 $newData['payment_method'] = $data['payment_method'] ?? 'cash';
                 $newData['bank_name'] = $data['bank_name'] ?? null;
                 $newData['bank_ref_no'] = $data['bank_ref_no'] ?? null;
+            }
+            if (! $newData['record_revenue'] && $payment->payment_method === 'cheque') {
+                if (! in_array($payment->payment_status, ['confirmed', 'paid'], true)) {
+                    throw ValidationException::withMessages(['record_revenue' => 'A pending cheque must be passed or returned before removing its revenue tracking.']);
+                }
+                $newData['historical_cheque_cleared'] = true;
             }
             $this->cancel($payment, 'Changed revenue and ledger inclusion', $user);
             $replacement = $this->collect($schedule->classRoom, $schedule->fee_type, $newData, $user);

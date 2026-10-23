@@ -1,0 +1,41 @@
+ANNUAL FACILITY FEE ELIGIBILITY FIX
+
+Facility fees now apply from the student's joining calendar year regardless of
+joining month. Example: a student joining in October 2026 owes the 2026 facility
+fee even if its annual due date was January. No fee is charged for 2025.
+Existing students continue to owe subsequent annual fees. Exam-term eligibility
+is unchanged. Existing payments and accounting inclusion are preserved; a class
+transfer does not create another annual facility fee for the same year.
+
+CPANEL FILE MANAGER - NO TERMINAL REQUIRED
+
+1. Upload facility-fee-annual-eligibility-fix.zip into the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract it there and overwrite matching files. The ZIP contains app/ and
+   resources/ folders. Do not extract inside public/ or an extra wrapper folder.
+
+3. In that same application folder, open storage/framework/views/ and delete
+   only the compiled .php files inside. Keep the folder and .gitignore.
+
+4. Hard-refresh Exam & Facility Fees (Command + Shift + R on Mac, Ctrl + F5 on
+   Windows). Choose Facility Fee and the required installment year. Students
+   joining in any month of that year now show the annual balance and can be
+   included in individual or bulk payments. Existing class, search and student
+   status filters still apply. Use Include inactive / alumni when required.
+
+INCLUDED APPLICATION FILES
+- app/Models/Student.php
+- app/Services/Billing/ClassFeeService.php
+- resources/views/class-fees/index.blade.php
+- resources/views/class-fees/bulk.blade.php
+- resources/views/classrooms/partials/recurring-fees.blade.php
+
+No migration, database reset, terminal command or asset build is needed.
+Do not re-enter payments that have already been recorded.
+
+VALIDATION
+Full automated suite: 263 tests, 2457 assertions passed.
+Includes admission-year boundaries, unchanged exam rules, individual and bulk
+facility collection, corrections, revenue inclusion changes, deletion and
+transfers with existing annual receipts.

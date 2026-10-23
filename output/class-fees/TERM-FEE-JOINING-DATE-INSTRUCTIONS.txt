@@ -1,0 +1,49 @@
+TERM FEE ADMISSION ELIGIBILITY FIX
+
+Previously, students joining after the term starting date were excluded.
+For three-term calendars, students now owe the term in which they join and all
+subsequent terms. Admission on the term ending date is included. Terms which
+ended before the admission date do not apply.
+
+Example: Term 3 runs September 1 to December 31, 2026. A student joining in
+October 2026 owes Term 3, while Terms 1 and 2 remain not applicable.
+The saved term ending date is used, including custom dates and terms spanning
+two calendar years. Both individual and bulk collection use the same rule.
+Existing students who transferred classes retain the class responsible for the
+term at its starting date. A former class may therefore correctly show Not
+applicable when that term belongs to another class.
+
+This ZIP also retains the annual facility rule: joining in any month of a year
+makes that year's facility fee applicable, without adding earlier years.
+Existing payments, receipts and revenue/ledger settings are preserved.
+Legacy exam schedules without an explicit term calendar retain their due-date
+eligibility. Enable three editable terms and save dates to use term eligibility.
+
+CPANEL FILE MANAGER - NO TERMINAL REQUIRED
+
+1. Upload term-fee-joining-date-fix.zip into the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract there and overwrite matching files. Extract directly into the
+   application root, not inside public/ or an extra wrapper folder.
+
+3. Open storage/framework/views/ in that application folder. Delete only the
+   compiled .php files inside. Keep the views folder and .gitignore.
+
+4. Hard-refresh the Exam & Facility Fees page (Command + Shift + R on Mac,
+   Ctrl + F5 on Windows). Existing class, student and status filters still apply.
+
+No terminal commands, migration, database reset or asset build is required.
+Do not re-enter any payments which are already recorded.
+
+VALIDATION
+Full suite passed: 274 tests, 2486 assertions. Admission boundary checks were
+also rerun after the final test-date adjustment: 8 tests, 16 assertions passed.
+
+INCLUDED FILES
+- app/Models/Student.php
+- app/Services/Billing/ClassFeeService.php
+- app/Services/Billing/ClassFeePaymentService.php
+- resources/views/class-fees/index.blade.php
+- resources/views/class-fees/bulk.blade.php
+- resources/views/classrooms/partials/recurring-fees.blade.php

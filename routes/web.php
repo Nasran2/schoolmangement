@@ -238,6 +238,12 @@ Route::middleware('auth')->group(function () {
         ->middleware('permission:owner_transfers.manage')->name('owner-transfers.index');
     Route::post('/owner-transfers', [\App\Http\Controllers\OwnerTransferController::class, 'store'])
         ->middleware('permission:owner_transfers.manage')->name('owner-transfers.store');
+    Route::put('/owner-transfers/{transfer}', [\App\Http\Controllers\OwnerTransferController::class, 'update'])
+        ->middleware('permission:owner_transfers.manage')->name('owner-transfers.update');
+    Route::delete('/owner-transfers/{transfer}', [\App\Http\Controllers\OwnerTransferController::class, 'destroy'])
+        ->middleware('permission:owner_transfers.manage')->name('owner-transfers.destroy');
+    Route::post('/owner-transfers/{transfer}/returns', [\App\Http\Controllers\OwnerTransferController::class, 'returnAmount'])
+        ->middleware('permission:owner_transfers.manage')->name('owner-transfers.returns.store');
 
     Route::post('/academic-year', AcademicYearController::class)->name('academic-year.set');
 
@@ -490,7 +496,7 @@ Route::middleware('auth')->group(function () {
             ->middleware('permission:revenue.add')
             ->name('items.create');
         Route::get('items/{item}/receipt', [RevenueController::class, 'receipt'])
-            ->middleware('permission:revenue.manage')
+            ->middleware('permission:revenue.manage|revenue.add')
             ->name('items.receipt');
         Route::post('items', [RevenueController::class, 'store'])
             ->middleware('permission:revenue.add')

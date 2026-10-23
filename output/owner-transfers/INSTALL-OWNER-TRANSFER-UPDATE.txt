@@ -1,0 +1,141 @@
+OWNER BANK TRANSFERS - EDIT, DELETE WITH REASON, AND RETURN CASH
+
+WHAT CHANGED
+
+- Owner Bank Transfer now has an editable Owner bank / account field. The saved
+  destination appears in the transfer list, daily ledger and exports.
+- Each active transfer has Edit, Return amount and Delete controls.
+- Return amount opens a popup for amount, return date and optional notes.
+  Multiple partial returns are allowed, up to the original transferred amount.
+- The list highlights transferred/net amounts in light violet and cash returned
+  in light green. It shows original, total returned and net transferred amounts.
+- Delete requires a reason. The row remains red, labelled Deleted, with its
+  reason, timestamp and staff member. Original amounts and returns are retained.
+- Deleted transfers and their returns have no effect on accounting totals.
+- The daily ledger/PDF show the destination, gross transfers, separate dated
+  return rows, returned-to-cash total and net transfer total. Excel also includes
+  return rows with their cash-in amounts and references.
+- Cash transaction, financial and outflow reports account for dated returns.
+  Returns increase cash in hand and reduce net owner transfers; they do not
+  become revenue or affect expenses, profit or the school's bank balance.
+
+INSTALLATION IN CPANEL - NO TERMINAL NEEDED
+
+This update REQUIRES database additions. Do step 2 before replacing PHP files.
+Use both downloads: owner-transfer-edit-return-update.zip and
+owner-transfer-schema.sql. Previous fee/payment fixes are included in the ZIP.
+
+1. Back up the existing school database in phpMyAdmin (Export > Quick > SQL).
+
+2. In cPanel, open phpMyAdmin and select the EXISTING school database used by
+   this application. Choose Import, select owner-transfer-schema.sql from your
+   computer, and run it. This adds columns to owner_transfers and creates
+   owner_transfer_returns; it does not reset existing records or payments.
+   Its additions are guarded so repeating the import is safe.
+   Confirm successful completion before the next step. If an error appears,
+   keep the existing PHP files until that error is resolved.
+
+3. Upload owner-transfer-edit-return-update.zip to the Laravel application root:
+     /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   Extract there and overwrite matching files. Do not extract inside public/
+   or inside an extra wrapper directory. Apply all files together, including
+   public/js/owner-transfers.js and the new Blade dialogs/styles.
+
+4. In File Manager, open storage/framework/views/ and delete ONLY its compiled
+   .php files. Preserve the views folder and .gitignore.
+
+5. If bootstrap/cache/routes-v7.php exists, delete that route cache file so the
+   new Edit, Delete and Return routes are available. Keep other cache files.
+
+6. Hard-refresh Owner Bank Transfer and the daily ledger.
+
+No asset build, Composer install or database reset is required. Do not re-enter
+existing transfers or payments. Existing destinations default to Owner bank
+account until you edit them. The included guarded Laravel migration detects
+schema installed through phpMyAdmin if migrations are run in the future.
+With terminal access, the alternative to step 2 is php artisan migrate --force.
+
+HOW TO USE
+
+- Edit: correct date, original amount, bank/account, reference or notes.
+- Return amount: record cash actually received back. Example: Rs 10,000 sent,
+  Rs 1,500 returned -> net transferred Rs 8,500, cash in hand rises Rs 1,500 on
+  the return date. The original transfer still shows Rs 10,000.
+- Delete: correct a mistaken/duplicate transfer. Enter the reason in its popup.
+  The transfer and linked returns stay visible as deleted history and their
+  balance effects are excluded. Use Return amount for real cash coming back.
+
+GUARDS AND HISTORY
+
+- Returns cannot exceed the remaining transferred amount, predate the transfer
+  or use future dates. Amounts must be positive, with at most two decimals.
+- A transfer cannot be reduced below the total already returned, or dated after
+  its first return. Changes must leave cash nonnegative on intervening dates.
+- A movement already included in a saved cash-balance snapshot cannot have its
+  amount/date changed or be deleted. Bank/account, reference and notes can
+  still be corrected; a later dated return can still be recorded.
+- Stale pages are rejected; reload before retrying. Repeating a successfully
+  submitted return does not add cash again. All changes require the existing
+  owner_transfers.manage permission and are recorded in the activity log.
+- A return in a later reporting period is counted on its own date even when
+  the original transfer falls outside that period. Net transfers for a period
+  containing only returns can therefore be negative.
+
+VALIDATION
+
+Full PHP suite: 330 tests, 3000 assertions, all passed.
+New tests cover edit/deletion effects, retained reason/history, multiple partial
+returns, retries, over-returns, stale forms, dates, snapshots, permissions,
+intervening cash availability, report reconciliation and PDF/Excel exports.
+Migration re-run preserves records. JavaScript syntax checked. Actual edit and
+return flows, required-reason popup, highlighted ledger and 390px mobile popup
+were checked using an isolated SQLite database with sample records. The live
+hosting database was not modified. MySQL schema installation is provided for
+phpMyAdmin; application regressions run with SQLite.
+
+INCLUDED APPLICATION FILES
+- app/Http/Controllers/ClassFeeCollectionController.php
+- app/Http/Controllers/ClassFeeController.php
+- app/Http/Controllers/RevenueController.php
+- app/Models/Student.php
+- app/Services/Billing/ClassFeeService.php
+- app/Services/Billing/ClassFeePaymentService.php
+- resources/views/layouts/sidebar-menu.blade.php
+- resources/views/class-fees/collect.blade.php
+- resources/views/class-fees/index.blade.php
+- resources/views/class-fees/bulk.blade.php
+- resources/views/class-fees/pdf.blade.php
+- resources/views/class-fees/partials/payment-form.blade.php
+- resources/views/class-fees/partials/collection-assets.blade.php
+- resources/views/class-fees/partials/collection-payment-form.blade.php
+- resources/views/classrooms/partials/recurring-fees.blade.php
+- resources/views/class-fees/partials/scripts.blade.php
+- resources/views/revenue/create.blade.php
+- resources/views/revenue/receipt.blade.php
+- resources/views/components/receipt.blade.php
+- public/js/class-fees.js
+- public/js/fee-collection.js
+- public/css/fee-collection.css
+- routes/web.php
+- app/Models/Revenue.php
+- app/Http/Controllers/ReportController.php
+- resources/views/revenue/index.blade.php
+- resources/views/reports/revenue.blade.php
+- resources/views/reports/revenue-pdf.blade.php
+- app/Http/Controllers/OwnerTransferController.php
+- app/Http/Controllers/Rbac/RoleController.php
+- app/Models/OwnerTransfer.php
+- app/Models/OwnerTransferReturn.php
+- app/Services/CashBalanceService.php
+- app/Services/OwnerTransferService.php
+- app/Services/OwnerTransferReportService.php
+- database/migrations/2026_10_23_000001_add_owner_transfer_corrections_and_returns.php
+- resources/views/owner-transfers/index.blade.php
+- resources/views/owner-transfers/dialogs.blade.php
+- resources/views/owner-transfers/styles.blade.php
+- resources/views/reports/daily-ledger.blade.php
+- resources/views/reports/daily-ledger-pdf.blade.php
+- resources/views/reports/financial.blade.php
+- resources/views/reports/financial-pdf.blade.php
+- resources/views/reports/partials/owner-transfers.blade.php
+- public/js/owner-transfers.js

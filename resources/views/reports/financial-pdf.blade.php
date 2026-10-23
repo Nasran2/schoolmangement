@@ -433,7 +433,7 @@
                         </table>
                     </div>
                 </div>
-                @include('reports.partials.owner-transfers', ['ownerTransfers' => $d['owner_transfers'], 'totalTransfers' => $d['transfer_total']])
+                @include('reports.partials.owner-transfers', ['ownerTransfers' => $d['owner_transfers'], 'totalTransfers' => $d['transfer_total'], 'ownerTransferReturns' => $d['owner_transfer_returns'], 'grossTransfers' => $d['transfer_gross'], 'totalTransferReturns' => $d['transfer_returned']])
                 <div class="summary">
                     <div class="summary-left">B.B.F (Opening): <strong>Rs {{ number_format($d['opening'], 2) }}</strong></div>
                     <div class="summary-right"><span class="closing">Closing Balance: Rs {{ number_format($d['closing'], 2) }}</span></div>

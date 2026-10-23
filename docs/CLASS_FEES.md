@@ -82,13 +82,32 @@ class forms use three editable terms by default.
 ## Existing tracker behavior
 
 The tracker filters by class, calendar year of the installment starting date,
-student name/admission number, payment status, or all years. The exam screen
+student name/admission number, payment status, or all years. Class lists and PDFs
+show current class members by default. **Include former class students** restores
+earlier memberships for viewing or collecting their outstanding installments;
+this changes display totals, without deleting any balances or payments. The exam screen
 selects all available exam terms and includes facility fees by default. Selection
 checkboxes affect screen totals and PDF output together. Changing class or year
 resets the installment selection; clearing it preserves an empty selection.
 
-Student joining dates and promotion history determine class eligibility on the
-installment starting date. Students who moved classes retain their earlier dues.
+For three-term calendars, students joining anytime through a term's ending date
+owe that term and subsequent terms, including admissions on the last day. Terms
+that ended before admission do not apply. Class eligibility is assessed on the
+term's starting date, or on the joining date for admissions during the term.
+Existing students transferring classes retain the class responsible at the term's
+start, avoiding duplicate charges within the same term calendar. Legacy
+installments without explicit term dates keep their original due-date rule.
+
+Annual facility fees apply from the joining **calendar year**,
+regardless of the joining month: an October 2026 admission owes the 2026 facility
+fee even if its due date was in January, but owes no 2025 facility fee. If the
+joining date is missing, fee start date and then creation date supply the year.
+The class at the start of the calendar year (or joining date for new admissions)
+owns the annual charge, so a transfer does not create a second facility fee for
+the same year. Existing facility payment records preserve their original class
+through payment corrections, accounting changes and cancellations. Both payment
+sources are batch-loaded for fee grids without affecting monthly-fee revenues.
+Students who moved classes retain their earlier dues.
 Pending cheques reserve balances until passed or returned. Refunds reopen the
 refunded portion; waivers settle fees separately from collected income.
 
@@ -126,3 +145,96 @@ settlements are checked across all versions of that fee; pending and cancelled
 records also retain the history protections. Term ordering and overlap validation
 continue to apply. Corrections run under the same class lock as collection and
 commit atomically with the classroom update.
+
+## Collecting fees from Revenue
+
+Open **Revenue → Collect Exam Fee** or **Collect Facility Fee**. Both use the
+existing Revenue create route with `quick=exam` or `quick=facility` and require
+`revenue.add`. The Payment Details form uses the same payment-card design as the
+monthly collection screen, with a Billing Summary and fee-specific dues on the
+right. Enter a name, admission number or phone number for live suggestions;
+choose a current class to restrict the search. Suggestions support arrow keys,
+Enter and Escape. Outdated responses cannot replace a newer search. The normal
+Search students action remains available if suggestions cannot load.
+
+Earlier years are included by default. Period and inactive/alumni filters are in
+**Installment period & student filters**. Previous-class charges belonging to the
+selected student remain available here. The earliest collectable installment is
+selected automatically; choose a different installment from the selector or
+summary. Partial and full payments share existing server balance validation and
+idempotent submission IDs. The summary amount updates while entering an amount.
+
+Payment Category supports switching between exam, facility and ordinary revenue
+categories while preserving the selected student. The monthly form also includes
+exam/facility categories; choosing one navigates to its installment collector
+rather than recording an unassigned revenue. An existing ordinary receipt cannot
+be converted into an installment merely by changing its category.
+
+Cash and bank receipts are confirmed on saving. Cheques require their date,
+number and bank; the optional name on cheque is retained. Pending cheques reserve
+the installment and do not settle its balance or enter collected income. Passing
+requires a clearance date on/after the cheque date and no later than today;
+`confirmed_at` retains the actual clearance date for the daily ledger. Returning
+an unpassed cheque releases the reservation. A pending cheque cannot be entered
+as historical settlement or have its revenue tracking removed; an already passed
+cheque may be converted to historical settlement through the correction service.
+
+**Save & view bill** opens the existing printable receipt. **Save payment** returns
+to collection. Revenue bill numbering follows the automatic/manual setting;
+manual numbers must be unique, and retries retain the original receipt. Historical
+payments settle balances without new revenue bills. Cashiers with `revenue.add`
+can print only their own receipts; `revenue.manage` retains access to all receipts.
+The receipt route accepts both permissions and checks ownership in its controller.
+Print templates use exam/facility labels instead of interpreting their recurrence
+interval as a monthly fee. Configured terms and facility years appear on bills,
+and the pending-cheque warning is included in the printable receipt itself.
+
+`ClassFeeCollectionController` handles search and builds panels from
+`ClassFeeService`; writes remain in `ClassFeePaymentService`. The collector loads
+`public/js/fee-collection.js` and `public/css/fee-collection.css` using the guarded,
+versioned `class-fees.partials.collection-assets` include. Upload these with the
+Blade templates. No Vite build is needed for the collector assets. Run PHP fee
+regressions and `node --test tests/JavaScript/feeCollection.test.mjs` after changes.
+
+## Term names in revenue details
+
+Exam payment descriptions use **Exam Fee — Term 1 (2026)** rather than a generic
+installment due date. `ClassFeeService::examTermLabel()` resolves configured term
+numbers from their saved calendar, including terms across calendar years. Earlier
+quarterly calendars use the chronological charge number within the due year;
+a genuine fourth legacy charge is still Term 4 until that calendar is converted.
+
+New exam receipts store this label with any staff notes. Existing linked exam
+receipts use `Revenue::display_notes` to replace old generated text for display,
+including notes retaining a pre-conversion due date. The stored notes, amounts,
+payment dates, bill numbers and accounting rows are preserved. Ordinary revenue
+and unassigned receipts retain their notes; a term is never guessed from the
+payment date. Revenue reports, PDF/export notes, daily ledgers, financial detail,
+cash/bank transactions and cheque history use the same formatter. Relevant
+queries eager-load the schedules to avoid one extra query per payment.
+
+When multiple terms are paid through bulk collection, every term retains its own
+payment and bill and each row names the term it settles. This keeps the details
+and totals aligned. Printed exam bills use **Term paid** and the term name rather
+than **Installment due**. The Revenue manage list also identifies the paid term.
+
+## Due balance cards
+
+The fee register shows **Due in Term 1**, **Due in Term 2**, **Due in Term 3** and
+**Due in Facility Fees** beneath its existing totals. These cards summarize the
+same filtered installment balances as the register, for one class or all classes.
+They respect year/all-years, selected exam dates, facility inclusion, student
+search, payment status, inactive/alumni and former-class filters. Unselected fees
+show zero with a selection hint; future fees do not count until their starting date.
+
+`ClassFeeService::dueBreakdown()` reads the filtered tracker sections rather than
+recalculating eligibility or settlement. Partial payments, historical settlements,
+waivers and pending cheques therefore use the register's existing rules. All-years
+mode groups each term number across the included years. Configured calendars keep
+their term numbers even across calendar years. Legacy numbering uses the full
+calendar before date selection; genuine fourth legacy charges receive an additional
+Term 4 card so no balances disappear from the breakdown.
+
+The card grid uses scoped CSS inside the Blade view to support existing hosted
+asset bundles without requiring a new build. Regression coverage is in
+`tests/Feature/ClassFeeDueCardsTest.php`.

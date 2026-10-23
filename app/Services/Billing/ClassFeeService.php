@@ -249,6 +249,72 @@ class ClassFeeService
         return $values;
     }
 
+    public function examTermLabel(ClassFeeSchedule $schedule, Carbon $due, ?Collection $schedules = null): ?string
+    {
+        $number = $this->examTermNumber($schedule, $due, $schedules);
+
+        return $number ? 'Term '.$number.' ('.$due->year.')' : null;
+    }
+
+    private function examTermNumber(ClassFeeSchedule $schedule, Carbon $due, ?Collection $schedules = null): ?int
+    {
+        if ($schedule->fee_type !== 'exam') {
+            return null;
+        }
+        if ($schedule->terms) {
+            $cycle = $this->cycles(collect([$schedule]), $due->copy(), $due->copy())->get($schedule->id.':'.$due->toDateString());
+            $number = $cycle['term'] ?? null;
+        } else {
+            // Earlier quarterly receipts use their chronological term number within that calendar year.
+            $schedules ??= $schedule->classRoom?->feeSchedules->where('fee_type', 'exam') ?? collect([$schedule]);
+            $cycles = $this->cycles($schedules->where('fee_type', 'exam')->where('class_room_id', $schedule->class_room_id), $due->copy()->startOfYear(), $due->copy());
+            $position = $cycles->keys()->search($schedule->id.':'.$due->toDateString());
+            $number = $position === false ? null : $position + 1;
+        }
+
+        return $number;
+    }
+
+    /** Summarize the already filtered register rows, using their calculated due balances. */
+    public function dueBreakdown(Collection $sections): array
+    {
+        $cards = [];
+        foreach ([1, 2, 3] as $number) {
+            $cards['term_'.$number] = ['label' => 'Due in Term '.$number, 'due' => 0.0, 'selected' => false];
+        }
+        $cards['facility'] = ['label' => 'Due in Facility Fees', 'due' => 0.0, 'selected' => false];
+
+        foreach ($sections as $section) {
+            foreach ($section['cycles'] as $cycle) {
+                if ($cycle['schedule']->fee_type === 'facility') {
+                    $key = 'facility';
+                } else {
+                    // Resolve against the full calendar so selecting only Term 3 never renumbers it.
+                    $number = $cycle['term'] ?? $this->examTermNumber($cycle['schedule'], $cycle['due'], $section['schedules']);
+                    $key = $number ? 'term_'.$number : 'other_exam';
+                    // Preserve genuine legacy fourth charges rather than silently omitting their balances.
+                    $cards[$key] ??= ['label' => $number ? 'Due in Term '.$number : 'Other Exam Fee Dues', 'due' => 0.0, 'selected' => false];
+                }
+                $cards[$key]['selected'] = true;
+                $cards[$key]['due'] += (float) $section['rows']->sum(fn ($row) => $row['installments']->get($cycle['key'])['due'] ?? 0);
+            }
+        }
+
+        $facility = $cards['facility'];
+        unset($cards['facility']);
+        ksort($cards, SORT_NATURAL);
+        $cards['facility'] = $facility;
+
+        return array_map(fn ($card) => array_replace($card, ['due' => round($card['due'], 2)]), $cards);
+    }
+
+    public function paymentLabel(ClassFeeSchedule $schedule, Carbon $due, ?Collection $schedules = null): string
+    {
+        $term = $this->examTermLabel($schedule, $due, $schedules);
+
+        return $term ? 'Exam Fee — '.$term : ClassFeeSchedule::TYPES[$schedule->fee_type].' installment due '.$due->toDateString();
+    }
+
     public function cycles(Collection $schedules, Carbon $from, Carbon $to): Collection
     {
         $cycles = collect();
@@ -297,17 +363,45 @@ class ClassFeeService
         return $cycles->sortBy(fn ($cycle) => $cycle['due']->timestamp);
     }
 
-    public function eligible(Student $student, ClassFeeSchedule $schedule, Carbon $due): bool
+    public function eligible(Student $student, ClassFeeSchedule $schedule, Carbon $due, ?Carbon $termEnd = null): bool
     {
         $joined = $student->joining_date ?: $student->fee_start_date ?: $student->created_at;
-        if ($joined && $due->lt(Carbon::parse($joined)->startOfDay())) {
-            return false;
+        $joined = $joined ? Carbon::parse($joined)->startOfDay() : null;
+        if ($schedule->fee_type === 'facility') {
+            // Facility fees cover the calendar year, even for a December admission.
+            if ($joined && $joined->year > $due->year) {
+                return false;
+            }
+            $student->loadMissing(['facilityFeeRevenues', 'facilityFeeHistory']);
+            $recorded = $student->facilityFeeRevenues->toBase()->concat($student->facilityFeeHistory)
+                ->filter(fn ($payment) => $payment->class_fee_due_date?->year === $due->year)
+                ->sortBy(fn ($payment) => [$payment->created_at?->timestamp ?? 0, $payment instanceof Revenue ? 0 : 1, $payment->id])
+                ->first();
+            if ($recorded) {
+                // Preserve the original annual charge through edits, cancellations and transfers.
+                return (int) $recorded->facility_fee_class_room_id === (int) $schedule->class_room_id;
+            }
+            $classDate = $due->copy()->startOfYear();
+            if ($joined && $joined->gt($classDate)) {
+                $classDate = $joined;
+            }
+        } else {
+            // A new admission owes the term containing their joining date, including its last day.
+            // Legacy installments without a term calendar retain their due-date rule.
+            if ($joined && $joined->gt($termEnd ?? $due)) {
+                return false;
+            }
+            $classDate = $joined && $joined->gt($due) ? $joined : $due;
         }
         $histories = $student->promotionHistories->sortBy(fn ($move) => [$move->created_at->timestamp, $move->id]);
-        $lastMove = $histories->last(fn ($move) => $move->created_at->copy()->startOfDay()->lte($due));
+        $lastMove = $histories->last(fn ($move) => $move->created_at->copy()->startOfDay()->lte($classDate));
         $classAtDue = $lastMove?->to_class_room_id;
         if (! $lastMove && $histories->isNotEmpty()) {
-            $classAtDue = $histories->first()->from_class_room_id;
+            $firstMove = $histories->first();
+            $classAtDue = $firstMove->from_class_room_id;
+            if ($schedule->fee_type === 'facility' || $termEnd !== null) {
+                $classAtDue ??= $firstMove->to_class_room_id;
+            }
         }
         $classAtDue ??= $student->class_room_id;
 
@@ -332,7 +426,7 @@ class ClassFeeService
 
     public function status(Student $student, array $cycle, Collection $payments): array
     {
-        $eligible = $this->eligible($student, $cycle['schedule'], $cycle['due']);
+        $eligible = $this->eligible($student, $cycle['schedule'], $cycle['due'], $cycle['end'] ?? null);
         $paid = 0.0;
         $pending = 0.0;
         $waived = 0.0;
@@ -367,6 +461,11 @@ class ClassFeeService
             ->filter(fn ($cycle) => $cycle['schedule']->fee_type !== 'exam' || $selectedExamDates === null || in_array($cycle['due']->toDateString(), $selectedExamDates, true))
             ->sortBy(fn ($cycle) => [$cycle['schedule']->fee_type === 'exam' ? 0 : 1, $cycle['due']->timestamp]);
         $payments = $this->paymentMap($schedules, $students);
+        if ($cycles->contains(fn ($cycle) => $cycle['schedule']->fee_type === 'facility')) {
+            // Batch-load annual ownership records for the grid instead of querying per cell.
+            (new \Illuminate\Database\Eloquent\Collection($students->all()))
+                ->loadMissing(['facilityFeeRevenues', 'facilityFeeHistory']);
+        }
         $rows = $students->map(function ($student) use ($cycles, $payments) {
             $statuses = $cycles->map(fn ($cycle, $key) => $this->status($student, $cycle, $payments->get($student->id.':'.$key, collect())));
             $dueStatuses = $statuses->filter(fn ($status, $key) => $status['eligible'] && $cycles[$key]['due']->lte(today()));

@@ -305,7 +305,7 @@
                                 </td>
                                 <td>{{ $item->student?->name ?? 'N/A' }}</td>
                                 <td class="amount">Rs {{ number_format($item->amount, 2) }}</td>
-                                <td>{{ $item->notes ?? '-' }}</td>
+                                <td>{{ $item->display_notes ?? '-' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

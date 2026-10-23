@@ -133,7 +133,7 @@
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">{{ optional($item->paid_at)->format('d-m-Y') }}</td>
-                                    <td class="px-4 py-3">{{ $item->category?->name }}</td>
+                                    <td class="px-4 py-3">{{ $item->category?->name }}@if($item->exam_term_label)<div class="mt-1 text-xs text-gray-500">{{ $item->exam_term_label }}</div>@endif</td>
                                     <td class="px-4 py-3">
                                         @if ($item->student)
                                             <a class="text-indigo-600 hover:underline" href="{{ route('students.show', $item->student) }}">{{ $item->student->name }}</a>

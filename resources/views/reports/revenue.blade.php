@@ -197,7 +197,7 @@
                                     </td>
                                     <td class="px-6 py-3 text-gray-600">{{ $item->student?->name ?? 'N/A' }}</td>
                                     <td class="px-6 py-3 text-right font-semibold text-gray-900">Rs {{ number_format($item->amount, 2) }}</td>
-                                    <td class="px-6 py-3 text-gray-600 text-xs">{{ $item->notes ?? '-' }}</td>
+                                    <td class="px-6 py-3 text-gray-600 text-xs">{{ $item->display_notes ?? '-' }}</td>
                                 </tr>
                             @empty
                                 <tr>

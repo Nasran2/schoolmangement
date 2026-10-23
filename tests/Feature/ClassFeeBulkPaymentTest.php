@@ -6,6 +6,7 @@ use App\Models\ClassFeePaymentHistory;
 use App\Models\ClassRoom;
 use App\Models\Revenue;
 use App\Models\Student;
+use App\Models\StudentPromotionHistory;
 use App\Models\User;
 use App\Services\Billing\ClassFeePaymentService;
 use App\Services\Billing\ClassFeeService;
@@ -13,6 +14,7 @@ use App\Services\CashBalanceService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -95,6 +97,90 @@ class ClassFeeBulkPaymentTest extends TestCase
         $this->assertSame(2000.0, $this->tracker($class)['due']);
         $this->assertSame('Overdue', $this->tracker($class)['rows']->first()['installments']->first()['status']);
         $this->get(route('class-fees.index', ['class_room_id' => $class->id]))->assertOk()->assertSee('Term 1')->assertSee('30 Apr 2026');
+    }
+
+    public static function termAdmissionDates(): array
+    {
+        return [
+            ['2026-01-01', [true, true, true]],
+            ['2026-04-30', [true, true, true]],
+            ['2026-05-01', [false, true, true]],
+            ['2026-08-31', [false, true, true]],
+            ['2026-09-01', [false, false, true]],
+            ['2026-10-15', [false, false, true]],
+            ['2026-12-31', [false, false, true]],
+            ['2027-01-01', [false, false, false]],
+        ];
+    }
+
+    #[DataProvider('termAdmissionDates')]
+    public function test_students_owe_the_term_they_join_in_and_later_terms(string $joined, array $expected): void
+    {
+        $this->travelTo(Carbon::parse('2026-12-31'));
+        $class = $this->schoolClass();
+        $this->student($class, ['joining_date' => $joined]);
+        $tracker = $this->tracker($class);
+        $this->assertSame($expected, $tracker['rows']->first()['installments']->pluck('eligible')->values()->all());
+        $this->assertSame(1000.0 * count(array_filter($expected)), $tracker['due']);
+    }
+
+    public function test_admissions_use_the_saved_term_end_including_gaps_and_cross_year_terms(): void
+    {
+        $class = ClassRoom::create(['name' => 'Custom term dates']);
+        app(ClassFeeService::class)->configure($class, ['exam_fee' => 1000, 'exam_terms' => [
+            ['start' => '2025-09-01', 'end' => '2026-01-10'],
+            ['start' => '2026-01-15', 'end' => '2026-04-30'],
+            ['start' => '2026-05-05', 'end' => '2026-08-31'],
+        ]]);
+        $student = $this->student($class, ['joining_date' => '2026-01-10']);
+        $fees = app(ClassFeeService::class);
+        $check = fn ($member) => $fees->tracker($class->feeSchedules, collect([$member]),
+            Carbon::parse('2025-09-01'), Carbon::parse('2026-08-31'))['rows']->first()['installments']->pluck('eligible')->values()->all();
+        $this->assertSame([true, true, true], $check($student));
+        $student->update(['joining_date' => '2026-01-11']);
+        $this->assertSame([false, true, true], $check($student));
+    }
+
+    public function test_students_joining_during_term_three_can_pay_individually_and_in_bulk(): void
+    {
+        $class = $this->schoolClass();
+        $first = $this->student($class, ['joining_date' => '2026-10-01']);
+        $second = $this->student($class, ['joining_date' => '2026-10-10']);
+        $this->get(route('class-fees.bulk', ['class_room_id' => $class->id, 'year' => 2026]))->assertOk()
+            ->assertViewHas('candidates', fn ($candidates) => $candidates->count() === 2
+                && $candidates->every(fn ($candidate) => collect($candidate['installments'])->where('type', 'exam')->pluck('term')->all() === [3]));
+        $this->post(route('class-fees.store', ['classroom' => $class, 'type' => 'exam']),
+            $this->line($class, $first, '2026-09-01') + ['submission_id' => (string) Str::uuid(),
+                'paid_at' => '2026-10-20', 'payment_method' => 'cash'])->assertSessionHasNoErrors();
+        $this->post(route('class-fees.bulk.store'), $this->batch([
+            $this->line($class, $second, '2026-09-01', false),
+        ], ['paid_at' => '2026-10-20']))->assertSessionHasNoErrors();
+        $this->post(route('class-fees.bulk.store'), $this->batch([
+            $this->line($class, $second, '2026-05-01'),
+        ]))->assertSessionHasErrors();
+        $tracker = $this->tracker($class);
+        $this->assertSame(2000.0, $tracker['paid']);
+        $this->assertSame(0.0, $tracker['due']);
+        $this->assertDatabaseCount('revenues', 1);
+        $this->assertDatabaseCount('class_fee_payment_histories', 1);
+    }
+
+    public function test_a_new_admission_transferring_during_the_joining_term_has_only_one_term_charge(): void
+    {
+        $old = $this->schoolClass();
+        $new = $this->schoolClass();
+        $student = $this->student($new, ['joining_date' => '2026-10-01']);
+        foreach ([['from' => null, 'to' => $old->id, 'date' => '2026-10-02'],
+            ['from' => $old->id, 'to' => $new->id, 'date' => '2026-10-10']] as $change) {
+            $move = StudentPromotionHistory::create(['student_id' => $student->id, 'from_class_room_id' => $change['from'],
+                'to_class_room_id' => $change['to'], 'action' => 'transfer']);
+            $move->forceFill(['created_at' => Carbon::parse($change['date'])])->save();
+        }
+        $fees = app(ClassFeeService::class);
+        $status = fn ($class) => $fees->tracker($class->feeSchedules->where('fee_type', 'exam'),
+            collect([$student->fresh()]), Carbon::parse('2026-01-01'), Carbon::parse('2026-12-31'));
+        $this->assertSame(1000.0, $status($old)['due']);
+        $this->assertSame(0.0, $status($new)['due']);
     }
 
     public function test_term_calendar_repeats_three_times_per_year_and_can_cross_calendar_years(): void
@@ -233,6 +319,59 @@ class ClassFeeBulkPaymentTest extends TestCase
         $this->assertSame(3000.0, (float) Revenue::sum('amount'));
         $this->assertSame('Test bank', Revenue::first()->payment_meta['bank']);
         $this->get(route('class-fees.bulk'))->assertOk()->assertSee('Select all matching students')->assertSee('Search students');
+    }
+
+    public function test_late_joiners_can_bulk_pay_facility_fees_with_optional_income_and_correct_or_delete_them(): void
+    {
+        $class = $this->schoolClass();
+        $first = $this->student($class, ['joining_date' => '2026-08-01']);
+        $second = $this->student($class, ['joining_date' => '2026-10-01']);
+        $this->get(route('class-fees.bulk', ['class_room_id' => $class->id, 'year' => 2026]))->assertOk()
+            ->assertViewHas('candidates', fn ($candidates) => $candidates->count() === 2
+                && $candidates->every(fn ($candidate) => collect($candidate['installments'])->contains(
+                    fn ($installment) => $installment['type'] === 'facility' && $installment['balance'] === 2000.0)));
+        $lines = [$this->line($class, $first, '2026-01-15', true, 2000, 'facility'),
+            $this->line($class, $second, '2026-01-15', false, 2000, 'facility')];
+        $this->post(route('class-fees.bulk.store'), $this->batch($lines, ['paid_at' => '2026-10-20']))->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('revenues', 1);
+        $this->assertDatabaseCount('class_fee_payment_histories', 1);
+        $this->assertSame(2000.0, app(CashBalanceService::class)->balanceOn('2026-10-20'));
+        $payment = Revenue::firstOrFail();
+        $this->put(route('class-fees.payments.update', ['source' => 'revenue', 'payment' => $payment->id]),
+            $this->correction(['amount' => 1500, 'record_revenue' => 0]))->assertSessionHasNoErrors();
+        $this->assertSame(0.0, app(CashBalanceService::class)->balanceOn('2026-10-20'));
+        $history = ClassFeePaymentHistory::where('student_id', $first->id)->firstOrFail();
+        $this->put(route('class-fees.payments.update', ['source' => 'history', 'payment' => $history->id]),
+            $this->correction(['amount' => 1500]))->assertSessionHasNoErrors();
+        $payment = Revenue::where('student_id', $first->id)->latest('id')->firstOrFail();
+        $this->delete(route('class-fees.payments.destroy', ['source' => 'revenue', 'payment' => $payment->id]),
+            ['reason' => 'Incorrect annual payment'])->assertSessionHasNoErrors();
+        $this->get(route('class-fees.index', ['class_room_id' => $class->id, 'type' => 'facility', 'year' => 2026]))->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0 && $tracker['paid'] === 2000.0);
+        $this->assertSame(0.0, app(CashBalanceService::class)->balanceOn('2026-10-20'));
+    }
+
+    public function test_existing_facility_receipts_retain_their_class_through_corrections_and_cancellation(): void
+    {
+        $old = $this->schoolClass();
+        $new = $this->schoolClass();
+        $student = $this->student($new);
+        $move = StudentPromotionHistory::create(['student_id' => $student->id, 'from_class_room_id' => $old->id, 'to_class_room_id' => $new->id, 'action' => 'transfer']);
+        $move->forceFill(['created_at' => Carbon::parse('2026-01-10')])->save();
+        // The previous due-date rule allowed this charge in the new class on January 15.
+        $schedule = $new->feeSchedules()->where('fee_type', 'facility')->firstOrFail();
+        $history = ClassFeePaymentHistory::create(['student_id' => $student->id, 'class_fee_schedule_id' => $schedule->id,
+            'class_fee_due_date' => '2026-01-15', 'class_fee_submission_id' => (string) Str::uuid(),
+            'amount' => 2000, 'paid_at' => '2026-06-01', 'payment_method' => 'cash', 'created_by' => auth()->id()]);
+        $this->put(route('class-fees.payments.update', ['source' => 'history', 'payment' => $history->id]),
+            $this->correction(['amount' => 1800]))->assertSessionHasNoErrors();
+        $payment = Revenue::firstOrFail();
+        $this->delete(route('class-fees.payments.destroy', ['source' => 'revenue', 'payment' => $payment->id]),
+            ['reason' => 'Wrong amount'])->assertSessionHasNoErrors();
+        $this->get(route('class-fees.index', ['class_room_id' => $old->id, 'type' => 'facility', 'year' => 2026]))->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 0.0);
+        $this->get(route('class-fees.index', ['class_room_id' => $new->id, 'type' => 'facility', 'year' => 2026]))->assertOk()
+            ->assertViewHas('tracker', fn ($tracker) => $tracker['due'] === 2000.0 && $tracker['paid'] === 0.0);
     }
 
     public function test_editing_amount_and_date_updates_income_and_reopens_the_balance(): void

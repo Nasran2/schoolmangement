@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Expense;
 use App\Models\OpeningBalance;
 use App\Models\OwnerTransfer;
+use App\Models\OwnerTransferReturn;
 use App\Models\Revenue;
 use App\Models\TeacherSalaryPayment;
 use Carbon\Carbon;
@@ -57,8 +58,9 @@ class CashBalanceService
             ->where('revenue_adjustments.type', 'refund')->sum('revenue_adjustments.amount');
         $expenses = $cash($period(Expense::query(), 'expense_date'), 'payment_method')->sum('amount');
         $salaries = $cash($period(TeacherSalaryPayment::query(), 'paid_at'), 'payment_method')->sum('amount');
-        $transfers = $period(OwnerTransfer::query(), 'transferred_at')->sum('amount');
+        $transfers = $period(OwnerTransfer::active(), 'transferred_at')->sum('amount');
+        $returns = $period(OwnerTransferReturn::active(), 'returned_at')->sum('amount');
 
-        return round($base + (float) $income - (float) $refunds - (float) $expenses - (float) $salaries - (float) $transfers, 2);
+        return round($base + (float) $income - (float) $refunds - (float) $expenses - (float) $salaries - (float) $transfers + (float) $returns, 2);
     }
 }

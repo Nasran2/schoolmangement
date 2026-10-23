@@ -105,6 +105,23 @@ class Student extends Model
         return $this->hasMany(Revenue::class);
     }
 
+    /** Annual fee records retain which class owns that year's facility charge. */
+    public function facilityFeeRevenues(): HasMany
+    {
+        return $this->hasMany(Revenue::class)
+            ->join('class_fee_schedules', 'class_fee_schedules.id', '=', 'revenues.class_fee_schedule_id')
+            ->where('class_fee_schedules.fee_type', 'facility')
+            ->select('revenues.*', 'class_fee_schedules.class_room_id as facility_fee_class_room_id');
+    }
+
+    public function facilityFeeHistory(): HasMany
+    {
+        return $this->hasMany(ClassFeePaymentHistory::class)
+            ->join('class_fee_schedules', 'class_fee_schedules.id', '=', 'class_fee_payment_histories.class_fee_schedule_id')
+            ->where('class_fee_schedules.fee_type', 'facility')
+            ->select('class_fee_payment_histories.*', 'class_fee_schedules.class_room_id as facility_fee_class_room_id');
+    }
+
     public function promotionHistories(): HasMany
     {
         return $this->hasMany(StudentPromotionHistory::class);

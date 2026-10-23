@@ -44,8 +44,8 @@ $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $
             @can('revenue.add')
                 <div class="mb-5 rounded-lg bg-indigo-50 p-4 text-sm text-indigo-900 flex flex-wrap gap-3">
                     <span>Exam and facility fees are collected against their due installments:</span>
-                    <a class="font-semibold underline" href="{{ route('class-fees.index', ['type' => 'exam', 'student_id' => $initialSelectedStudentId, 'class_room_id' => $selectedStudent?->class_room_id]) }}">Collect Exam Fee</a>
-                    <a class="font-semibold underline" href="{{ route('class-fees.index', ['type' => 'facility', 'student_id' => $initialSelectedStudentId, 'class_room_id' => $selectedStudent?->class_room_id]) }}">Collect Facility Fee</a>
+                    <a class="font-semibold underline" href="{{ route('revenue.items.create', ['quick' => 'exam', 'student_id' => $initialSelectedStudentId]) }}">Collect Exam Fee</a>
+                    <a class="font-semibold underline" href="{{ route('revenue.items.create', ['quick' => 'facility', 'student_id' => $initialSelectedStudentId]) }}">Collect Facility Fee</a>
                 </div>
             @endcan
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8" x-data="revenueForm()">
@@ -70,7 +70,7 @@ $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $
                                         <div class="flex-1">
                                             <select id="revenue_category_id" name="revenue_category_id"
                                                 class="block w-full px-4 py-2.5 rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:ring-2 transition-all"
-                                                x-model="formData.category_id" x-on:change="updateSummary(); updateAllocationPreview()">
+                                                x-model="formData.category_id" x-on:change="categoryChanged($event.target.value)">
                                                 <option value="">Select Category</option>
                                                 @foreach ($categories as $cat)
                                                 <option value="{{ $cat->id }}" data-name="{{ $cat->name }}"
@@ -1028,6 +1028,19 @@ $initialSelectedStudentId = old('student_id', $selectedStudentId ?? ($isEdit ? $
                     return parts.length ? `Allocation: ${parts.join(', ')}` : '';
                 },
 
+                categoryChanged(value) {
+                    this.formData.category_id = String(value || '');
+                    const category = this.categories.find(item => String(item.id) === this.formData.category_id);
+                    if (category?.class_fee_type && !this.editingRevenueId) {
+                        const destination = new URL(@js(route('revenue.items.create')));
+                        destination.searchParams.set('quick', category.class_fee_type);
+                        if (this.selectedStudentId) destination.searchParams.set('student_id', this.selectedStudentId);
+                        window.location.assign(destination.toString());
+                        return;
+                    }
+                    this.updateSummary();
+                    this.updateAllocationPreview();
+                },
                 updateSummary() {
                     try {
                         const id = this.formData.category_id;
