@@ -4,7 +4,8 @@
         'classId' => $filters['class_room_id'] ?? '', 'year' => $year, 'allYears' => (bool) $filters['all_years'],
         'includeInactive' => (bool) ($filters['include_inactive'] ?? false), 'studentId' => $selectedStudent?->id,
         'amount' => old('amount', $selectedStatus['collectable'] ?? ''), 'date' => old('paid_at', today()->toDateString()),
-        'method' => old('payment_method', 'cash'), 'recordRevenue' => (bool) old('record_revenue', true),
+        'method' => old('payment_method', 'cash'), 'recordRevenue' => true,
+        'categoryLocked' => true, 'defaultAmount' => $selectedStatus['collectable'] ?? 0,
     ];
 @endphp
 <x-app-layout>
@@ -27,11 +28,8 @@
                 <h3 class="fee-card-title" id="fee-payment-title">Payment Details</h3>
                 <div class="fee-field">
                     <label for="fee-category">Payment Category</label>
-                    <select id="fee-category" class="fee-input" @change="categoryChanged($event.target.value)">
-                        @foreach(['exam' => 'Exam Fee', 'facility' => 'Facility Fee'] as $kind => $label)<option value="fee:{{ $kind }}" @selected($type === $kind)>{{ $label }}</option>@endforeach
-                        @foreach($categories->whereNull('class_fee_type') as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach
-                    </select>
-                    <p class="fee-hint">Change the category to collect another fee for this student.</p>
+                    <input id="fee-category" class="fee-input" type="text" value="{{ $feeLabel }}" readonly aria-readonly="true">
+                    <p class="fee-hint">The category is fixed to {{ $feeLabel }} on this collection page.</p>
                 </div>
                 <form method="GET" action="{{ route('revenue.items.create') }}" id="fee-student-search">
                     <input type="hidden" name="quick" value="{{ $type }}">
@@ -82,6 +80,20 @@
                     @include('class-fees.partials.collection-payment-form')
                 @elseif($selectedStudent)
                     <div class="fee-empty">{{ $installments->isEmpty() ? 'No applicable '.strtolower($feeLabel).' installments for this student and period.' : ($installments->contains(fn ($entry) => $entry['status']['collectable'] > 0) ? 'Choose an installment in the billing summary.' : ($installments->sum(fn ($entry) => $entry['status']['pending']) > 0 ? 'The remaining balance is reserved by pending cheques.' : 'All listed installments are settled.')) }}</div>
+                    @if($installments->isNotEmpty() && $installments->every(fn ($entry) => $entry['status']['remaining'] < 0.01))
+                        <div class="fee-income"><strong>{{ $feeLabel }} fully paid</strong><p class="fee-hint">Payments recorded: Rs {{ number_format($installments->sum(fn ($entry) => $entry['status']['paid']), 2) }}. You can edit the recorded payment below, use today's date or choose another date, then save and view the bill.</p></div>
+                    @else
+                        <button type="button" class="fee-button fee-button-wide" disabled>Pay {{ $feeLabel }} — unavailable</button>
+                    @endif
+                    @can('revenue.manage')
+                        <div class="fee-actions">
+                            @foreach($installments as $entry)
+                                @foreach($entry['status']['receipts']->reject(fn ($receipt) => $receipt->isCancelled()) as $receipt)
+                                    <a class="fee-button fee-button-secondary" href="{{ route('class-fees.payments.edit', ['source' => $receipt instanceof \App\Models\Revenue ? 'revenue' : 'history', 'payment' => $receipt->id, 'collection' => 1]) }}">Edit / take payment — {{ $receipt instanceof \App\Models\Revenue ? ($receipt->bill_no ?: 'Receipt #'.$receipt->id) : 'History #'.$receipt->id }}</a>
+                                @endforeach
+                            @endforeach
+                        </div>
+                    @endcan
                 @else
                     <div class="fee-empty">Find student: type a name or admission number and select a suggestion to enable payment.</div>
                 @endif
@@ -98,6 +110,11 @@
                     <div class="fee-term-list">
                     @foreach($installments as $key => $entry)
                         <div class="fee-term"><div class="fee-term-heading"><strong>{{ isset($entry['cycle']['term']) ? 'Term '.$entry['cycle']['term'] : $feeLabel }}</strong><span>{{ $entry['status']['status'] }}</span></div><p>{{ $entry['cycle']['due']->format('d M Y') }}@if(isset($entry['cycle']['end'])) – {{ $entry['cycle']['end']->format('d M Y') }}@endif · {{ $entry['cycle']['schedule']->classRoom?->name }}</p><div class="fee-term-heading"><span>Balance Rs {{ number_format($entry['status']['remaining'], 2) }}</span>@if($entry['status']['collectable'] > 0)<a class="fee-link" href="{{ route('revenue.items.create', array_merge($filters, ['quick' => $type, 'student_id' => $selectedStudent->id, 'cycle' => $key])) }}">{{ $selectedCycle && $selectedCycle['key'] === $key ? 'Selected' : 'Collect' }}</a>@endif</div></div>
+                        @can('revenue.manage')
+                            @foreach($entry['status']['receipts']->reject(fn ($receipt) => $receipt->isCancelled()) as $receipt)
+                                <p class="fee-hint"><a class="fee-link" href="{{ route('class-fees.payments.edit', ['source' => $receipt instanceof \App\Models\Revenue ? 'revenue' : 'history', 'payment' => $receipt->id, 'collection' => 1]) }}">Edit / take payment {{ $receipt instanceof \App\Models\Revenue ? ($receipt->bill_no ?: 'receipt #'.$receipt->id) : 'historical payment #'.$receipt->id }}</a></p>
+                            @endforeach
+                        @endcan
                     @endforeach
                     </div>
                 @else<p class="fee-empty">Select a student to see their {{ strtolower($feeLabel) }} dues here.</p>@endif

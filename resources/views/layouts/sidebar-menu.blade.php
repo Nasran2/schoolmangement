@@ -54,10 +54,18 @@
         @endif
 
         @canany(['class_fees.view', 'revenue.add', 'revenue.manage', 'revenue.categories.manage'])
-            <a href="{{ route('class-fees.index') }}" class="mt-2 flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('class-fees.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg>
-                <span>Exam &amp; Facility Fees</span>
-            </a>
+            <div class="mt-2" x-data="{ feesOpen: @js(request()->routeIs('class-fees.*')) }">
+                <button type="button" @click="feesOpen = !feesOpen" :aria-expanded="feesOpen" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md text-sm font-medium {{ request()->routeIs('class-fees.*') ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}">
+                    <span class="flex items-center gap-3"><svg width="20" height="20" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg><span>Exam &amp; Facility Fees</span></span>
+                    <svg width="16" height="16" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" :style="feesOpen ? 'transform:rotate(180deg)' : ''"><path d="m5 7 5 5 5-5H5z"/></svg>
+                </button>
+                <div x-show="feesOpen" x-cloak class="ml-8 mt-1 space-y-1">
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('class-fees.index') && request('view') !== 'students' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('class-fees.index') }}">Overview</a>
+                    <a class="block px-3 py-2 rounded-md text-sm {{ request()->routeIs('class-fees.index') && request('view') === 'students' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50' }}" href="{{ route('class-fees.index', ['view' => 'students']) }}">All students</a>
+                    @can('revenue.add')<a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="{{ route('class-fees.bulk') }}">Bulk payments</a>@endcan
+                    @can('revenue.delete')<a class="block px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-50" href="{{ route('class-fees.bulk', ['mode' => 'unpaid']) }}">Make unpaid</a>@endcan
+                </div>
+            </div>
         @endcanany
 
         @if($canAddExpense || $canManageExpense || $canManageExpenseCategories)

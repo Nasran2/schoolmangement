@@ -1,0 +1,81 @@
+BULK MAKE PAID FEES UNPAID
+
+WHERE TO FIND IT
+
+Exam & Facility Fees > Bulk payments > Make unpaid
+Or choose Bulk make unpaid directly from the fee register header.
+
+HOW TO USE
+
+1. Choose the fee year and load it.
+2. Select a class, or search by student name/admission number across classes.
+3. Choose Term 1, Term 2, Term 3, all exam terms, Facility fee, or all fees.
+4. Select individual students or Select all available students, then click
+   Add selected to reversal list. You can add students from several classes.
+5. Review the exact receipts, historical entries, amounts and accounting effect.
+6. Enter the reason and click Make [number] fees unpaid.
+
+WHAT HAPPENS
+
+All active payments for each selected student fee are cancelled. Its paid balance
+is reopened. Revenue receipts are removed from income and the ledger; historical
+payments change only the student fee balance. Bill numbers and audit history stay
+available. The reason is stored in the batch and individual cancellation audits.
+This corrects mistaken payments; it does not record a physical cash refund.
+
+Paid and partially paid fees are supported, including several receipts settling
+one fee. Pending cheques on the selected partly paid fee are also cancelled so
+those funds no longer reserve the balance. Other terms and unselected students
+are unaffected. Prepaid future fees reopen but remain Upcoming until their start.
+
+Receipts with refunds or waivers, or unresolved unsupported cheque states, show a
+review explanation and need individual handling in Revenue first. They cannot be
+added by select all. The whole batch is checked again before saving. If a reviewed
+payment changed, nothing in that batch is reversed; reload and review it again.
+Repeating the same successful submission cannot reverse later replacement payments.
+The existing revenue.delete permission is required. Up to 500 student fees fit in
+one batch. Include inactive/alumni to find their earlier paid fees. Original-class
+payments remain available under the class owning their receipts.
+
+CPANEL FILE MANAGER - NO TERMINAL NEEDED
+
+This patch is for the existing term/bulk-payment installation shown in your screen.
+No database migration, SQL import, Composer install or asset build is needed.
+
+1. Upload bulk-make-unpaid-update.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+
+2. Extract there and overwrite matching files. Apply all files together, including
+   the new ClassFeeReversalService, bulk-unpaid view and public/js/class-fees.js.
+   Do not extract inside public/ or an extra wrapper folder.
+
+3. In storage/framework/views/, delete only the compiled .php files.
+   Preserve the folder and .gitignore.
+
+4. If bootstrap/cache/routes-v7.php exists, delete that route cache file so the
+   new bulk reversal endpoint and updated permission checks are loaded.
+   Preserve the folder and other cache files.
+
+5. Hard-refresh Exam & Facility Fees > Bulk payments. The Make unpaid option
+   appears for administrators and users with revenue.delete.
+
+VALIDATION
+
+Full PHP suite: 350 tests, 3179 assertions, passed.
+JavaScript fee/calendar/search tests: 17 passed.
+New tests cover revenue/history, partial receipts and pending cheques, several
+classes/terms/facility fees, stale lists, atomic rollback, refunds/waivers, repeat
+submissions, invalid inputs, permission separation, old class moves and prepaid
+future fees. Browser select-all, review and save were verified with isolated sample
+payments; only the chosen Term 1 entries became unpaid. The live database was not
+modified. Desktop and 390px mobile layouts were checked.
+
+INCLUDED APPLICATION FILES
+- app/Http/Controllers/ClassFeePaymentController.php
+- app/Services/Billing/ClassFeeReversalService.php
+- public/js/class-fees.js
+- resources/js/classFees.js
+- resources/views/class-fees/bulk.blade.php
+- resources/views/class-fees/bulk-unpaid.blade.php
+- resources/views/class-fees/index.blade.php
+- routes/web.php

@@ -1,0 +1,49 @@
+ALL STUDENTS FEE REGISTER + BULK MAKE UNPAID UPDATE
+
+Upload all-students-fee-register-update.zip with cPanel File Manager.
+Extract inside the Laravel application root:
+/home/bicpolga/public_html/system.bicpolgahawela.lk/
+This folder contains artisan, app, resources, routes and public.
+Overwrite every included file, keeping the folders exactly as packaged.
+Do not extract inside public alone. No terminal, database migration or asset build is needed.
+
+Clear cached views using File Manager:
+1. Open storage/framework/views/.
+2. Delete only compiled .php files inside it. Keep the folder and .gitignore.
+3. If bootstrap/cache/routes-v7.php exists, delete that one route-cache file.
+   This package includes the bulk make-unpaid route. Keep other cache files.
+4. Hard refresh the browser (Cmd+Shift+R / Ctrl+Shift+R).
+
+WHERE TO OPEN
+Exam & Facility Fees -> All students
+Direct path: /class-fees?view=students
+The sidebar also has Overview, Bulk payments and Make unpaid.
+
+WHAT IS INCLUDED
+- Instant student name/admission search, across all classes or one selected class.
+- Year/all-years, paid/unpaid/partial/pending cheque, inactive/alumni, former-class,
+  exam-term selection and facility-inclusion filters.
+- All students includes students without selected fees. Former-class students
+  appear only if their filter is checked; inactive/alumni also require their filter.
+- Individual Pay popup with amount/date, cash/bank/cheque, revenue & ledger option,
+  original billing rules and a View / print bill link after a revenue payment.
+- Individual Make unpaid popup requiring a reason, plus existing Edit payment links.
+- Bulk make unpaid, including class/search/select-all, term selection and reason.
+- PDF and CSV downloads include every matching student, across all pages.
+
+Reversals retain cancelled receipts, bill references and audit history. Revenue
+payments are removed from income and the fee becomes due again. Historical
+payments affect only student fee history. This does not record physical cash
+refunds. Receipts with refunds/waivers require individual review. Pending cheques
+remain unpaid until passed. Reopening a partially paid fee also cancels any
+pending cheque on that same fee after review in the popup.
+
+This package contains the full local changes for this request and the immediately
+preceding bulk make-unpaid request. Deploy every included file together.
+Existing data is preserved. No live student payments were changed during testing.
+
+VALIDATION
+360 PHP tests / 3311 assertions passed; 20 JavaScript tests passed.
+Browser verified instant search, totals, pay/bill link, required-reason reversal,
+cheque controls and preserved search using a separate disposable preview database.
+Preview screenshots show sample data only.

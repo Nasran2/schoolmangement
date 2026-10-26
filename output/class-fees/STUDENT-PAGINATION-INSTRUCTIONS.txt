@@ -1,0 +1,32 @@
+STUDENT REGISTER PAGINATION UPDATE
+
+Upload student-pagination-update.zip with cPanel File Manager.
+Extract into the Laravel application root:
+/home/bicpolga/public_html/system.bicpolgahawela.lk/
+Overwrite every included file and preserve the packaged folders.
+Do not extract only inside public.
+
+Clear cached views using File Manager:
+1. Open storage/framework/views/ and delete only compiled .php files.
+2. Keep the folder and its .gitignore.
+3. If bootstrap/cache/routes-v7.php exists, remove that file, because the ZIP also
+   includes the earlier bulk make-unpaid route. Leave other cache files intact.
+4. Hard refresh (Cmd+Shift+R / Ctrl+Shift+R).
+No terminal, migration, database import or asset build is needed.
+
+Open Exam & Facility Fees -> All students.
+- Page numbers and First / Previous / Next / Last appear above and below the list.
+- The current page is highlighted; unavailable boundary controls are disabled.
+- Rows per page: 10, 25 (default), 50 or 100.
+- Search, class, year, payment status and selected fees stay applied between pages.
+- Changing filters or page size returns to page one.
+- Live payment saves retain the current page while refreshing balances.
+- PDF and CSV downloads still include all matching students across all pages.
+
+This package includes the preceding compact layout, facility collection/edit,
+All students and bulk make-unpaid changes with their dependencies. Upload all files together.
+No live student or payment data was changed during testing.
+
+Verified: 365 PHP tests / 3512 assertions and 21 JavaScript tests passed.
+Browser checked numbered navigation, page-size changes, filter retention and a
+sample payment saved from page two without resetting the page. Screenshot is sample data.

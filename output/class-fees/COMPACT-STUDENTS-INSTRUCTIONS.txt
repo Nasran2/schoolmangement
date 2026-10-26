@@ -1,0 +1,32 @@
+COMPACT ALL STUDENTS VIEW
+
+Upload compact-students-layout-update.zip through cPanel File Manager.
+Extract into the Laravel root:
+/home/bicpolga/public_html/system.bicpolgahawela.lk/
+Overwrite every included file and preserve its folder path.
+Do not extract only inside public.
+
+Clear compiled views without a terminal:
+- Open storage/framework/views/ and delete only compiled .php files.
+- Keep the folder and .gitignore.
+- If bootstrap/cache/routes-v7.php exists, remove that file because this ZIP also
+  includes the earlier bulk make-unpaid route. Keep other cache files.
+- Hard refresh the browser (Cmd+Shift+R / Ctrl+Shift+R).
+No migration, database import or asset build is required.
+
+Open Exam & Facility Fees -> All students.
+- Summary and due cards are removed from this view. Overview retains them.
+- Class/year/status/search fields use a compact row.
+- Other filters and PDF/CSV downloads remain available.
+- Term 1/2/3 and facility selection share one compact row; hover a term for dates.
+- On narrow screens or for many earlier-year terms, scroll that row horizontally.
+- Student rows and page spacing are tighter, with payment actions still visible.
+
+Verified in a 1265 x 713 desktop browser with sample data: two complete student
+rows and the start of a third fit without scrolling. Instant search works after
+filtering, and the summary cards do not return after live refresh.
+60 relevant PHP tests / 471 assertions and 21 JavaScript tests passed.
+
+This ZIP also includes the preceding All students, bulk make-unpaid and facility
+collection/edit updates, with their dependencies. Deploy all included files together.
+Live student and payment records were not changed during testing.

@@ -7,6 +7,10 @@
         </div>
     </x-slot>
     <div class="max-w-7xl mx-auto py-8 space-y-5" x-data="bulkClassFees(@js($candidates), @js($filters['class_room_id'] ?? ''), @js(old('lines', [])))">
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+            <span class="rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white" aria-current="page">Collect payments</span>
+            @can('revenue.delete')<a href="{{ route('class-fees.bulk', ['mode' => 'unpaid', 'year' => $year, 'class_room_id' => $filters['class_room_id'] ?? null, 'include_inactive' => $filters['include_inactive'] ?? 0]) }}" class="rounded-md border border-gray-200 bg-white px-4 py-2 font-semibold text-red-700">Make unpaid</a>@endcan
+        </div>
         @if(session('status'))<div role="status" class="rounded-lg bg-green-50 p-4 text-sm text-green-800">{{ session('status') }}</div>@endif
         @if($errors->any())<div role="alert" class="rounded-lg bg-red-50 p-4 text-sm text-red-800">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
         <form method="GET" class="rounded-lg border border-gray-200 bg-white p-5 flex flex-wrap items-end gap-4">

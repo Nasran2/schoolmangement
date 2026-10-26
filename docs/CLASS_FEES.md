@@ -164,8 +164,8 @@ selected automatically; choose a different installment from the selector or
 summary. Partial and full payments share existing server balance validation and
 idempotent submission IDs. The summary amount updates while entering an amount.
 
-Payment Category supports switching between exam, facility and ordinary revenue
-categories while preserving the selected student. The monthly form also includes
+Payment Category is fixed on the dedicated exam and facility collection pages.
+The monthly form includes
 exam/facility categories; choosing one navigates to its installment collector
 rather than recording an unassigned revenue. An existing ordinary receipt cannot
 be converted into an installment merely by changing its category.
@@ -179,7 +179,7 @@ an unpassed cheque releases the reservation. A pending cheque cannot be entered
 as historical settlement or have its revenue tracking removed; an already passed
 cheque may be converted to historical settlement through the correction service.
 
-**Save & view bill** opens the existing printable receipt. **Save payment** returns
+**Pay [fee] & view bill** opens the existing printable receipt. **Pay [fee]** returns
 to collection. Revenue bill numbering follows the automatic/manual setting;
 manual numbers must be unique, and retries retain the original receipt. Historical
 payments settle balances without new revenue bills. Cashiers with `revenue.add`
@@ -238,3 +238,126 @@ Term 4 card so no balances disappear from the breakdown.
 The card grid uses scoped CSS inside the Blade view to support existing hosted
 asset bundles without requiring a new build. Regression coverage is in
 `tests/Feature/ClassFeeDueCardsTest.php`.
+
+## Bulk make unpaid
+
+Open **Exam & Facility Fees → Bulk payments → Make unpaid**, or use the register's
+**Bulk make unpaid** shortcut. This mode requires `revenue.delete`; collection
+continues to require `revenue.add`. Choose the year, class/search and exam term or
+facility fee, select students, add them to the reversal list, review the receipts
+and amounts, then enter a reason and save. Up to 500 student fees can be processed
+per batch, including students from several classes.
+
+The paid-mode list includes fully and partially paid fees, historical settlements
+and prepaid future fees. Former-class payments are grouped under the class that
+owns the receipt, even when an old class move lacks promotion history. Inactive
+and alumni students require the existing checkbox. Fees with refunds/waivers or
+unsupported cheque states remain visible with a review explanation and cannot be
+queued. Pending holds attached to a selected partly paid fee are also cancelled so
+they do not continue reserving that balance.
+
+`ClassFeeReversalService` builds a reviewed payment fingerprint and rechecks it
+under class, student and receipt locks before cancelling anything. The existing
+`ClassFeePaymentService::cancel()` handles each revenue/history record, retaining
+bill numbers and audit history. Revenue receipts are cancelled with zero income;
+history-only records stop settling the fee without changing income. No refund or
+new revenue is created. Future fees revert to Upcoming until their starting date.
+
+The whole batch is transactional: a stale, invalid or adjusted receipt rolls back
+all cancellations, audit entries and the batch token. Existing `class_fee_batches`
+provides retry protection, with the reversal action included in the payload hash.
+An exact retry cannot cancel a new payment received after the successful reversal.
+A summary audit records the batch, reason, fee count and cancelled-receipt count;
+individual cancellation audits retain original payment data and the reason.
+
+The separate Blade view uses the standalone `bulkClassFeeReversals` factory from
+`public/js/class-fees.js`, loaded before Alpine, so shared hosting needs no asset
+build. No schema change is required. Regression coverage is in
+`ClassFeeBulkUnpaidTest` and `tests/JavaScript/classFees.test.mjs`.
+
+## All-students fee register
+
+Open **Exam & Facility Fees → All students** (`/class-fees?view=students`). The
+Overview remains available separately. Search by name or admission number updates
+the list and totals after a short typing delay; changes to class, year, status,
+term selection, facility inclusion, inactive/alumni or former-class filters update
+immediately. Former students are excluded by default. Students without configured
+or selected fees remain visible under the All students status, including students
+without a class. Other statuses retain the register's existing balance rules.
+
+The page defaults to 25 class entries at a time, with 10/25/50/100 row choices. PDF and CSV downloads contain **all**
+matching students and selected fees, regardless of the current page. Download
+permission is `reports.download`. CSV uses a separate row per student/fee and
+neutralizes spreadsheet formula prefixes in text fields.
+
+Each applicable fee has **Pay** (`revenue.add`), and paid fees have **Make unpaid**
+(`revenue.delete`). Both use dialogs and preserve the current filters. Collection
+uses the existing payment service, bill numbering, bank validation, historical
+payment option and pending-cheque rules. The bill link appears after saving a
+revenue payment. Existing receipt **Edit payment** links require `revenue.manage`.
+Making a fee unpaid requires a reason and cancels all reviewed active receipts on
+that fee through the same atomic reversal service as bulk make unpaid. The popup
+shows receipt references and accounting effects; refunds/waivers block reversal
+for individual review. Receipt changes after opening the dialog require reloading
+and reviewing it again. Audit records and cancelled bills are retained.
+
+Shared filter validation and Blade partials keep the Overview, All students,
+exports and action returns consistent. `public/js/fee-register.js` is a standalone
+deferred asset, so shared hosting requires no Vite build. Overlapping live-search
+responses are cancelled and older results ignored; Apply filters falls back to a
+normal GET if live refresh fails. No database migration is required.
+
+
+## Facility collection and paid-receipt editing
+
+Dedicated exam/facility collectors have a read-only category and always record
+revenue. Their collection POST forces `record_revenue=true`; there is no accounting
+checkbox in this section. The register and bulk historical-entry workflows retain
+their own accounting options. Pending cheques still enter income only after passing.
+
+Facility amounts default to the configured fee for an unpaid cycle, or its remaining
+collectable balance after partial payments. The amount is editable, and **Use remaining
+facility fee** resets it. Existing balance validation prevents duplicate/overpayments.
+Fully settled fees display **Facility Fee fully paid**, the recorded total, and
+**Edit / take payment** receipt links for users with `revenue.manage`.
+
+Collection edit links carry `collection=1`. This edit context defaults the payment
+date to today (still editable), hides the accounting checkbox, and submits a fixed
+revenue entry. Saving opens the printable bill. Existing revenue receipts update in
+place without adding a second payment; historical settlements convert to one new
+revenue receipt, retaining the cancelled history and audit trail. Partial corrections
+reopen the appropriate remaining fee balance. Existing refund/waiver and cheque
+correction protections still apply. Normal edits opened from other screens retain
+the original date and accounting controls.
+
+## Compact All students layout
+
+The All students view omits summary/due cards; Overview retains them. Its filter
+form uses a compact grid with class, year, payment status and instant search,
+followed by inline activity/history filters and download actions. Exam terms and
+facility inclusion share one horizontal row. Term chips show term/year; full dates
+remain in their title and accessible checkbox label, and in the table headers.
+On narrow screens or when many earlier-year terms are selected, this row scrolls
+horizontally rather than consuming several vertical rows. The existing Overview
+filter layout is unchanged.
+
+Navigation links sit beside the page title. Table headings, cells and actions use
+reduced spacing; fee status and paid amount share a line when space allows. A
+1265 × 713 browser preview with paid receipts shows two complete student rows and
+the beginning of a third without scrolling. Instant search fragments use the same
+compact results partial. PDF/CSV contents and payment behavior are unchanged.
+
+
+## Numbered student pagination
+
+All students has pagination above and below the results, with First, Previous,
+numbered pages, Next and Last. The current page is highlighted and distant pages
+use ellipses. Boundary controls are disabled appropriately. Rows per page supports
+10, 25 (default), 50 or 100, validated through the shared register filters.
+
+Page links retain class/year/status/search/term/activity filters and page size.
+Changing a filter or page size starts at page one. Out-of-range pages clamp to the
+last available page. Live page navigation brings the results into view, and saving
+from a payment dialog refreshes the current page (clamped if the result count has
+changed). PDF/CSV exports continue to include all filtered rows, independent of
+page and page size. Pagination markup is shared by the top/bottom controls.

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassFeeSchedule;
 use App\Models\ClassRoom;
-use App\Models\RevenueCategory;
 use App\Models\Student;
 use App\Services\Billing\BillNumberService;
 use App\Services\Billing\ClassFeeService;
@@ -76,7 +75,6 @@ class ClassFeeCollectionController extends Controller
         return view('class-fees.collect', compact('type', 'filters', 'year', 'classes', 'students', 'selectedStudent', 'installments', 'selectedCycle', 'selectedStatus', 'class') + [
             'feeLabel' => ClassFeeSchedule::TYPES[$type], 'submissionId' => (string) Str::uuid(),
             'collectionMode' => true,
-            'categories' => RevenueCategory::where('active', true)->orderBy('name')->get(),
             'autogenerate' => app('settings')->get('billing.revenue.autogenerate', '1') === '1',
             'nextBillNumberPreview' => app(BillNumberService::class)->peekNextRevenueBillNumber(),
         ]);

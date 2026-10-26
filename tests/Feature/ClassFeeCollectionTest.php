@@ -119,7 +119,7 @@ class ClassFeeCollectionTest extends TestCase
         $this->assertSame('2026-09-01', Revenue::firstOrFail()->class_fee_due_date->toDateString());
     }
 
-    public function test_facility_collection_can_settle_without_adding_revenue_and_shows_the_updated_balance(): void
+    public function test_facility_collection_always_records_revenue_even_if_the_hidden_value_is_changed(): void
     {
         $class = $this->schoolClass();
         $student = $this->student($class, ['joining_date' => '2026-10-01']);
@@ -127,8 +127,8 @@ class ClassFeeCollectionTest extends TestCase
             $this->payload($class, $student, 'facility', ['record_revenue' => 0]))->assertSessionHasNoErrors();
         $this->get($response->headers->get('Location'))->assertOk()->assertSee('All listed installments are settled.')
             ->assertViewHas('selectedStatus', fn ($status) => $status['paid'] === 5000.0 && (float) $status['due'] === 0.0);
-        $this->assertDatabaseCount('revenues', 0);
-        $this->assertDatabaseCount('class_fee_payment_histories', 1);
+        $this->assertDatabaseCount('revenues', 1);
+        $this->assertDatabaseCount('class_fee_payment_histories', 0);
     }
 
     public function test_pending_cheques_reserve_the_balance_in_the_collection_panel(): void
@@ -209,7 +209,7 @@ class ClassFeeCollectionTest extends TestCase
         $student = $this->student($class, ['admission_number' => 'STU0959']);
         $this->student($class, ['name' => 'Amidu Chenitha', 'admission_number' => 'STU1066', 'joining_date' => '2026-10-01']);
         $response = $this->page(filters: ['student_id' => $student->id])->assertOk()
-            ->assertSee('STU0959')->assertSee('Record exam fee payment')->assertSee('Include in revenue');
+            ->assertSee('STU0959')->assertSee('Record exam fee payment')->assertSee('This payment is recorded in revenue');
         if ($directory = getenv('CLASS_FEE_COLLECTION_PREVIEW_DIR')) {
             if (! is_dir($directory)) {
                 mkdir($directory, 0775, true);
@@ -333,6 +333,7 @@ class ClassFeeCollectionTest extends TestCase
         $this->page(filters: ['student_id' => $student->id])->assertViewHas('selectedStatus', fn ($status) => $status['collectable'] === 850.0 && $status['pending'] === 0.0);
         $payload['submission_id'] = (string) Str::uuid();
         $payload['record_revenue'] = 0;
+        $payload['return_to'] = null;
         $this->post($url, $payload)->assertSessionHasErrors('payment_method');
         $this->assertDatabaseCount('class_fee_payment_histories', 0);
     }
@@ -368,5 +369,94 @@ class ClassFeeCollectionTest extends TestCase
         $this->assertDatabaseHas('class_fee_payment_histories', ['student_id' => $student->id, 'payment_method' => 'cheque', 'amount' => 850]);
         $this->page(filters: ['student_id' => $student->id])->assertViewHas('installments', fn ($entries) => $entries->first()['status']['paid'] === 850.0
             && (float) $entries->first()['status']['collectable'] === 0.0);
+    }
+
+    public function test_facility_category_is_locked_and_amount_defaults_to_the_fee_then_remaining_balance(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class);
+        foreach (['facility', 'exam'] as $type) {
+            $response = $this->page($type, ['student_id' => $student->id])->assertOk();
+            $dom = new \DOMDocument;
+            @$dom->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($dom);
+            $this->assertSame(1, $xpath->query('//input[@id="fee-category"][@readonly]')->length);
+            $this->assertSame(0, $xpath->query('//select[@id="fee-category"]')->length);
+        }
+        $response = $this->page('facility', ['student_id' => $student->id])->assertSee('Pay Facility Fee')
+            ->assertSee('Use remaining facility fee')->assertSee('Configured facility fee: Rs 5,000.00');
+        $this->assertStringContainsString('value="5000"', $response->getContent());
+        $url = route('class-fees.store', ['classroom' => $class, 'type' => 'facility']);
+        $payload = $this->payload($class, $student, 'facility', ['amount' => 1200, 'revenue_category_id' => 999999]);
+        $this->post($url, $payload)->assertSessionHasNoErrors();
+        $payment = Revenue::firstOrFail();
+        $this->assertSame($class->feeSchedules()->where('fee_type', 'facility')->first()->revenue_category_id, $payment->revenue_category_id);
+        $this->page('facility', ['student_id' => $student->id])->assertOk()->assertSee('Pay Facility Fee')
+            ->assertViewHas('selectedStatus', fn ($status) => $status['collectable'] === 3800.0)
+            ->assertSee('value="3800"', false);
+        $this->post($url, $this->payload($class, $student, 'facility', ['amount' => 3801]))->assertSessionHasErrors('amount');
+    }
+
+    public function test_settled_facility_fee_has_clear_paid_state_and_correction_links_instead_of_accepting_duplicates(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class);
+        $url = route('class-fees.store', ['classroom' => $class, 'type' => 'facility']);
+        $this->post($url, $this->payload($class, $student, 'facility'))->assertSessionHasNoErrors();
+        $payment = Revenue::firstOrFail();
+        $response = $this->page('facility', ['student_id' => $student->id])->assertOk()
+            ->assertSee('Facility Fee fully paid')->assertSee('Edit / take payment')
+            ->assertSee(route('class-fees.payments.edit', ['source' => 'revenue', 'payment' => $payment->id, 'collection' => 1]), false)
+            ->assertDontSee('name="amount"', false);
+        $this->post($url, $this->payload($class, $student, 'facility'))->assertSessionHasErrors('amount');
+        $this->assertDatabaseCount('revenues', 1);
+        $cashier = User::factory()->create();
+        $cashier->givePermissionTo('revenue.add');
+        $this->actingAs($cashier);
+        $this->page('facility', ['student_id' => $student->id])->assertOk()
+            ->assertDontSee(route('class-fees.payments.edit', ['source' => 'revenue', 'payment' => $payment->id, 'collection' => 1]), false);
+    }
+
+    public function test_collection_edit_defaults_to_today_forces_revenue_and_opens_the_existing_bill(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class);
+        $this->post(route('class-fees.store', ['classroom' => $class, 'type' => 'facility']),
+            $this->payload($class, $student, 'facility', ['paid_at' => '2026-01-10']))->assertSessionHasNoErrors();
+        $payment = Revenue::firstOrFail();
+        $edit = route('class-fees.payments.edit', ['source' => 'revenue', 'payment' => $payment->id]);
+        $this->get($edit)->assertOk()->assertSee('value="2026-01-10"', false)->assertSee('type="checkbox" x-model="revenue"', false);
+        $this->get($edit.'?collection=1')->assertOk()->assertSee('value="2026-10-23"', false)
+            ->assertSee('Save / take payment')->assertDontSee('type="checkbox" x-model="revenue"', false);
+        $response = $this->put(route('class-fees.payments.update', ['source' => 'revenue', 'payment' => $payment->id]), [
+            'return_to' => 'collection', 'amount' => 4000, 'paid_at' => '2026-10-20', 'record_revenue' => 0,
+        ])->assertSessionHasNoErrors()->assertRedirect(route('revenue.items.receipt', $payment));
+        $this->get($response->headers->get('Location'))->assertOk()->assertSee('Facility fee :')->assertSee($payment->bill_no);
+        $this->assertDatabaseCount('revenues', 1);
+        $this->assertDatabaseCount('class_fee_payment_histories', 0);
+        $this->assertFalse($payment->fresh()->isCancelled());
+        $this->assertSame('2026-10-20', $payment->fresh()->paid_at->toDateString());
+        $this->assertSame('4000.00', $payment->fresh()->amount);
+        $this->page('facility', ['student_id' => $student->id])->assertOk()->assertViewHas('selectedStatus', fn ($status) => $status['collectable'] === 1000.0);
+    }
+
+    public function test_collection_edit_converts_historical_payment_to_one_revenue_bill_without_double_settling(): void
+    {
+        $class = $this->schoolClass();
+        $student = $this->student($class);
+        $this->post(route('class-fees.store', ['classroom' => $class, 'type' => 'facility']),
+            $this->payload($class, $student, 'facility', ['record_revenue' => 0, 'return_to' => null, 'paid_at' => '2026-02-01']))->assertSessionHasNoErrors();
+        $history = \App\Models\ClassFeePaymentHistory::firstOrFail();
+        $this->get(route('class-fees.payments.edit', ['source' => 'history', 'payment' => $history->id, 'collection' => 1]))
+            ->assertOk()->assertSee('value="2026-10-23"', false)->assertSee('Method for the revenue entry')
+            ->assertDontSee('type="checkbox" x-model="revenue"', false);
+        $this->put(route('class-fees.payments.update', ['source' => 'history', 'payment' => $history->id]), [
+            'return_to' => 'collection', 'amount' => 5000, 'paid_at' => '2026-10-23', 'record_revenue' => 0, 'payment_method' => 'cash',
+        ])->assertSessionHasNoErrors()->assertRedirect(route('revenue.items.receipt', Revenue::firstOrFail()));
+        $this->assertTrue($history->fresh()->isCancelled());
+        $this->assertDatabaseCount('revenues', 1);
+        $this->page('facility', ['student_id' => $student->id])->assertOk()->assertSee('Facility Fee fully paid')
+            ->assertViewHas('installments', fn ($entries) => $entries->first()['status']['paid'] === 5000.0);
+        $this->assertSame(5000.0, app(CashBalanceService::class)->balanceOn('2026-10-23'));
     }
 }

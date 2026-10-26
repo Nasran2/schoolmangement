@@ -222,9 +222,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/class-fees', [\App\Http\Controllers\ClassFeeController::class, 'index'])
         ->middleware('permission:class_fees.view|revenue.add|revenue.manage|revenue.categories.manage')->name('class-fees.index');
     Route::get('/class-fees/bulk', [\App\Http\Controllers\ClassFeePaymentController::class, 'bulk'])
-        ->middleware('permission:revenue.add')->name('class-fees.bulk');
+        ->middleware('permission:revenue.add|revenue.delete')->name('class-fees.bulk');
     Route::post('/class-fees/bulk', [\App\Http\Controllers\ClassFeePaymentController::class, 'storeBulk'])
         ->middleware('permission:revenue.add')->name('class-fees.bulk.store');
+    Route::post('/class-fees/bulk/unpaid', [\App\Http\Controllers\ClassFeePaymentController::class, 'makeUnpaidBulk'])
+        ->middleware('permission:revenue.delete')->name('class-fees.bulk.unpaid');
     Route::get('/class-fees/payments/{source}/{payment}/edit', [\App\Http\Controllers\ClassFeePaymentController::class, 'edit'])
         ->middleware('permission:revenue.manage')->name('class-fees.payments.edit');
     Route::put('/class-fees/payments/{source}/{payment}', [\App\Http\Controllers\ClassFeePaymentController::class, 'update'])

@@ -4,7 +4,7 @@
         return {
             query: config.query || '', classId: String(config.classId || ''), year: config.year,
             allYears: config.allYears, includeInactive: config.includeInactive, selectedId: config.studentId || '',
-            amount: config.amount ?? '', date: config.date, method: config.method || 'cash',
+            defaultAmount: config.defaultAmount ?? config.amount ?? '', amount: config.amount ?? '', date: config.date, method: config.method || 'cash',
             recordRevenue: config.recordRevenue !== false, results: [], open: false, loading: false,
             error: '', highlighted: -1, saving: false, viewReceipt: true, requestVersion: 0, searchTimer: null, searchController: null,
             init() { this.methodChanged(); },
@@ -61,6 +61,7 @@
             },
             classChanged() { window.location.assign(this.url('').toString()); },
             categoryChanged(value) {
+                if (config.categoryLocked) return;
                 const url = this.url();
                 url.searchParams.delete('q');
                 if (value.startsWith('fee:')) url.searchParams.set('quick', value.slice(4));

@@ -65,14 +65,19 @@
 
     @forelse($sections as $section)
         @if($section['cycles']->isEmpty())
-            <div class="empty">{{ $section['class']->name }}: No installments selected for this period.</div>
+            <div class="empty">{{ ($section['class']?->name ?? 'No class assigned') }}: No installments selected for this period.</div>
+            @if($studentList ?? false)
+                <table class="fees"><thead><tr><th>Student</th><th>Admission number</th><th>Class</th><th>Status</th></tr></thead><tbody>
+                    @foreach($section['rows'] as $row)<tr><td>{{ $row['student']->name }}</td><td>{{ $row['student']->admission_number }}</td><td>{{ $section['class']?->name ?? 'No class assigned' }}</td><td>No selected fees</td></tr>@endforeach
+                </tbody></table>
+            @endif
         @else
             @foreach($section['cycles']->chunk(4) as $chunk)
                 <table class="fees">
                     <thead>
                         <tr>
                             <th style="width: 24%;">
-                                <div class="class-name">{{ $section['class']->name }}</div>
+                                <div class="class-name">{{ ($section['class']?->name ?? 'No class assigned') }}</div>
                                 Student / admission number
                                 <div class="sub">{{ $section['rows']->count() }} students @if($section['cycles']->count() > 4) | Group {{ $loop->iteration }} of {{ $section['cycles']->chunk(4)->count() }} @endif</div>
                             </th>
@@ -111,7 +116,7 @@
                     </tbody>
                 </table>
             @endforeach
-            <div class="section-totals">{{ $section['class']->name }} totals: Payments recorded Rs {{ number_format($section['paid'], 2) }} | Due now Rs {{ number_format($section['due'], 2) }}</div>
+            <div class="section-totals">{{ ($section['class']?->name ?? 'No class assigned') }} totals: Payments recorded Rs {{ number_format($section['paid'], 2) }} | Due now Rs {{ number_format($section['due'], 2) }}</div>
         @endif
     @empty
         <div class="empty">No students or installments match the selected filters.</div>

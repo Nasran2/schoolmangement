@@ -1,0 +1,33 @@
+FACILITY COLLECTION + PAID PAYMENT EDIT UPDATE
+
+Upload facility-collection-payment-update.zip in cPanel File Manager.
+Extract at the Laravel application root:
+/home/bicpolga/public_html/system.bicpolgahawela.lk/
+Overwrite all included files. Preserve the packaged folders; do not extract only into public.
+
+Clear compiled views using File Manager: delete only compiled .php files inside
+storage/framework/views/. Keep that folder and its .gitignore.
+If bootstrap/cache/routes-v7.php exists, remove that one route-cache file because
+this package also includes the earlier bulk make-unpaid route.
+Hard refresh the browser (Cmd+Shift+R / Ctrl+Shift+R).
+No terminal, migration, database import or asset build is required.
+
+Open Revenue -> Collect Facility Fee and select a student.
+- Category is fixed to Facility Fee. The dedicated exam collector is also fixed.
+- Unpaid fees show Pay Facility Fee and Pay Facility Fee & view bill.
+- Amount defaults to the configured facility fee (or remaining balance after a
+  partial payment). Enter a smaller amount if needed; reset with Use remaining facility fee.
+- Fully paid fees show Facility Fee fully paid and Edit / take payment links.
+- Editing from this section starts with today's date; you can change it.
+- Save / take payment & view bill opens the printable bill.
+- This section always records revenue and ledger; there is no uncheck option.
+- Existing revenue payments update the same receipt without creating a duplicate.
+- Editing a historical paid entry here converts it to a revenue receipt with a bill.
+- Cheques remain pending until passed. Refund/waiver protections remain in effect.
+- Editing requires revenue.manage. The register/bulk accounting options remain available.
+
+The ZIP includes the earlier All students and bulk make-unpaid updates so their
+shared dependencies are present. Extract every included file together.
+No live student/payment data was changed during development or browser testing.
+Validation: 364 PHP tests / 3375 assertions and 21 JavaScript tests passed.
+Screenshots use a disposable sample database.

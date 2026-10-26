@@ -90,3 +90,16 @@ test('search failures release loading state and leave a usable fallback', async 
     assert.match(form.error, /Search students/);
     assert.equal(form.open, false);
 });
+
+
+test('locked collection categories cannot navigate to another fee and keep an editable default amount', () => {
+    const page = { URL, AbortController, setTimeout, clearTimeout, window: {location: {assign() { throw new Error('Category must stay fixed'); }}} };
+    runInNewContext(source, page);
+    const form = page.feeCollection({url: 'https://school.test/revenue/items/create', type: 'facility', categoryLocked: true, amount: 3800, defaultAmount: 3800});
+    form.categoryChanged('fee:exam');
+    form.categoryChanged('77');
+    assert.equal(form.amount, 3800);
+    form.amount = 1200;
+    assert.equal(form.amount, 1200);
+    assert.equal(form.defaultAmount, 3800);
+});

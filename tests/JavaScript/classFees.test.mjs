@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { termCalendar, bulkClassFees } from '../../resources/js/classFees.js';
+import { termCalendar, bulkClassFees, bulkClassFeeReversals } from '../../resources/js/classFees.js';
 
 test('first term generates three consecutive four-month terms', () => {
     const calendar = termCalendar(null, '2026-01-01');
@@ -99,6 +99,7 @@ test('standalone fee script defines both Alpine factories without the main appli
     runInNewContext(script, page);
     assert.equal(typeof page.termCalendar, 'function');
     assert.equal(typeof page.bulkClassFees, 'function');
+    assert.equal(typeof page.bulkClassFeeReversals, 'function');
     const form = { ...page.termCalendar(null, '2026-01-01'), enabled: false, feeAmount: '700' };
     form.init();
     form.enabled = true;
@@ -112,4 +113,76 @@ test('standalone fee script defines both Alpine factories without the main appli
     bulk.toggleAll(true);
     bulk.addSelected();
     assert.equal(bulk.lines.length, 2);
+});
+
+const paidCandidates = candidates.map(student => ({ ...student, installments: student.installments.map((cycle, index) => ({
+    ...cycle, paid: cycle.balance, fingerprint: student.key + ':' + index, revenue: index === 0 ? cycle.balance : 0,
+    history: index === 0 ? 0 : cycle.balance, pending: 0, blocked_reason: null,
+    payments: [{ source: index === 0 ? 'revenue' : 'history', id: index + student.student_id, amount: cycle.balance }],
+})) }));
+
+test('bulk make unpaid selects paid students across classes, terms and search without duplicate fees', () => {
+    const state = bulkClassFeeReversals(paidCandidates, 1);
+    state.init();
+    state.toggleAll(true);
+    state.addSelected();
+    assert.equal(state.lines.length, 2);
+    assert.equal(state.total, 1600);
+    assert.equal(state.income, 1000);
+    assert.equal(state.receiptCount, 2);
+    state.classId = '';
+    state.query = 'ADM02';
+    state.toggleAll(true);
+    state.addSelected();
+    state.query = '';
+    state.toggleAll(true);
+    state.addSelected();
+    assert.equal(state.lines.length, 3);
+    assert.equal(state.total, 2600);
+    const payload = JSON.parse(state.payload());
+    assert.deepEqual(Object.keys(payload[0]), ['student_id', 'class_room_id', 'cycle', 'fingerprint']);
+    assert.equal(payload[0].fingerprint, paidCandidates[0].installments[0].fingerprint);
+});
+
+test('bulk make unpaid excludes blocked fees and preserves only unchanged selections after an error', () => {
+    const data = structuredClone(paidCandidates);
+    data[0].installments[0].blocked_reason = 'Refund requires individual review';
+    data[1].installments[0].blocked_reason = 'Waiver requires review';
+    const state = bulkClassFeeReversals(data);
+    state.init();
+    assert.equal(state.visible.length, 2);
+    assert.equal(state.selectable.length, 1);
+    state.toggleAll(true);
+    state.addSelected();
+    assert.equal(state.lines.length, 1);
+    assert.equal(state.lines[0].label, 'Term 2');
+    assert.match(state.message, /individual review/);
+    const previous = JSON.parse(state.payload());
+    const unchanged = bulkClassFeeReversals(data, '', previous);
+    unchanged.init();
+    assert.equal(unchanged.lines.length, 1);
+    data[0].installments[1].fingerprint = 'changed';
+    const changed = bulkClassFeeReversals(data, '', previous);
+    changed.init();
+    assert.equal(changed.lines.length, 0);
+    assert.match(changed.message, /changed/);
+});
+
+test('bulk make unpaid term and facility selection and 500-fee limit are enforced in the queue', () => {
+    const state = bulkClassFeeReversals(paidCandidates);
+    state.init();
+    state.installment = 'term:2';
+    state.toggleAll(true);
+    state.addSelected();
+    assert.equal(state.lines.length, 1);
+    assert.equal(state.lines[0].label, 'Term 2');
+    state.lines = [];
+    state.installment = 'facility';
+    assert.equal(state.visible.length, 0);
+    state.installment = 'all';
+    state.candidates = Array.from({ length: 501 }, (_, index) => ({ ...paidCandidates[0], key: `1:${index + 1}`, student_id: index + 1, installments: [paidCandidates[0].installments[0]] }));
+    state.toggleAll(true);
+    state.addSelected();
+    assert.equal(state.lines.length, 500);
+    assert.match(state.message, /500/);
 });

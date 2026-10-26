@@ -3,3 +3,5 @@ import '../../public/js/class-fees.js';
 
 export const termCalendar = globalThis.termCalendar;
 export const bulkClassFees = globalThis.bulkClassFees;
+
+export const bulkClassFeeReversals = globalThis.bulkClassFeeReversals;

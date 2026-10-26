@@ -7,6 +7,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
                 @can('revenue.add')<a class="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700" href="{{ route('class-fees.bulk', ['class_room_id' => $class?->id, 'year' => $year]) }}">Bulk payments</a>@endcan
+                @can('revenue.delete')<a class="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-red-700" href="{{ route('class-fees.bulk', ['mode' => 'unpaid', 'class_room_id' => $class?->id, 'year' => $year]) }}">Bulk make unpaid</a>@endcan
                 @foreach(\App\Models\ClassFeeSchedule::TYPES as $kind => $label)
                     <a class="rounded-md border px-3 py-2 text-sm {{ $type === $kind ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700' }}" href="{{ route('class-fees.index', ['type' => $kind, 'class_room_id' => $class?->id, 'year' => $year, 'all_years' => $filters['all_years'] ?? 0]) }}">{{ $label }}</a>
                 @endforeach
@@ -29,102 +30,14 @@
             </div>
         @endif
 
-        <form method="GET" action="{{ route('class-fees.index') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 rounded-lg bg-white p-5 shadow-sm"
-              x-data="{ selectedExamDates: @js($selectedExamDates), allExamDates: @js($examOptions->all()) }">
-            <input type="hidden" name="exam_selection" value="1">
-            <input type="hidden" name="selection_scope" value="{{ $filters['selection_scope'] }}">
-            <input type="hidden" name="type" value="{{ $type }}">
-            <div>
-                <x-input-label for="class_room_id" value="Class" />
-                <select name="class_room_id" id="class_room_id" class="mt-1 w-full rounded-md border-gray-300">
-                    <option value="">All classes — overview</option>
-                    @foreach($classes as $option)<option value="{{ $option->id }}" @selected($class?->id === $option->id)>{{ $option->name }}{{ $option->active ? '' : ' (inactive)' }}</option>@endforeach
-                </select>
-            </div>
-            <div>
-                <x-input-label for="year" value="Installment year" />
-                <x-text-input type="number" id="year" name="year" min="2000" max="2099" :value="$year" class="mt-1 w-full" />
-                <label class="mt-2 text-xs text-gray-600 flex items-center gap-2"><input type="checkbox" name="all_years" value="1" @checked($filters['all_years'] ?? false)> All years (including earlier dues)</label>
-            </div>
-            <div>
-                <x-input-label for="status" value="Payment status" />
-                <select name="status" id="status" class="mt-1 w-full rounded-md border-gray-300">
-                    @foreach(['all' => 'All students', 'unpaid' => 'Unpaid / balance due', 'paid' => 'All due installments settled', 'partial' => 'Some payments made', 'pending' => 'Pending cheque'] as $key => $label)
-                        <option value="{{ $key }}" @selected(($filters['status'] ?? 'all') === $key)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <x-input-label for="q" value="Student / admission number" />
-                <x-text-input id="q" name="q" :value="$filters['q'] ?? ''" class="mt-1 w-full" />
-            </div>
-            <div class="flex flex-col justify-end gap-2">
-                <label class="text-xs text-gray-600 flex items-center gap-2"><input type="checkbox" name="include_inactive" value="1" @checked($filters['include_inactive'] ?? false)> Include inactive / alumni</label>
-                <label class="text-xs text-gray-600 flex items-center gap-2"><input type="checkbox" name="include_former" value="1" @checked($filters['include_former'] ?? false)> Include former class students</label>
-                <x-primary-button>Apply filters</x-primary-button>
-                @can('reports.download')
-                    <button type="submit" name="pdf" value="1" class="inline-flex items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-indigo-700">Download PDF</button>
-                @endcan
-            </div>
-            <div class="sm:col-span-2 lg:col-span-5 border-t border-gray-100 pt-4 space-y-3">
-                @if($type === 'exam')
-                    <fieldset>
-                        <legend class="text-sm font-semibold text-gray-800 mb-2">Exam fee installments</legend>
-                        <div class="flex flex-wrap items-center gap-3 mb-3">
-                            <button type="button" class="text-xs font-semibold text-indigo-700 underline" @click="selectedExamDates = allExamDates.slice()">Select all exams</button>
-                            <button type="button" class="text-xs font-semibold text-gray-600 underline" @click="selectedExamDates = []">Clear exams</button>
-                        </div>
-                        <div class="flex flex-wrap gap-3">
-                            @forelse($examOptions as $examDate)
-                                <label class="inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-                                    <input type="checkbox" name="exam_dates[]" value="{{ $examDate }}" x-model="selectedExamDates" @checked(in_array($examDate, $selectedExamDates, true)) class="rounded border-gray-300 text-indigo-600">
-                                    {{ $examLabels[$examDate] }}
-                                </label>
-                            @empty
-                                <p class="text-sm text-gray-500">No exam installments are scheduled for this class and period.</p>
-                            @endforelse
-                        </div>
-                    </fieldset>
-                    <input type="hidden" name="include_facility" value="0">
-                    <label class="inline-flex items-center gap-2 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-800">
-                        <input type="checkbox" name="include_facility" value="1" @checked($includeFacility) class="rounded border-gray-300 text-indigo-600">
-                        Include facility fee
-                    </label>
-                    <p class="text-xs text-gray-500">All exam dates and facility fees are selected by default. The list, totals, payment status, and PDF use only the fees you select. Changing the class or year selects all of its exam dates again.</p>
-                @else
-                    <input type="hidden" name="include_facility" value="1">
-                    <p class="text-sm text-gray-600">Facility fee installments for the selected period are included.</p>
-                @endif
-            </div>
-        </form>
+        <nav class="flex flex-wrap gap-3 text-sm" aria-label="Fee register views">
+            <span class="rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white" aria-current="page">Overview</span>
+            <a class="rounded-md border border-gray-200 bg-white px-4 py-2 font-semibold text-indigo-700" href="{{ route('class-fees.index', array_replace($registerQuery, ['view' => 'students'])) }}">All students</a>
+        </nav>
+        @include('class-fees.partials.filters')
         <p class="text-xs text-gray-500">The year filters installment due dates, including payments made later. Term fees become due at the start; unpaid terms become overdue after their ending date. Future terms do not count as due. Facility fees apply from the student’s joining year, regardless of the joining month. Students joining during a term owe that term; completed terms before admission do not apply. Only current class members are shown by default. Select Include former class students to view earlier dues and payments.</p>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="rounded-lg bg-white p-5 shadow-sm"><div class="text-sm text-gray-500">Payments recorded for selected {{ ($filters['all_years'] ?? false) ? 'installments' : $year.' installments' }}</div><div class="mt-1 text-2xl font-semibold">Rs {{ number_format($tracker['paid'], 2) }}</div></div>
-            <div class="rounded-lg bg-white p-5 shadow-sm"><div class="text-sm text-gray-500">Outstanding due now</div><div class="mt-1 text-2xl font-semibold text-red-700">Rs {{ number_format($tracker['due'], 2) }}</div></div>
-            <div class="rounded-lg bg-white p-5 shadow-sm"><div class="text-sm text-gray-500">Students with unpaid installments</div><div class="mt-1 text-2xl font-semibold">{{ $tracker['unpaid_students'] }}</div></div>
-        </div>
-
-        <section aria-label="Fee dues by term">
-            <style>
-                .class-fee-due-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
-                .class-fee-due-card { border-top: 3px solid #6366f1; min-width: 0; }
-                .class-fee-due-card[data-fee="facility"] { border-top-color: #0d9488; }
-                .class-fee-due-amount { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-                @media (min-width: 640px) { .class-fee-due-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-                @media (min-width: 1024px) { .class-fee-due-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-            </style>
-            <div class="class-fee-due-cards">
-                @foreach($dueBreakdown as $feeKey => $card)
-                    <div class="class-fee-due-card rounded-lg bg-white p-5 shadow-sm" data-fee="{{ $feeKey }}">
-                        <h3 class="text-sm font-semibold text-gray-700">{{ $card['label'] }}</h3>
-                        <div class="class-fee-due-amount mt-1 text-2xl font-semibold {{ $card['due'] > 0 ? 'text-red-700' : 'text-gray-900' }}">Rs {{ number_format($card['due'], 2) }}</div>
-                        <p class="mt-2 text-xs text-gray-500">{{ $card['selected'] ? 'Outstanding due now' : 'No selected fees in this period' }}</p>
-                    </div>
-                @endforeach
-            </div>
-            <p class="mt-2 text-xs text-gray-500">These balances follow the filters above. Future fees are excluded until their starting date.</p>
-        </section>
+        @include('class-fees.partials.summary-cards')
 
         @if($class && $tracker['cycles']->isEmpty())
             <div class="rounded-lg bg-white p-6 shadow-sm text-sm text-gray-600">
