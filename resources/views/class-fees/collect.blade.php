@@ -5,6 +5,8 @@
         'includeInactive' => (bool) ($filters['include_inactive'] ?? false), 'studentId' => $selectedStudent?->id,
         'amount' => old('amount', $selectedStatus['collectable'] ?? ''), 'date' => old('paid_at', today()->toDateString()),
         'method' => old('payment_method', 'cash'), 'recordRevenue' => true,
+        'label' => $feeLabel, 'includeComputer' => $computerEntry !== null && (bool) old('include_computer', true),
+        'computerAmount' => old('computer_amount', $computerEntry['status']['collectable'] ?? 0),
         'categoryLocked' => true, 'defaultAmount' => $selectedStatus['collectable'] ?? 0,
     ];
 @endphp
@@ -12,7 +14,7 @@
     <x-slot name="header">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div><h2 class="text-xl font-semibold text-gray-900">Collect {{ $feeLabel }}</h2><p class="mt-1 text-sm text-gray-600">Search a student, review their dues, and save or print the payment bill.</p></div>
-            <a class="text-sm font-semibold text-indigo-700 underline" href="{{ route('class-fees.index', ['type' => $type]) }}">View fee register</a>
+            <div class="flex gap-3"><a class="text-sm font-semibold text-indigo-700 underline" href="{{ route('class-fees.index', ['type' => $type]) }}">View fee register</a>@if($type === 'exam')<a class="text-sm font-semibold text-indigo-700 underline" href="{{ route('revenue.items.create', ['quick' => 'computer', 'student_id' => $selectedStudent?->id, 'year' => $year]) }}">Computer fee only</a>@endif</div>
         </div>
     </x-slot>
     @include('class-fees.partials.collection-assets')
@@ -28,8 +30,8 @@
                 <h3 class="fee-card-title" id="fee-payment-title">Payment Details</h3>
                 <div class="fee-field">
                     <label for="fee-category">Payment Category</label>
-                    <input id="fee-category" class="fee-input" type="text" value="{{ $feeLabel }}" readonly aria-readonly="true">
-                    <p class="fee-hint">The category is fixed to {{ $feeLabel }} on this collection page.</p>
+                    <input id="fee-category" class="fee-input" @if($computerEntry) :value="includeComputer ? 'Exam Fee + Computer Fee' : 'Exam Fee'" @endif type="text" value="{{ $feeLabel }}" readonly aria-readonly="true">
+                    <p class="fee-hint">{{ $computerEntry ? 'Exam and computer payments keep their own fixed categories.' : 'The category is fixed to '.$feeLabel.' on this collection page.' }}</p>
                 </div>
                 <form method="GET" action="{{ route('revenue.items.create') }}" id="fee-student-search">
                     <input type="hidden" name="quick" value="{{ $type }}">
@@ -100,11 +102,14 @@
             </section>
             <aside class="fee-billing-card" aria-labelledby="fee-billing-title">
                 <h3 class="fee-card-title" id="fee-billing-title"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3h12v18l-3-2-3 2-3-2-3 2V3Z M4 7H2V3h6 M11 7h6 M11 11h6 M11 15h3"/></svg>Billing Summary</h3>
-                <dl><div class="fee-billing-row"><dt>Category:</dt><dd>{{ $feeLabel }}</dd></div><div class="fee-billing-row"><dt>Student:</dt><dd>{{ $selectedStudent?->name ?? '—' }}</dd></div><div class="fee-billing-row"><dt>Date:</dt><dd x-text="date ? date.split('-').reverse().join('-') : '—'">{{ today()->format('d-m-Y') }}</dd></div></dl>
-                <div class="fee-total"><small>TOTAL AMOUNT</small><span>Rs </span><strong x-text="money(amount)">{{ number_format($selectedStatus['collectable'] ?? 0, 2) }}</strong></div>
+                <dl><div class="fee-billing-row"><dt>Category:</dt><dd @if($computerEntry) x-text="includeComputer ? 'Exam Fee + Computer Fee' : 'Exam Fee'" @endif>{{ $feeLabel }}</dd></div><div class="fee-billing-row"><dt>Student:</dt><dd>{{ $selectedStudent?->name ?? '—' }}</dd></div><div class="fee-billing-row"><dt>Date:</dt><dd x-text="date ? date.split('-').reverse().join('-') : '—'">{{ today()->format('d-m-Y') }}</dd></div></dl>
+                <div class="fee-total"><small>TOTAL AMOUNT</small><span>Rs </span><strong x-text="money(totalAmount)">{{ number_format(($selectedStatus['collectable'] ?? 0) + ($computerEntry['status']['collectable'] ?? 0), 2) }}</strong></div>
                 <div class="fee-due-summary"><h4>{{ $feeLabel }} due</h4><strong>Rs {{ number_format($installments->sum(fn ($entry) => $entry['status']['due']), 2) }}</strong>
                     @if($selectedStudent)<p class="fee-hint">{{ $filters['all_years'] ? 'All installments through '.$year : $year.' installments' }} · Applicable earlier class dues included.</p>@endif
                 </div>
+                @if($computerEntry)
+                    <div class="fee-income"><strong>Computer Fee · Term {{ $computerEntry['cycle']['term'] }}</strong><p class="fee-hint">Remaining Rs {{ number_format($computerEntry['status']['collectable'], 2) }}. Select it on the left to pay together with this exam term.</p><div class="fee-billing-row"><span>Exam payment</span><strong x-text="'Rs ' + money(amount)"></strong></div><div class="fee-billing-row" x-show="includeComputer"><span>Computer payment</span><strong x-text="'Rs ' + money(computerAmount)"></strong></div></div>
+                @endif
                 @if($selectedStudent)
                     <dl><div class="fee-billing-row"><dt>Payments recorded:</dt><dd>Rs {{ number_format($installments->sum(fn ($entry) => $entry['status']['paid']), 2) }}</dd></div><div class="fee-billing-row"><dt>Pending cheques:</dt><dd>Rs {{ number_format($installments->sum(fn ($entry) => $entry['status']['pending']), 2) }}</dd></div></dl>
                     <div class="fee-term-list">

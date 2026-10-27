@@ -548,29 +548,56 @@ class ClassFeeBulkPaymentTest extends TestCase
     {
         $class = $this->schoolClass();
         $student = $this->student($class);
-        foreach ([route('classrooms.edit', $class), route('classrooms.create'), route('class-fees.bulk')] as $url) {
-            $response = $this->get($url)->assertOk()->assertSee('/js/class-fees.js?v=', false);
+        foreach ([route('classrooms.edit', $class), route('classrooms.create'), route('class-fees.bulk'), route('class-fees.bulk', ['mode' => 'unpaid'])] as $url) {
+            $response = $this->get($url)->assertOk()->assertSee('<script data-class-fee-runtime=', false);
             $html = $response->getContent();
-            $scriptAt = strpos($html, '/js/class-fees.js?v=');
+            $scriptAt = strpos($html, '<script data-class-fee-runtime=');
             $stateAt = strpos($html, 'x-data="{ ...termCalendar');
             if ($stateAt === false) {
-                $stateAt = strpos($html, 'x-data="bulkClassFees(');
+                $stateAt = strpos($html, 'x-data="schoolFeeForms.payments(');
+            }
+            if ($stateAt === false) {
+                $stateAt = strpos($html, 'x-data="schoolFeeForms.reversals(');
             }
             $this->assertNotFalse($stateAt);
             $this->assertLessThan($stateAt, $scriptAt);
-            $this->assertSame(1, substr_count($html, '/js/class-fees.js?v='));
+            $this->assertSame(1, substr_count($html, '<script data-class-fee-runtime='));
+            $this->assertStringContainsString(file_get_contents(base_path('public/js/class-fees.js')), $html);
         }
     }
 
-    public function test_fee_script_loader_does_not_crash_when_a_hosting_upload_is_missing_the_public_script(): void
+    public function test_fee_forms_embed_the_current_application_runtime_even_with_a_stale_custom_public_copy(): void
     {
         $originalPublicPath = public_path();
+        $stalePublicPath = sys_get_temp_dir().'/school-stale-public-'.Str::uuid();
+        mkdir($stalePublicPath.'/js', 0777, true);
+        file_put_contents($stalePublicPath.'/js/class-fees.js', 'window.bulkClassFees = () => ({ installment: "exam" });');
         try {
-            $this->app->usePublicPath(sys_get_temp_dir().'/school-missing-public-'.Str::uuid());
+            $this->app->usePublicPath($stalePublicPath);
             $html = view('class-fees.partials.scripts')->render();
-            $this->assertStringContainsString('/js/class-fees.js?v=20261022', $html);
+            $this->assertStringContainsString('globalThis.schoolFeeForms =', $html);
+            $this->assertStringContainsString('selectTerms(all)', $html);
+            $this->assertStringNotContainsString('src=', $html);
+            $this->assertStringNotContainsString('installment: "exam"', $html);
         } finally {
             $this->app->usePublicPath($originalPublicPath);
+            unlink($stalePublicPath.'/js/class-fees.js');
+            rmdir($stalePublicPath.'/js');
+            rmdir($stalePublicPath);
+        }
+    }
+
+    public function test_missing_application_runtime_shows_an_upload_message_instead_of_a_server_error(): void
+    {
+        $originalBasePath = base_path();
+        try {
+            $this->app->setBasePath(sys_get_temp_dir().'/school-missing-runtime-'.Str::uuid());
+            $html = view('class-fees.partials.scripts')->render();
+            $this->assertStringContainsString('The fee form could not load.', $html);
+            $this->assertStringContainsString('public/js/class-fees.js', $html);
+            $this->assertStringNotContainsString('<script data-class-fee-runtime=', $html);
+        } finally {
+            $this->app->setBasePath($originalBasePath);
         }
     }
 

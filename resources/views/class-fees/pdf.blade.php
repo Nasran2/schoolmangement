@@ -81,6 +81,7 @@
                                 Student / admission number
                                 <div class="sub">{{ $section['rows']->count() }} students @if($section['cycles']->count() > 4) | Group {{ $loop->iteration }} of {{ $section['cycles']->chunk(4)->count() }} @endif</div>
                             </th>
+                            <th class="center" style="width: 12%;">Paid / due installments<br><span class="sub">All selected</span></th>
                             @foreach($chunk as $cycle)
                                 <th style="width: {{ 51 / $chunk->count() }}%;">
                                     {{ \App\Models\ClassFeeSchedule::TYPES[$cycle['schedule']->fee_type] }}<br>
@@ -88,7 +89,6 @@
                                     <div class="sub">Rs {{ number_format($cycle['amount'], 2) }}@if($cycle['due']->gt(today())) - Upcoming @endif</div>
                                 </th>
                             @endforeach
-                            <th class="center" style="width: 12%;">Paid / due installments<br><span class="sub">All selected</span></th>
                             <th class="right" style="width: 13%;">Due now (Rs)<br><span class="sub">All selected</span></th>
                         </tr>
                     </thead>
@@ -96,6 +96,7 @@
                         @forelse($section['rows'] as $row)
                             <tr @class(['first-row' => $loop->first])>
                                 <td><div class="name">{{ $row['student']->name }}</div><div class="sub">{{ $row['student']->admission_number ?: '-' }}@if((int) $row['student']->class_room_id !== (int) $section['class']->id) | Former class @endif</div></td>
+                                <td class="center">{{ $row['paid_count'] }} / {{ $row['due_count'] }}@if($row['waived_count'] > 0)<div class="sub">{{ $row['waived_count'] }} settled with waiver</div>@endif</td>
                                 @foreach($chunk as $key => $cycle)
                                     @php($installment = $row['installments'][$key])
                                     <td>
@@ -107,7 +108,6 @@
                                         @endif
                                     </td>
                                 @endforeach
-                                <td class="center">{{ $row['paid_count'] }} / {{ $row['due_count'] }}@if($row['waived_count'] > 0)<div class="sub">{{ $row['waived_count'] }} settled with waiver</div>@endif</td>
                                 <td class="right name">{{ number_format($row['due'], 2) }}</td>
                             </tr>
                         @empty

@@ -90,6 +90,11 @@ class RevenueController extends Controller
 
         $confirmedAt = Carbon::parse($passedDate)->setTimeFrom(now());
 
+        if (! empty($item->payment_meta['fee_bundle']['id'])) {
+            app(\App\Services\Billing\ClassFeeCombinedPaymentService::class)->resolveCheque($item, 'confirmed', $confirmedAt);
+            return back()->with('success', 'Combined fee cheque marked as PASSED on '.$passedDate.'.');
+        }
+
         $item->forceFill([
             'payment_status' => 'confirmed',
             // Store the user-selected pass date in confirmed_at
@@ -107,6 +112,11 @@ class RevenueController extends Controller
         }
         if (! in_array((string) ($item->payment_status ?? 'confirmed'), ['hold', 'pending'], true)) {
             return back()->withErrors(['cheque' => 'This cheque is not on hold.']);
+        }
+
+        if (! empty($item->payment_meta['fee_bundle']['id'])) {
+            app(\App\Services\Billing\ClassFeeCombinedPaymentService::class)->resolveCheque($item, 'rejected', now());
+            return back()->with('success', 'Combined fee cheque marked as RETURNED. Both fee balances are reopened.');
         }
 
         $item->forceFill([
@@ -217,7 +227,7 @@ class RevenueController extends Controller
      */
     public function create(Request $request, BillNumberService $billNumbers): View|RedirectResponse|\Illuminate\Http\JsonResponse
     {
-        if (in_array($request->query('quick'), ['exam', 'facility'], true)) {
+        if (in_array($request->query('quick'), ['exam', 'computer', 'facility'], true)) {
             return app(ClassFeeCollectionController::class)->show($request, $request->query('quick'), app(\App\Services\Billing\ClassFeeService::class));
         }
         $selectedStudentId = $request->query('student_id') ?: null;
@@ -822,8 +832,9 @@ class RevenueController extends Controller
             }
         }
 
-        return view('revenue.receipt', [
-            'revenue' => $item,
+        $bundleItems = app(\App\Services\Billing\ClassFeeCombinedPaymentService::class)->receiptItems($item);
+        return view($bundleItems->count() > 1 ? 'class-fees.combined-receipt' : 'revenue.receipt', [
+            'revenue' => $item, 'bundleItems' => $bundleItems,
             'schoolInfo' => $schoolInfo,
             'autoPrint' => $autoPrint,
             'schoolLogoDataUri' => $logoDataUri,

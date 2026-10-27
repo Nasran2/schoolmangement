@@ -1,0 +1,40 @@
+STUDENT INTAKE REPORT UPDATE
+
+Prepared and tested locally. Upload this package to apply it to the hosted site.
+
+1. Back up the existing application files.
+2. Upload student-intake-report-update.zip into the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   (the folder containing app/, resources/, routes/ and public/).
+3. Extract there and overwrite ALL matching files. Do not extract in public/ alone.
+4. In storage/framework/views/, delete only the compiled .php files. Keep the
+   folder and .gitignore; Laravel recreates the compiled views automatically.
+5. If bootstrap/cache/routes-v7.php exists, delete that file only. The new report
+   route must be loaded instead of the earlier cached route list.
+6. Hard refresh: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows).
+7. Open Reports -> Student Intake. It is also on the All Reports page.
+
+No terminal, migration, SQL import or asset build is needed. Existing report-view
+and report-download permissions apply. There are no new permissions to create.
+
+WHAT YOU CAN SEE
+- From/to joining dates, including both selected dates.
+- Total student intakes and counts by class and joining date.
+- Registration number first, student name, joining date, CURRENT class and status.
+- Filters for class, active/inactive/alumni status, name and registration number.
+- Quick date ranges, sorting and 10/25/50/100 rows per page.
+- PDF and CSV downloads containing every matching student, across all pages.
+
+The default is this month through today with all student statuses included.
+Counts use the saved joining date; records without one are excluded. Class means
+the current saved class. Earlier admission classes are not inferred.
+
+This is a cumulative application-code package containing the preceding computer
+fee, bulk term selection, grouped register and school receipt format updates too.
+It does not include .env, school databases, vendor files or preview/test records.
+No student or payment records are changed by uploading these files.
+
+VERIFICATION
+386 automated tests passed (3,876 assertions). The report's date range and class
+filters were checked in the browser with isolated sample students. The downloaded
+A4 PDF was rendered and visually reviewed.

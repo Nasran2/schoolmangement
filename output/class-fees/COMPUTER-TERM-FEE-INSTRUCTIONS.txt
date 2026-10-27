@@ -1,0 +1,55 @@
+COMPUTER FEE PER TERM — CPANEL UPDATE
+
+This update is prepared locally. Upload it to apply it to the hosted system.
+
+INSTALL WITHOUT TERMINAL
+1. Make a backup of the application files before replacing them.
+2. Upload computer-term-fee-update.zip in cPanel File Manager to:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   This is the Laravel root containing app/, resources/, public/ and routes/.
+3. Extract there and overwrite ALL matching files. Do not extract only in public/.
+4. In storage/framework/views/, delete only compiled .php files. Preserve the
+   folder and .gitignore. Laravel regenerates these view files automatically.
+5. If bootstrap/cache/routes-v7.php exists, delete that file only, because the
+   cumulative package includes the prior fee routes. Preserve other cache files.
+6. Hard refresh the browser (Cmd+Shift+R on Mac / Ctrl+Shift+R on Windows).
+No terminal command, migration, SQL import, Composer install or asset build is needed.
+The ZIP contains current application files and prior fee UI dependencies, not data.
+
+SET UP CLASSES
+Class Rooms -> Manage -> Edit -> Exam, computer and facility fees.
+Enter Computer fee per term (Rs) for classes that charge it.
+Leave blank or enter 0 for classes without computer fees.
+Set the shared three-term calendar and click Update.
+Computer fees repeat each term using those same dates. Existing exam and facility
+receipts are retained. Before computer payments exist, its setup is editable;
+after payments, use a future academic-year calendar for a new rate.
+
+COLLECT ONE COMBINED PAYMENT
+Revenue -> Collect Exam Fee -> select the student and term.
+When that term has an unpaid computer fee, Include Computer Fee is checked.
+Both amounts default to the remaining fees and can be reduced for partial payments.
+The Billing Summary shows the combined total. Uncheck computer for exam-only payment.
+Choose Cash, Bank Transfer or Cheque, then Pay ... & view bill.
+The printed bill lists Exam Fee and Computer Fee with the term and one total.
+Revenue and the ledger retain separate category entries under the main bill and
+its -C computer accounting reference. Passing or returning a combined cheque
+updates both active components; income counts only after clearance.
+Use Revenue -> Collect Computer Fee for a separate computer-only payment.
+
+REGISTER AND BULK
+The existing Exam & Facility Fees register now includes configured computer fees.
+Use Include computer fee, or Computer fees only on All students.
+Bulk payments defaults to both exam and computer terms. Each Term filter includes
+both. A revenue-recorded exam/computer pair for one student/class/term gets one bill.
+For earlier payments already received, use bulk historical entry and uncheck
+revenue inclusion so that the same income is not recorded again.
+Edit payment and Make unpaid work on each fee, with existing reason/audit rules.
+The combined bill updates to reflect corrections. Existing payments are not
+changed merely by installing this update or enabling computer fee setup.
+
+VERIFIED LOCALLY
+PHP feature suite, JavaScript tests, optional-class behavior, late admission,
+shared calendars, partial payment, combined cash bill, cheque pass/return rules,
+atomic validation/rollback, retry protection, bulk pairing, corrections and exports.
+Browser previews use a separate sample SQLite database, not school records.

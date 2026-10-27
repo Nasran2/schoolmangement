@@ -1,6 +1,6 @@
 @php
     $payrollLabel = isset($filters['payroll_month']) ? \Carbon\Carbon::createFromFormat('!Y-m', $filters['payroll_month'])->format('F Y') : today()->format('F Y');
-    $isFee = in_array($metric, ['exam', 'facility'], true);
+    $isFee = in_array($metric, ['exam', 'computer', 'facility'], true);
 @endphp
 <x-app-layout>
     <x-slot name="header">
@@ -30,12 +30,12 @@
             @endif
             <div class="report-overview-table-scroll" role="region" aria-label="{{ $settings['title'] }} details" tabindex="0">
                 <table class="report-overview-table">
-                    <thead><tr><th>{{ $settings['scope'] === 'pending' ? 'Due / as of' : 'Date' }}</th>@if($isFee)<th>{{ $metric === 'exam' ? 'Exam session / year' : 'Installment year' }}</th>@endif<th>Reference</th><th>Student / teacher / category</th><th>Description</th><th>Status</th><th class="is-amount">Amount (Rs)</th></tr></thead>
+                    <thead><tr><th>{{ $settings['scope'] === 'pending' ? 'Due / as of' : 'Date' }}</th>@if($isFee)<th>{{ in_array($metric, ['exam', 'computer'], true) ? 'Exam session / year' : 'Installment year' }}</th>@endif<th>Reference</th><th>Student / teacher / category</th><th>Description</th><th>Status</th><th class="is-amount">Amount (Rs)</th></tr></thead>
                     <tbody>
                         @forelse($items as $item)
                             <tr>
                                 <td>{{ $item['date'] ? \Carbon\Carbon::parse($item['date'])->format('d M Y') : '—' }}</td>
-                                @if($isFee)<td>@if($metric === 'exam')<strong>Session {{ $item['exam_session'] }}</strong><br>@endif{{ $item['installment_year'] }}</td>@endif
+                                @if($isFee)<td>@if(in_array($metric, ['exam', 'computer'], true))<strong>Session {{ $item['exam_session'] }}</strong><br>@endif{{ $item['installment_year'] }}</td>@endif
                                 <td>{{ $item['reference'] }}</td><td class="is-name">{{ $item['party'] }}</td><td>{{ $item['description'] }}</td><td><span class="report-overview-status">{{ $item['status'] }}</span></td><td class="is-amount">{{ number_format($item['amount'], 2) }}</td>
                             </tr>
                         @empty

@@ -1,0 +1,26 @@
+STUDENT INTAKE REPORT - CLICK TO OPEN STUDENT PROFILE
+
+This small update is for sites that already have the Student Intake report.
+The ZIP contains one application file:
+resources/views/reports/student-intake.blade.php
+
+HOW TO UPLOAD WITH CPANEL FILE MANAGER
+1. Back up the existing file listed above.
+2. Upload student-intake-profile-links-update.zip into:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   This is the Laravel root containing app/, resources/, routes/ and public/.
+3. Extract there and overwrite the matching file. Do not extract into public/.
+4. If the old view remains, delete only compiled .php files inside
+   storage/framework/views/. Keep the folder and .gitignore.
+5. Hard refresh the report: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows).
+
+Open Reports -> Student Intake. Click either the student's registration number
+or name to open their profile. Use the browser Back button to return to the same
+filtered report page.
+
+Existing profile permissions apply. Admin/student-management users open the full
+profile; directory-only users open the directory profile. Users without either
+profile permission keep the report as plain text.
+
+No terminal, route-cache change, migration, SQL or asset build is needed.
+This package does not change student records, payments, filters or downloads.

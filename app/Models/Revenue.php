@@ -76,9 +76,9 @@ class Revenue extends Model
             return $notes;
         }
         // Keep staff notes while replacing old generated descriptions, including converted calendars.
-        $notes = preg_replace('/^Exam Fee(?: installment due \d{4}-\d{2}-\d{2}|\s*[—-]\s*Term \d+ \(\d{4}\))(?:\s*[—-]\s*)?/u', '', $notes);
+        $notes = preg_replace('/^(?:Exam|Computer) Fee(?: installment due \d{4}-\d{2}-\d{2}|\s*[—-]\s*Term \d+ \(\d{4}\))(?:\s*[—-]\s*)?/u', '', $notes);
 
-        return 'Exam Fee — '.$term.($notes !== '' ? ' — '.$notes : '');
+        return ($this->classFeeSchedule->fee_type === 'computer' ? 'Computer Fee' : 'Exam Fee').' — '.$term.($notes !== '' ? ' — '.$notes : '');
     }
 
     public function student(): BelongsTo

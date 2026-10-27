@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Student Intake Report</title><style>
+@page{margin:28pt}body{font-family:DejaVu Sans,sans-serif;font-size:9pt;color:#1e293b}h1{font-size:18pt;margin:5px 0}h2{font-size:11pt;color:#4338ca;margin:0}.header{border-bottom:2px solid #4f46e5;padding-bottom:12px;margin-bottom:12px}.meta{color:#64748b;font-size:8pt;line-height:1.6}.summary{background:#f4f5fb;border:1px solid #e2e8f0;padding:10px;margin:12px 0}.classes{font-size:8pt;line-height:1.8;margin:10px 0}table{width:100%;border-collapse:collapse}th,td{border:1px solid #e2e8f0;padding:7px 8px;text-align:left;vertical-align:top;word-wrap:break-word}th{background:#f1f5f9;color:#475569;font-size:8pt}thead{display:table-header-group}tr{page-break-inside:avoid}tbody tr:nth-child(even){background:#fafbfc}.note{font-size:7.5pt;color:#64748b;line-height:1.5;margin-top:12px}
+</style></head><body>
+<div class="header"><h2>{{ $schoolName }}</h2><h1>Student Intake Report</h1><div class="meta">{{ $period }}<br>Current class: {{ $classLabel }} · Status: {{ $statusLabel }}@if($filters['q'])<br>Student search: {{ $filters['q'] }}@endif<br>Generated {{ now()->format('d M Y, h:i A') }}</div></div>
+<div class="summary"><strong>Total student intakes: {{ $total }}</strong> &nbsp; | &nbsp; Intake dates: {{ $intakeDays }}</div>
+@if($classCounts->isNotEmpty())<div class="classes"><strong>Intakes by current class:</strong> @foreach($classCounts as $group){{ $group['name'] }}: {{ $group['total'] }}{{ $loop->last ? '' : ' · ' }}@endforeach</div>@endif
+<table><thead><tr><th style="width:20%;">Registration number</th><th style="width:29%;">Student name</th><th style="width:16%;">Joining date</th><th style="width:20%;">Current class</th><th style="width:15%;">Status</th></tr></thead><tbody>
+@forelse($items as $student)<tr><td>{{ $student->admission_number ?: '—' }}</td><td>{{ $student->name }}</td><td>{{ $student->joining_date->format('d M Y') }}</td><td>{{ $student->classRoom?->name ?? 'Not assigned' }}</td><td>{{ $student->alumni ? 'Alumni' : ($student->active ? 'Active' : 'Inactive') }}</td></tr>@empty<tr><td colspan="5">No student intakes match this date range and filters.</td></tr>@endforelse
+</tbody></table>
+<p class="note">Both boundary dates are included. The report uses each student’s recorded joining date and current class. Students without a joining date are excluded. This download includes every matching student, regardless of the page selected on screen.</p>
+</body></html>

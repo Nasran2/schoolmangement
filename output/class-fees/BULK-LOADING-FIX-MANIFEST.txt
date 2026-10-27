@@ -1,0 +1,5 @@
+public/js/class-fees.js
+resources/views/class-fees/partials/scripts.blade.php
+resources/views/class-fees/partials/bulk-fee-filters.blade.php
+resources/views/class-fees/bulk.blade.php
+resources/views/class-fees/bulk-unpaid.blade.php

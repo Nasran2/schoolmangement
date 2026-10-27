@@ -266,7 +266,7 @@ class RevenueCategoryController extends Controller
     {
         if ($category->class_fee_type) {
             return redirect()->route('class-fees.index', ['type' => $category->class_fee_type])
-                ->with('status', 'Set exam and facility fee amounts and starting dates in Class Rooms → Edit.');
+                ->with('status', 'Set exam, computer and facility fee amounts and term dates in Class Rooms → Edit.');
         }
         return view('revenue.categories.edit', [
             'category' => $category,

@@ -36,9 +36,30 @@ function termCalendar(initialTerms = null, firstDate = '') {
     };
 }
 
+function bulkFeeSelection() {
+    return {
+        installment: 'exam_computer', terms: ['1', '2', '3'], selected: [],
+        matchesCycle(cycle) {
+            const feeMatches = this.installment === 'all' || cycle.type === this.installment
+                || (this.installment === 'exam_computer' && ['exam', 'computer'].includes(cycle.type));
+            if (!feeMatches) return false;
+            const terms = this.terms.map(Number);
+            return cycle.type === 'facility' || [1, 2, 3].every(term => terms.includes(term)) || terms.includes(Number(cycle.term));
+        },
+        selectTerms(all) { this.terms = all ? ['1', '2', '3'] : []; this.selected = []; },
+        selectionSummary() {
+            const labels = { exam_computer: 'Exam & computer fees', exam: 'Exam fee', computer: 'Computer fee', facility: 'Facility fee', all: 'All fees' };
+            if (this.installment === 'facility') return 'Facility fee · Annual fee';
+            const terms = [...new Set(this.terms.map(Number))].sort((a, b) => a - b);
+            const selected = terms.length === 3 ? 'All terms' : terms.length ? `${terms.length === 1 ? 'Term' : 'Terms'} ${terms.join(' & ')}` : 'No terms selected';
+            return `${labels[this.installment]} · ${selected}${this.installment === 'all' ? ' + annual facility fee' : ''}`;
+        },
+    };
+}
+
 function bulkClassFees(candidates, initialClass = '', previous = []) {
     return {
-        candidates, classId: String(initialClass || ''), query: '', installment: 'exam', selected: [],
+        ...bulkFeeSelection(), candidates, classId: String(initialClass || ''), query: '',
         lines: [], recordRevenue: true, saving: false, message: '',
         init() {
             for (const old of previous || []) {
@@ -47,11 +68,6 @@ function bulkClassFees(candidates, initialClass = '', previous = []) {
                 if (candidate && cycle) this.lines.push(this.makeLine(candidate, cycle, old));
                 else this.message = 'Some earlier selections are no longer available. Review the list before saving.';
             }
-        },
-        matchesCycle(cycle) {
-            if (this.installment === 'all') return true;
-            if (this.installment.startsWith('term:')) return cycle.type === 'exam' && cycle.term === Number(this.installment.split(':')[1]);
-            return cycle.type === this.installment;
         },
         get visible() {
             const needle = this.query.trim().toLowerCase();
@@ -72,7 +88,7 @@ function bulkClassFees(candidates, initialClass = '', previous = []) {
         },
         addSelected() {
             this.message = '';
-            for (const student of this.candidates.filter(c => this.selected.includes(c.key))) {
+            for (const student of this.visible.filter(c => this.selected.includes(c.key))) {
                 for (const cycle of student.installments.filter(c => this.matchesCycle(c))) {
                     const line = this.makeLine(student, cycle);
                     if (this.lines.some(existing => existing.key === line.key)) continue;
@@ -91,7 +107,7 @@ function bulkClassFees(candidates, initialClass = '', previous = []) {
 
 function bulkClassFeeReversals(candidates, initialClass = '', previous = []) {
     return {
-        candidates, classId: String(initialClass || ''), query: '', installment: 'exam', selected: [],
+        ...bulkFeeSelection(), candidates, classId: String(initialClass || ''), query: '',
         lines: [], saving: false, message: '',
         init() {
             for (const old of previous || []) {
@@ -102,11 +118,6 @@ function bulkClassFeeReversals(candidates, initialClass = '', previous = []) {
                     if (!this.lines.some(existing => existing.key === line.key)) this.lines.push(line);
                 } else this.message = 'Some selected fees changed or need individual review. Select them again after reviewing the current payments.';
             }
-        },
-        matchesCycle(cycle) {
-            if (this.installment === 'all') return true;
-            if (this.installment.startsWith('term:')) return cycle.type === 'exam' && cycle.term === Number(this.installment.split(':')[1]);
-            return cycle.type === this.installment;
         },
         matching(student) { return student.installments.filter(cycle => this.matchesCycle(cycle)); },
         canSelect(student) { return this.matching(student).some(cycle => !cycle.blocked_reason); },
@@ -130,7 +141,7 @@ function bulkClassFeeReversals(candidates, initialClass = '', previous = []) {
         },
         addSelected() {
             this.message = '';
-            for (const student of this.candidates.filter(candidate => this.selected.includes(candidate.key))) {
+            for (const student of this.visible.filter(candidate => this.selected.includes(candidate.key))) {
                 for (const cycle of this.matching(student)) {
                     if (cycle.blocked_reason) { this.message = 'Fees with refunds, waivers or unresolved cheque states need individual review and were not added.'; continue; }
                     const line = this.makeLine(student, cycle);
@@ -153,4 +164,7 @@ function bulkClassFeeReversals(candidates, initialClass = '', previous = []) {
     globalThis.termCalendar = termCalendar;
     globalThis.bulkClassFees = bulkClassFees;
     globalThis.bulkClassFeeReversals = bulkClassFeeReversals;
+    // Older compiled app bundles assign bulkClassFees again before Alpine starts.
+    // Fee pages use this namespace so the standalone upload stays authoritative.
+    globalThis.schoolFeeForms = { payments: bulkClassFees, reversals: bulkClassFeeReversals };
 })();

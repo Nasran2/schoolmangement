@@ -23,13 +23,46 @@
     .fee-register-loading { min-height:18px; color:#64748b; font-size:12px; }
     [data-register-results][aria-busy="true"] { opacity:.6; }
     .fee-register-section { border:1px solid #e2e8f0; border-radius:10px; background:#fff; overflow:hidden; }
-    .fee-register-section-title { padding:9px 12px; border-bottom:1px solid #e2e8f0; font-size:16px; font-weight:600; color:#1e293b; }
-    .fee-register-table { width:100%; border-collapse:collapse; font-size:13px; }
-    .fee-register-table th { background:#f8fafc; text-align:left; padding:8px 10px; color:#64748b; font-size:12px; font-weight:600; min-width:150px; vertical-align:top; }
-    .fee-register-table td > .fee-register-status-line { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 7px; }
-    .fee-register-table td > .fee-register-status-line .fee-register-sub { margin-top:0; }
-    .fee-register-table th:first-child { min-width:180px; }
-    .fee-register-table td { padding:7px 10px; border-top:1px solid #edf0f4; vertical-align:top; }
+    .fee-register-section-title { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; padding:10px 12px; border-bottom:1px solid #e2e8f0; font-size:16px; font-weight:600; color:#1e293b; }
+    .fee-register-section-title span { font-size:11px; font-weight:400; color:#64748b; }
+    .fee-register-table-scroll { overflow-x:auto; }
+    .fee-register-table-scroll:focus-visible { outline:2px solid #818cf8; outline-offset:-2px; }
+    .fee-register-table { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+    .fee-register-table th, .fee-register-table td { text-align:left; padding:10px; vertical-align:top; }
+    .fee-register-table thead th { background:#f8fafc; color:#475569; font-size:12px; font-weight:600; border-bottom:1px solid #e2e8f0; }
+    .fee-register-table tbody td, .fee-register-table tbody th { border-bottom:1px solid #e2e8f0; background:#fff; }
+    .fee-register-table tbody tr:last-child > * { border-bottom:0; }
+    .fee-register-table tbody tr:nth-child(even) > * { background:#fafbfc; }
+    .fee-register-table tbody tr:hover > * { background:#f8faff; }
+    .fee-register-table .fee-register-student-column { min-width:145px; width:15%; position:sticky; left:0; z-index:1; }
+    .fee-register-table .fee-register-term-column { min-width:175px; border-left:1px solid #edf0f4; }
+    .fee-register-table .fee-register-facility-column { min-width:155px; border-left:2px solid #e2e8f0; }
+    .fee-register-table .fee-register-due-column { min-width:100px; text-align:right; border-left:1px solid #e2e8f0; background:#f6f7fc; }
+    .fee-register-student-name { font-weight:600; color:#1e293b; line-height:1.5; }
+    .fee-register-column-title { font-size:13px; color:#334155; }
+    .fee-register-column-title span { color:#64748b; font-size:11px; font-weight:400; }
+    .fee-register-rates { display:flex; flex-direction:column; gap:2px; margin-top:5px; font-size:10px; color:#64748b; font-weight:400; }
+    .fee-register-rates strong { color:#475569; font-weight:500; }
+    .fee-register-fee + .fee-register-fee { border-top:1px dashed #e2e8f0; margin-top:8px; padding-top:8px; }
+    .fee-register-fee-heading { display:flex; align-items:center; justify-content:space-between; gap:7px; font-size:11px; font-weight:600; color:#334155; }
+    .fee-register-badge { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; line-height:1.4; font-weight:500; white-space:nowrap; }
+    .fee-register-badge-paid { background:#ecfdf3; color:#166534; }
+    .fee-register-badge-due { background:#fff1f2; color:#b91c1c; }
+    .fee-register-badge-pending { background:#fffbeb; color:#92400e; }
+    .fee-register-badge-muted { background:#f1f5f9; color:#64748b; }
+    .fee-register-fee-amounts { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:4px 8px; margin-top:4px; font-size:10px; color:#64748b; }
+    .fee-register-fee-amounts strong { font-size:11px; color:#334155; font-weight:500; font-variant-numeric:tabular-nums; }
+    .fee-register-inline-actions { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+    .fee-register-pay-link { color:#4338ca; font-size:11px; font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+    .fee-register-correction-link { color:#64748b; font-size:10px; text-decoration:underline; text-underline-offset:2px; }
+    .fee-register-correction-link:hover { color:#b91c1c; }
+    .fee-register-payment-details { margin-top:4px; font-size:10px; color:#64748b; }
+    .fee-register-payment-details summary { cursor:pointer; }
+    .fee-register-receipt-link { padding:5px 0; overflow-wrap:anywhere; }
+    .fee-register-receipt-link a { color:#4338ca; text-decoration:underline; }
+    .fee-register-combined-pay { display:block; margin-top:8px; padding:5px 8px; border:1px solid #d9ddfc; border-radius:5px; background:#eef2ff; color:#4338ca; font-size:11px; font-weight:600; text-align:center; }
+    .fee-register-combined-pay:hover { background:#e0e7ff; }
+    .fee-register-due-column > strong { display:block; font-size:14px; color:#1e293b; font-variant-numeric:tabular-nums; }
     .fee-register-sub { margin-top:4px; font-size:11px; color:#64748b; line-height:1.5; }
     .fee-register-actions { display:flex; flex-wrap:wrap; gap:5px; margin-top:5px; }
     .fee-register-button { display:inline-flex; align-items:center; justify-content:center; background:#fff; border:1px solid #dbe2ea; border-radius:6px; padding:6px 9px; color:#4338ca; font-size:12px; font-weight:600; cursor:pointer; }

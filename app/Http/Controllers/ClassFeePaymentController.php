@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassFeePaymentHistory;
+use App\Models\ClassFeeSchedule;
 use App\Models\ClassRoom;
 use App\Models\Revenue;
 use App\Models\Student;
+use App\Services\Billing\ClassFeeCombinedPaymentService;
 use App\Services\Billing\ClassFeePaymentService;
 use App\Services\Billing\ClassFeeReversalService;
 use App\Services\Billing\ClassFeeService;
@@ -54,7 +56,7 @@ class ClassFeePaymentController extends Controller
                         $options->push([
                             'key' => $key, 'balance' => $status['collectable'], 'paid' => $status['paid'], 'type' => $cycle['schedule']->fee_type,
                             'term' => $cycle['term'] ?? ($cycle['schedule']->fee_type === 'exam' ? $tracker['cycles']->filter(fn ($option) => $option['schedule']->fee_type === 'exam')->keys()->search($key) + 1 : null),
-                            'label' => ($cycle['schedule']->fee_type === 'exam' ? (isset($cycle['term']) ? 'Term '.$cycle['term'].' · ' : 'Exam · ') : 'Facility · ')
+                            'label' => (in_array($cycle['schedule']->fee_type, ['exam', 'computer'], true) ? ($cycle['schedule']->fee_type === 'computer' ? 'Computer · ' : 'Exam · ').(isset($cycle['term']) ? 'Term '.$cycle['term'].' · ' : '') : 'Facility · ')
                                 .$cycle['due']->format('d M Y').(isset($cycle['end']) ? ' – '.$cycle['end']->format('d M Y') : ''),
                         ] + $preview);
                     }
@@ -117,16 +119,45 @@ class ClassFeePaymentController extends Controller
             // Consistent lock order also protects a batch spanning several classes.
             $lines = collect($data['lines'])->sortBy(fn ($line) => sprintf('%020d:%020d:%s', $line['class_room_id'], $line['student_id'], $line['cycle']));
             ClassRoom::whereIn('id', $lines->pluck('class_room_id')->unique())->orderBy('id')->lockForUpdate()->get();
+            $scheduleTypes = ClassFeeSchedule::whereIn('id', $lines->map(fn ($line) => explode(':', $line['cycle'], 2)[0]))->pluck('fee_type', 'id');
+            $pairs = [];
+            foreach ($lines->filter(fn ($line) => in_array($scheduleTypes[explode(':', $line['cycle'], 2)[0]] ?? null, ['exam', 'computer'], true))
+                ->groupBy(fn ($line) => $line['class_room_id'].':'.$line['student_id'].':'.explode(':', $line['cycle'], 2)[1], true) as $group) {
+                if ($group->count() === 2 && $group->every(fn ($line) => (bool) $line['record_revenue'])) {
+                    $byType = $group->keyBy(fn ($line) => $scheduleTypes[explode(':', $line['cycle'], 2)[0]]);
+                    if ($byType->has('exam') && $byType->has('computer')) {
+                        foreach ($group->keys() as $index) {
+                            $pairs[$index] = ['lines' => $byType, 'indexes' => $group->keys()->all()];
+                        }
+                    }
+                }
+            }
+            $processed = [];
             foreach ($lines as $index => $line) {
+                if (isset($processed[$index])) {
+                    continue;
+                }
                 $class = ClassRoom::findOrFail($line['class_room_id']);
                 $schedule = $class->feeSchedules()->find(explode(':', $line['cycle'], 2)[0]);
                 if (! $schedule) {
                     throw ValidationException::withMessages(['lines.'.$index.'.cycle' => 'An installment does not belong to the selected class.']);
                 }
                 try {
-                    $payments->collect($class, $schedule->fee_type, array_replace($data, $line, [
-                        'submission_id' => (string) Uuid::uuid5(Uuid::NAMESPACE_URL, $data['submission_id'].':'.$index),
-                    ]), $request->user());
+                    if (isset($pairs[$index])) {
+                        $pair = $pairs[$index];
+                        app(ClassFeeCombinedPaymentService::class)->collect($class, 'exam', array_replace($data, $pair['lines']['exam'], [
+                            'submission_id' => (string) Uuid::uuid5(Uuid::NAMESPACE_URL, $data['submission_id'].':pair:'.$index),
+                            'include_computer' => 1, 'computer_cycle' => $pair['lines']['computer']['cycle'],
+                            'computer_amount' => $pair['lines']['computer']['amount'],
+                        ]), $request->user());
+                        foreach ($pair['indexes'] as $handled) {
+                            $processed[$handled] = true;
+                        }
+                    } else {
+                        $payments->collect($class, $schedule->fee_type, array_replace($data, $line, [
+                            'submission_id' => (string) Uuid::uuid5(Uuid::NAMESPACE_URL, $data['submission_id'].':'.$index),
+                        ]), $request->user());
+                    }
                 } catch (ValidationException $exception) {
                     $name = Student::find($line['student_id'])?->name ?? 'Student';
                     throw ValidationException::withMessages(['lines.'.$index => $name.': '.implode(' ', $exception->validator->errors()->all()).' No payments in this batch were saved.']);

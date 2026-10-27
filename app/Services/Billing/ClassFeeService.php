@@ -29,6 +29,26 @@ class ClassFeeService
             $this->configureTerms($class, $data);
             unset($data['exam_fee']);
         }
+        $computer = $class->feeSchedules()->where('fee_type', 'computer')->whereNull('ends_on')->first();
+        $computerAmount = array_key_exists('computer_fee', $data) ? (float) $data['computer_fee'] : (float) ($computer?->amount ?? 0);
+        if ($computerAmount > 0 && (array_key_exists('computer_fee', $data) || ! empty($data['exam_terms']))) {
+            $terms = $data['exam_terms'] ?? $class->feeSchedules()->where('fee_type', 'exam')->whereNull('ends_on')->first()?->terms ?? $computer?->terms;
+            if (empty($terms)) {
+                throw ValidationException::withMessages(['computer_fee' => 'Set the three term starting and ending dates before enabling computer fees.']);
+            }
+            $examRules = $class->feeSchedules()->where('fee_type', 'exam')->get();
+            if ($examRules->isNotEmpty()) {
+                foreach ($terms as $number => $term) {
+                    $start = Carbon::parse($term['start']);
+                    $matching = $this->cycles($examRules, $start->copy(), $start->copy())->first(fn ($cycle) => ($cycle['term'] ?? null) === $number + 1 && isset($cycle['end']) && $cycle['end']->isSameDay(Carbon::parse($term['end'])));
+                    if (! $matching) {
+                        throw ValidationException::withMessages(['computer_fee' => 'Computer fees must use the class exam term dates. Update the shared three-term calendar first.']);
+                    }
+                }
+            }
+            $this->configureTerms($class, ['exam_terms' => $terms, 'computer_fee' => $computerAmount], 'computer');
+            unset($data['computer_fee']);
+        }
         foreach (ClassFeeSchedule::TYPES as $type => $label) {
             if (! array_key_exists($type.'_fee', $data)) {
                 continue;
@@ -132,7 +152,7 @@ class ClassFeeService
     }
 
     /** Three editable terms repeat annually; old receipt identities move with their term. */
-    private function configureTerms(ClassRoom $class, array $data): void
+    private function configureTerms(ClassRoom $class, array $data, string $type = 'exam'): void
     {
         $terms = array_map(fn ($term) => ['start' => $term['start'], 'end' => $term['end']], array_values($data['exam_terms']));
         if (count($terms) !== 3) {
@@ -146,26 +166,26 @@ class ClassFeeService
                 throw ValidationException::withMessages(['exam_terms' => 'Term dates must be in order, without overlap, within one academic year.']);
             }
         }
-        $amount = round((float) $data['exam_fee'], 2);
-        if ($this->reviseUnpaidSchedule($class, 'exam', [
+        $amount = round((float) $data[$type.'_fee'], 2);
+        if ($this->reviseUnpaidSchedule($class, $type, [
             'amount' => $amount, 'first_due_date' => $terms[0]['start'], 'terms' => $terms,
         ])) {
             return;
         }
-        $current = $class->feeSchedules()->where('fee_type', 'exam')->whereNull('ends_on')->lockForUpdate()->first();
-        $closedEnd = $class->feeSchedules()->where('fee_type', 'exam')->whereNotNull('ends_on')->max('ends_on');
+        $current = $class->feeSchedules()->where('fee_type', $type)->whereNull('ends_on')->lockForUpdate()->first();
+        $closedEnd = $class->feeSchedules()->where('fee_type', $type)->whereNotNull('ends_on')->max('ends_on');
         if ($closedEnd && $terms[0]['start'] <= Carbon::parse($closedEnd)->toDateString()) {
             throw ValidationException::withMessages(['exam_terms' => 'The new calendar must start after the earlier schedule ends.']);
         }
         if (! $current) {
-            $category = RevenueCategory::where('class_fee_type', 'exam')->first()
-                ?? RevenueCategory::firstOrCreate(['name' => 'Exam Fee'], ['payment_type' => 'custom', 'interval_months' => 4, 'active' => true, 'applies_to_all' => true]);
-            $category->update(['class_fee_type' => 'exam']);
-            $closedEnd = $class->feeSchedules()->where('fee_type', 'exam')->max('ends_on');
+            $category = RevenueCategory::where('class_fee_type', $type)->first()
+                ?? RevenueCategory::firstOrCreate(['name' => ClassFeeSchedule::TYPES[$type]], ['payment_type' => 'custom', 'interval_months' => 4, 'active' => true, 'applies_to_all' => true]);
+            $category->update(['class_fee_type' => $type]);
+            $closedEnd = $class->feeSchedules()->where('fee_type', $type)->max('ends_on');
             if ($closedEnd && $terms[0]['start'] <= $closedEnd) {
                 throw ValidationException::withMessages(['exam_terms' => 'Start after the earlier fee schedule ends.']);
             }
-            $class->feeSchedules()->create(['fee_type' => 'exam', 'revenue_category_id' => $category->id,
+            $class->feeSchedules()->create(['fee_type' => $type, 'revenue_category_id' => $category->id,
                 'amount' => $amount, 'first_due_date' => $terms[0]['start'], 'terms' => $terms]);
 
             return;
@@ -174,7 +194,7 @@ class ClassFeeService
             // A new calendar/rate can take effect in a future academic year.
             if ($terms[0]['start'] <= today()->toDateString() || ($terms[0]['start'] === $current->first_due_date->toDateString()
                 && ($current->revenues()->whereNull('cancelled_at')->exists() || ClassFeePaymentHistory::where('class_fee_schedule_id', $current->id)->whereNull('cancelled_at')->exists()))) {
-                throw ValidationException::withMessages(['exam_fee' => 'Keep the existing rate when correcting term dates. Start a new rate in a future academic year.']);
+                throw ValidationException::withMessages([$type.'_fee' => 'Keep the existing rate when correcting term dates. Start a new rate in a future academic year.']);
             }
         }
         if ($terms[0]['start'] > $current->first_due_date->toDateString() && $terms[0]['start'] > today()->toDateString()
@@ -189,7 +209,7 @@ class ClassFeeService
                 throw ValidationException::withMessages(['exam_terms' => 'The new calendar must start after prepaid terms.']);
             }
             $current->update(['ends_on' => Carbon::parse($terms[0]['start'])->subDay()->toDateString()]);
-            $class->feeSchedules()->create(['fee_type' => 'exam', 'revenue_category_id' => $current->revenue_category_id,
+            $class->feeSchedules()->create(['fee_type' => $type, 'revenue_category_id' => $current->revenue_category_id,
                 'amount' => $amount, 'first_due_date' => $terms[0]['start'], 'terms' => $terms]);
 
             return;
@@ -197,7 +217,7 @@ class ClassFeeService
         $target = $current;
         $split = Carbon::parse($terms[0]['start'])->year > $current->first_due_date->year;
         if ($split) {
-            $target = $class->feeSchedules()->create(['fee_type' => 'exam', 'revenue_category_id' => $current->revenue_category_id,
+            $target = $class->feeSchedules()->create(['fee_type' => $type, 'revenue_category_id' => $current->revenue_category_id,
                 'amount' => $amount, 'first_due_date' => $terms[0]['start'], 'terms' => $terms]);
         }
         $receipts = $current->revenues()->get()->toBase()->concat(ClassFeePaymentHistory::where('class_fee_schedule_id', $current->id)->get());
@@ -246,6 +266,8 @@ class ClassFeeService
             }
         }
 
+        $values['exam_terms'] ??= $class->feeSchedules->where('fee_type', 'computer')->whereNull('ends_on')->first()?->terms;
+
         return $values;
     }
 
@@ -258,7 +280,7 @@ class ClassFeeService
 
     private function examTermNumber(ClassFeeSchedule $schedule, Carbon $due, ?Collection $schedules = null): ?int
     {
-        if ($schedule->fee_type !== 'exam') {
+        if (! in_array($schedule->fee_type, ['exam', 'computer'], true)) {
             return null;
         }
         if ($schedule->terms) {
@@ -286,8 +308,9 @@ class ClassFeeService
 
         foreach ($sections as $section) {
             foreach ($section['cycles'] as $cycle) {
-                if ($cycle['schedule']->fee_type === 'facility') {
-                    $key = 'facility';
+                if (in_array($cycle['schedule']->fee_type, ['facility', 'computer'], true)) {
+                    $key = $cycle['schedule']->fee_type;
+                    $cards[$key] ??= ['label' => 'Due in Computer Fees', 'due' => 0.0, 'selected' => false];
                 } else {
                     // Resolve against the full calendar so selecting only Term 3 never renumbers it.
                     $number = $cycle['term'] ?? $this->examTermNumber($cycle['schedule'], $cycle['due'], $section['schedules']);
@@ -312,7 +335,7 @@ class ClassFeeService
     {
         $term = $this->examTermLabel($schedule, $due, $schedules);
 
-        return $term ? 'Exam Fee — '.$term : ClassFeeSchedule::TYPES[$schedule->fee_type].' installment due '.$due->toDateString();
+        return $term ? ClassFeeSchedule::TYPES[$schedule->fee_type].' — '.$term : ClassFeeSchedule::TYPES[$schedule->fee_type].' installment due '.$due->toDateString();
     }
 
     public function cycles(Collection $schedules, Carbon $from, Carbon $to): Collection
@@ -458,8 +481,8 @@ class ClassFeeService
     public function tracker(Collection $schedules, Collection $students, Carbon $from, Carbon $to, ?array $selectedExamDates = null): array
     {
         $cycles = $this->cycles($schedules, $from, $to)
-            ->filter(fn ($cycle) => $cycle['schedule']->fee_type !== 'exam' || $selectedExamDates === null || in_array($cycle['due']->toDateString(), $selectedExamDates, true))
-            ->sortBy(fn ($cycle) => [$cycle['schedule']->fee_type === 'exam' ? 0 : 1, $cycle['due']->timestamp]);
+            ->filter(fn ($cycle) => ! in_array($cycle['schedule']->fee_type, ['exam', 'computer'], true) || $selectedExamDates === null || in_array($cycle['due']->toDateString(), $selectedExamDates, true))
+            ->sortBy(fn ($cycle) => [array_search($cycle['schedule']->fee_type, ['exam', 'computer', 'facility'], true), $cycle['due']->timestamp]);
         $payments = $this->paymentMap($schedules, $students);
         if ($cycles->contains(fn ($cycle) => $cycle['schedule']->fee_type === 'facility')) {
             // Batch-load annual ownership records for the grid instead of querying per cell.
@@ -481,6 +504,24 @@ class ClassFeeService
 
         return ['cycles' => $cycles, 'rows' => $rows, 'due' => (float) $rows->sum('due'), 'paid' => (float) $rows->sum('paid'),
             'unpaid_students' => $rows->where('due', '>', 0)->count()];
+    }
+
+    /** Only the computer charge for the same class and exact term may join an exam payment. */
+    public function computerForTerm(ClassRoom $class, Student $student, array $examCycle): ?array
+    {
+        if ($examCycle['schedule']->fee_type !== 'exam' || ! isset($examCycle['term'])) {
+            return null;
+        }
+        $rules = $class->feeSchedules()->where('fee_type', 'computer')->get();
+        $cycle = $this->cycles($rules, $examCycle['due']->copy(), $examCycle['due']->copy())
+            ->first(fn ($option) => ($option['term'] ?? null) === $examCycle['term'] && $option['end']->isSameDay($examCycle['end']));
+        if (! $cycle) {
+            return null;
+        }
+        $payments = $this->paymentMap($rules, collect([$student]));
+        $status = $this->status($student, $cycle, $payments->get($student->id.':'.$cycle['key'], collect()));
+
+        return $status['eligible'] && $status['collectable'] > 0 ? ['cycle' => $cycle, 'status' => $status] : null;
     }
 
     public function dashboard(string $type, Carbon $rangeStart, Carbon $rangeEnd): array

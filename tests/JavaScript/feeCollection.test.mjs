@@ -103,3 +103,18 @@ test('locked collection categories cannot navigate to another fee and keep an ed
     assert.equal(form.amount, 1200);
     assert.equal(form.defaultAmount, 3800);
 });
+
+test('optional computer collection totals both editable amounts and can switch back to exam only', () => {
+    const page = { URL, AbortController, setTimeout, clearTimeout };
+    runInNewContext(source, page);
+    const form = page.feeCollection({url:'https://school.test/revenue/items/create', type:'exam', label:'Exam Fee', amount:700, includeComputer:true, computerAmount:300});
+    assert.equal(form.totalAmount, 1000);
+    assert.equal(form.paymentLabel, 'Exam & Computer Fees');
+    form.computerAmount = 150;
+    assert.equal(form.totalAmount, 850);
+    form.amount = 200;
+    assert.equal(form.totalAmount, 350);
+    form.includeComputer = false;
+    assert.equal(form.totalAmount, 200);
+    assert.equal(form.paymentLabel, 'Exam Fee');
+});

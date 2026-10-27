@@ -1,0 +1,35 @@
+CLEARER STUDENT FEE REGISTER — CPANEL UPDATE
+
+Prepared and verified locally. Upload this ZIP to apply the change online.
+
+1. Back up the existing application files.
+2. Upload grouped-fee-register-update.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   (the folder containing app/, resources/, routes/ and public/).
+3. Extract there and overwrite all matching files. Do not extract in public/ alone.
+4. In storage/framework/views/, delete only compiled .php files. Preserve the
+   folder and .gitignore. Laravel automatically recreates compiled views.
+5. If bootstrap/cache/routes-v7.php exists, delete only that route cache file,
+   because this cumulative package includes the earlier fee routes.
+6. Hard refresh the page: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows).
+
+No terminal command, database migration, SQL import or asset build is required.
+The package includes the preceding computer-fee update and its dependencies.
+No database, test records, .env file or vendor directory is included.
+
+WHAT CHANGED
+- All students shows Term 1, Term 2, Term 3, Facility Fee, Due now.
+- Each term lists Exam Fee and Computer Fee separately inside that term column.
+- Facility Fee stays last among fee columns, immediately before Due now.
+- Multiple years keep separate dated terms, and annual facility entries share
+  the last fee column. Each student appears once.
+- Pay handles one fee. Pay both fees collects matching exam/computer balances.
+- Make unpaid retains the reason popup and audit protections.
+- Expand Payment details / edit to view receipt references and edit links.
+- Subtle status badges, aligned balances and a lightly shaded total reduce clutter.
+- Horizontal scrolling with pinned student names supports smaller screens and
+  larger year ranges. Instant search, filters, pagination and downloads remain.
+- Shared sorting also places annual fees after all exam/computer fees in the
+  Overview and downloads; payment counts come before fee columns.
+
+Payment amounts and accounting rules are unchanged by this layout update.

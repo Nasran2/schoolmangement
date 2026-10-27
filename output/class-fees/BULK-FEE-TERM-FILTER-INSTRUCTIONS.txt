@@ -1,0 +1,43 @@
+BULK PAYMENT — CHOOSE FEE TYPE AND ONE OR MORE TERMS
+
+Prepared and checked locally. Upload this package to apply it to the hosted site.
+
+INSTALL WITH CPANEL, WITHOUT TERMINAL
+1. Back up the existing application files.
+2. Upload bulk-fee-term-filter-update.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   (the folder containing app/, resources/, routes/ and public/).
+3. Extract there and overwrite ALL matching files. Do not extract in public/ alone.
+4. Delete only compiled .php files inside storage/framework/views/. Preserve that
+   folder and .gitignore. Laravel regenerates these compiled views automatically.
+5. If bootstrap/cache/routes-v7.php exists, delete only that route cache file,
+   because this cumulative package includes the preceding fee routes.
+6. Hard refresh the browser: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows).
+
+No terminal command, SQL import, migration or asset build is required.
+The package includes the preceding computer-fee and grouped-register updates.
+It contains application files only, without the school database or preview data.
+
+HOW TO PAY COMPUTER FEE FOR SELECTED TERMS
+Exam & Facility Fees -> Bulk payments.
+- Set Fee type to Computer fee only.
+- Tick Term 1 alone, Term 2 alone, Terms 1 and 2, or another combination.
+- Leave Class on All classes, or choose a class. Search students if needed.
+- Click Select all matching students, then Add selected to payment list.
+- Review the fee/term labels and amounts, choose payment details, then save.
+Only applicable computer balances for the selected terms are added.
+Paid fees, admissions after those terms, and classes without computer fees are
+excluded from collection candidates as usual.
+
+Use All terms or Clear terms to change the term selection quickly.
+Changing filters selects new entries; existing review-list entries remain until
+removed or cleared. Each fee can appear only once in the list.
+Exam fee only and Exam & computer fees also support multiple terms.
+Facility fee only is annual and does not need a term selection.
+The Make unpaid screen has the same filters and retains its required reason.
+
+Standalone form names prevent older compiled app scripts from overriding these
+controls. Upload the JS and Blade files together, then hard refresh.
+Verified with automated bulk-payment/reversal tests and an isolated sample browser
+workflow: two students, computer Terms 1 and 2, exactly four payments, correct total,
+successful save, and no remaining collectable balances for those paid terms.

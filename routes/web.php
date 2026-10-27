@@ -418,6 +418,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/students/all', [ReportController::class, 'students'])
             ->middleware('permission:reports.view')
             ->name('students');
+        Route::get('/students/intake', \App\Http\Controllers\StudentIntakeReportController::class)->name('student_intake');
         Route::get('/students/due', [ReportController::class, 'studentDue'])
             ->middleware('permission:reports.student_due.view')
             ->name('student_due');

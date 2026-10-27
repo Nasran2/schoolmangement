@@ -1,4 +1,4 @@
-@props(['revenue', 'student', 'category', 'schoolInfo', 'schoolLogoDataUri' => null, 'feeCycle' => null])
+@props(['revenue', 'student', 'category', 'schoolInfo', 'schoolLogoDataUri' => null, 'feeCycle' => null, 'receiptItems' => null, 'receiptSummary' => null])
 
 @php
 // Simple number to words (en) helper used for the "sum of" line
@@ -32,12 +32,19 @@ if (!function_exists('numberToWords')) {
     }
 }
 
+$isCombinedReceipt = $receiptSummary !== null;
+$receiptItems = collect($receiptItems ?? []);
+$receiptBillNumber = $receiptSummary['bill_no'] ?? $revenue->bill_no;
+$receiptTerms = $receiptItems->map(fn ($line) => $line->exam_term_label)->filter()->unique()->values();
 $paidAt = $revenue->paid_at ?: now();
 $year = $paidAt->format('Y');
 $monthShort = $paidAt->format('M');
 $months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-$amount = (float) ($revenue->amount ?? 0);
+$amount = (float) ($receiptSummary['amount'] ?? $revenue->amount ?? 0);
 $amountWords = ucwords(numberToWords($amount)) . ' Rupees Only';
+if ($isCombinedReceipt && ($cents = (int) round(($amount - floor($amount)) * 100)) > 0) {
+    $amountWords = ucwords(numberToWords($amount)) . ' Rupees And ' . ucwords(numberToWords($cents)) . ' Cents Only';
+}
 // Fee type helpers based on category.payment_type
 $paymentType = strtolower($category->payment_type ?? '');
 $classFeeType = $category?->class_fee_type;
@@ -53,28 +60,33 @@ $schoolPhone = $schoolInfo['phone'] ?? '';
 
 $refundedAmount = 0.0;
 $waivedAmount = 0.0;
-$isReturnedCheque = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
-$isPendingCheque = ($revenue->payment_method ?? null) === 'cheque' && in_array($revenue->payment_status ?? null, ['pending', 'hold']);
-$isManualCancellation = method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled');
+$isReturnedCheque = $isCombinedReceipt ? $receiptSummary['returned'] : (($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected');
+$isPendingCheque = $isCombinedReceipt ? $receiptSummary['pending'] : (($revenue->payment_method ?? null) === 'cheque' && in_array($revenue->payment_status ?? null, ['pending', 'hold']));
+$isManualCancellation = $isCombinedReceipt ? ($receiptSummary['invalid'] && !$isReturnedCheque) : (method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled'));
 $isCancelledPayment = $isReturnedCheque || $isManualCancellation;
 $cancelledLabel = $isReturnedCheque ? 'CHEQUE RETURNED' : 'CANCELLED';
-try {
-    $refundedAmount = (float) \App\Models\RevenueAdjustment::query()
-        ->where('revenue_id', $revenue->id)
-        ->where('type', 'refund')
-        ->sum('amount');
-    $waivedAmount = (float) \App\Models\RevenueAdjustment::query()
-        ->where('revenue_id', $revenue->id)
-        ->where('type', 'waiver')
-        ->sum('amount');
-} catch (\Exception $e) {
-    $refundedAmount = 0.0;
-    $waivedAmount = 0.0;
+if ($isCombinedReceipt) {
+    $refundedAmount = $receiptSummary['refunded'];
+    $waivedAmount = $receiptSummary['waived'];
+} else {
+    try {
+        $refundedAmount = (float) \App\Models\RevenueAdjustment::query()
+            ->where('revenue_id', $revenue->id)
+            ->where('type', 'refund')
+            ->sum('amount');
+        $waivedAmount = (float) \App\Models\RevenueAdjustment::query()
+            ->where('revenue_id', $revenue->id)
+            ->where('type', 'waiver')
+            ->sum('amount');
+    } catch (\Exception $e) {
+        $refundedAmount = 0.0;
+        $waivedAmount = 0.0;
+    }
 }
-$netCollected = $isCancelledPayment ? 0.0 : max(0.0, $amount - $refundedAmount);
+$netCollected = $isCombinedReceipt ? $receiptSummary['net_collected'] : ($isCancelledPayment ? 0.0 : max(0.0, $amount - $refundedAmount));
 // Months covered by this receipt via allocations
 $coveredMonths = [];
-if (method_exists($revenue, 'allocations')) {
+if (!$isCombinedReceipt && method_exists($revenue, 'allocations')) {
     foreach ($revenue->allocations as $al) {
         $coveredMonths[] = [
             'month' => (int) $al->month,
@@ -86,7 +98,7 @@ if (method_exists($revenue, 'allocations')) {
     }
 }
 // Fallback: if allocations relationship returned empty, try direct query (in case of loading issues)
-if (empty($coveredMonths) && $revenue->exists) {
+if (!$isCombinedReceipt && empty($coveredMonths) && $revenue->exists) {
     try {
         $directAllocs = \App\Models\StudentMonthFeeAllocation::where('revenue_id', $revenue->id)->get();
         foreach ($directAllocs as $al) {
@@ -245,7 +257,7 @@ if (empty($studentAddress) && $student) {
     ];
 @endphp
 
-<div id="receipt-print" class="bg-white p-6 mx-auto receipt-page" style="font-family: 'Courier New', monospace;">
+<div id="receipt-print" class="bg-white p-6 mx-auto receipt-page {{ $isCombinedReceipt ? 'receipt-combined' : '' }}" style="font-family: 'Courier New', monospace;">
     @if($isPendingCheque)
         <div style="border:2px solid #a16207;padding:8px;margin-bottom:12px;text-align:center;font-weight:bold;">CHEQUE PENDING — not counted as paid until clearance.</div>
     @endif
@@ -253,7 +265,9 @@ if (empty($studentAddress) && $student) {
         <div class="receipt-watermark">{{ $cancelledLabel }}</div>
         <div class="relative z-10 mb-3 border-2 border-rose-700 bg-rose-50 px-3 py-2 text-center text-sm font-extrabold uppercase tracking-wide text-rose-800">
             Payment cancelled. This receipt is not valid for collection.
-            @if($isReturnedCheque)
+            @if($isCombinedReceipt)
+                All fee lines have been cancelled or returned.
+            @elseif($isReturnedCheque)
                 Cheque returned on {{ optional($revenue->confirmed_at)->format('d/m/Y') ?: '-' }}.
             @elseif($isManualCancellation)
                 Cancelled on {{ optional($revenue->cancelled_at)->format('d/m/Y') ?: '-' }}.
@@ -292,7 +306,7 @@ if (empty($studentAddress) && $student) {
     {{-- 3. RIGHT: Receipt Info --}}
     <div class="w-1/4 text-right"> <div class="border-2 border-black px-2 py-1 inline-block mb-1">
             <span class="font-bold mr-1 text-xl">NO:</span>
-            <span class="font-extrabold text-lg">{{ $revenue->bill_no ?? 'N/A' }}</span>
+            <span class="font-extrabold text-lg">{{ $receiptBillNumber ?? 'N/A' }}</span>
         </div>
         <div class="mt-1">
             <span class="font-bold text-xs">DATE: {{ $paidAt->format('d/m/Y') }}</span>
@@ -337,7 +351,9 @@ if (empty($studentAddress) && $student) {
         <div>
             <span class="mr-2">As payment for</span>
             <span class="inline-block border-b border-gray-800 min-w-[360px]">
-                @if($isMonthly && !empty($coveredMonths))
+                @if($isCombinedReceipt)
+                    {{ $receiptItems->map(fn ($line) => $line->category?->name)->filter()->unique()->implode(' + ') }}
+                @elseif($isMonthly && !empty($coveredMonths))
                     @foreach($coveredMonths as $cm)
                         @php
                             $monthLabel = \Carbon\Carbon::createFromDate($cm['year'], $cm['month'], 1)->format('F');
@@ -361,8 +377,11 @@ if (empty($studentAddress) && $student) {
             </span>
         </div>
         
-        @if($revenue->class_fee_due_date)
-            <div class="mt-2 text-sm">@if($classFeeType === 'exam' && $revenue->exam_term_label)<b>Term paid:</b> {{ $revenue->exam_term_label }} · {{ $revenue->class_fee_due_date->format('d-m-Y') }}@else<b>Installment due:</b> {{ $revenue->class_fee_due_date->format('d-m-Y') }}@endif</div>
+        @if($isCombinedReceipt && $receiptTerms->isNotEmpty())
+            <div class="mt-2 text-sm"><b>{{ $receiptTerms->count() > 1 ? 'Terms paid:' : 'Term paid:' }}</b> {{ $receiptTerms->implode(', ') }}</div>
+            @if($feeCycle)<div class="mt-1 text-sm">{{ $feeCycle['due']->format('d-m-Y') }}@if(isset($feeCycle['end'])) to {{ $feeCycle['end']->format('d-m-Y') }}@endif · {{ $feeCycle['schedule']->classRoom?->name }}</div>@endif
+        @elseif($revenue->class_fee_due_date)
+            <div class="mt-2 text-sm">@if(in_array($classFeeType, ['exam', 'computer'], true) && $revenue->exam_term_label)<b>Term paid:</b> {{ $revenue->exam_term_label }} · {{ $revenue->class_fee_due_date->format('d-m-Y') }}@else<b>Installment due:</b> {{ $revenue->class_fee_due_date->format('d-m-Y') }}@endif</div>
             @if($feeCycle)
                 <div class="mt-1 text-sm">{{ isset($feeCycle['term']) ? 'Term '.$feeCycle['term'] : ($classFeeType === 'facility' ? 'Facility year '.$revenue->class_fee_due_date->year : 'Exam installment') }}@if(isset($feeCycle['end'])) · {{ $feeCycle['due']->format('d-m-Y') }} to {{ $feeCycle['end']->format('d-m-Y') }}@endif · {{ $feeCycle['schedule']->classRoom?->name }}</div>
             @endif
@@ -399,7 +418,21 @@ if (empty($studentAddress) && $student) {
     <div class="mt-4 text-sm">
         <div class="grid grid-cols-2 gap-6">
             <div class="space-y-2">
-                @if($isAdmission)
+                @if($isCombinedReceipt)
+                    @foreach($receiptItems as $line)
+                        @php
+                            $invalidLine = $line->isCancelled() || $line->payment_status === 'rejected';
+                        @endphp
+                        <div class="receipt-combined-line" data-receipt-fee="{{ $line->classFeeSchedule?->fee_type }}">
+                            <div class="flex justify-between" style="gap:12px;align-items:baseline;">
+                                <span>{{ $line->category?->name }}@if($receiptTerms->count() > 1) · {{ $line->exam_term_label }}@endif @if($invalidLine)({{ $line->isCancelled() ? 'Cancelled' : 'Cheque returned' }})@endif :</span>
+                                <span class="inline-block min-w-[140px] text-right" style="white-space:nowrap;">Rs {{ number_format($invalidLine ? 0 : $line->amount, 2) }}</span>
+                            </div>
+                            @if($line->paid_at->toDateString() !== $paidAt->toDateString())<div class="text-xs">Payment date: {{ $line->paid_at->format('d/m/Y') }}</div>@endif
+                            @if($invalidLine && $line->cancel_reason)<div class="text-xs">Reason: {{ $line->cancel_reason }}</div>@endif
+                        </div>
+                    @endforeach
+                @elseif($isAdmission)
                     @php
                         $baseAmount = $revenue->payment_meta['base_amount'] ?? $amount;
                         $discountValue = $revenue->payment_meta['discount_value'] ?? 0;
@@ -416,16 +449,17 @@ if (empty($studentAddress) && $student) {
                         <div class="flex justify-between"><span>I. Admission fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                     @endif
                 @endif
-                @if($isMonthly)
+                @if(!$isCombinedReceipt && $isMonthly)
                     <div class="flex justify-between"><span>{{ $isAdmission ? 'II.' : 'I.' }} Monthly fee :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($singleMonthlyReceiptAmount,2) }}</span></div>
                 @endif
-                @if($isFacilities)
+                @if(!$isCombinedReceipt && $isFacilities)
                     <div class="flex justify-between"><span>{{ ($isAdmission || $isMonthly) ? 'III.' : 'I.' }} {{ $classFeeType === 'facility' ? 'Facility fee' : 'Facilities fee' }} :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                 @endif
-                @if(!$isAdmission && !$isMonthly && !$isFacilities)
+                @if(!$isCombinedReceipt && !$isAdmission && !$isMonthly && !$isFacilities)
                     <div class="flex justify-between"><span>{{ $category->name }} :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                 @endif
-                <div class="flex justify-between font-semibold"><span>Total :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
+                <div class="flex justify-between font-semibold"><span>Total :</span><span class="inline-block min-w-[140px] text-right" data-receipt-total="{{ number_format($amount, 2, '.', '') }}">Rs {{ number_format($amount,2) }}</span></div>
+                @if($isCombinedReceipt && $isPendingCheque)<div class="flex justify-between"><span>Net Collected :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($netCollected,2) }}</span></div>@endif
                 @if($isCancelledPayment)
                     <div class="flex justify-between text-rose-700"><span>Cancelled :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($amount,2) }}</span></div>
                     <div class="flex justify-between font-semibold text-rose-700"><span>Net Collected :</span><span class="inline-block min-w-[140px] text-right">Rs {{ number_format($netCollected,2) }}</span></div>
@@ -439,7 +473,7 @@ if (empty($studentAddress) && $student) {
                 @endif
             </div>
             <div class="space-y-2">
-                <div class="flex items-center gap-4"><span>Grade</span><span class="inline-block border-b border-gray-800 min-w-[120px]">{{ ($student?->alumni ?? false) ? 'Alumni' : ($student?->classRoom?->name ?? $student?->class) }}</span></div>
+                <div class="flex items-center gap-4"><span>Grade</span><span class="inline-block border-b border-gray-800 min-w-[120px]">{{ $isCombinedReceipt ? $receiptItems->pluck('classFeeSchedule.classRoom.name')->filter()->unique()->implode(', ') : (($student?->alumni ?? false) ? 'Alumni' : ($student?->classRoom?->name ?? $student?->class)) }}</span></div>
                 <div class="flex items-center gap-4"><span>Std.reg.No.</span><span class="inline-block border-b border-gray-800 min-w-[120px]">{{ $student?->admission_number }}</span></div>
                 {{-- <div class="flex items-center gap-6 mt-2">
                     <div class="flex items-center gap-2"><span>Junior</span><div class="w-6 h-6 border border-gray-800"></div></div>
@@ -502,6 +536,10 @@ if (empty($studentAddress) && $student) {
         height: 5.5in;
     }
 
+    .receipt-combined-container { width:100%; max-width:9.8in; }
+    .receipt-page.receipt-combined { width:100%; min-width:0; max-width:100%; height:auto; min-height:5.5in; overflow:visible; }
+    .receipt-combined-line { break-inside:avoid; }
+
     .receipt-watermark {
         position: absolute;
         left: 50%;
@@ -548,4 +586,8 @@ if (empty($studentAddress) && $student) {
         width: 9.8in;
         height: 5.5in;
     }
+    #receipt-print.receipt-combined { width:100%; min-width:0; max-width:none; height:auto; min-height:0; padding:0; }
+    #receipt-print.receipt-combined .text-sm { font-size:11px; line-height:1.35; }
+    #receipt-print.receipt-combined .text-xs { font-size:9px; line-height:1.35; }
+    #receipt-print.receipt-combined .mt-6 { margin-top:16px; }
 </style>

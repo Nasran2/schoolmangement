@@ -82,7 +82,7 @@ class ClassFeePaymentService
                     default => null,
                 };
                 $revenue = Revenue::create($tag + [
-                    'bill_no' => $this->billNumber($data['bill_no'] ?? null),
+                    'bill_no' => $data['_combined_bill_number'] ?? $this->billNumber($data['bill_no'] ?? null),
                     'student_id' => $student->id, 'revenue_category_id' => $cycle['schedule']->revenue_category_id,
                     'amount' => $amount, 'paid_at' => $data['paid_at'], 'payment_method' => $method,
                     'payment_status' => $method === 'cheque' ? 'hold' : 'confirmed',

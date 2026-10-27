@@ -6,7 +6,7 @@
             <a href="{{ route('class-fees.index', ['year' => $year, 'class_room_id' => $filters['class_room_id'] ?? null]) }}" class="text-sm font-semibold text-indigo-700 underline">Back to payment status</a>
         </div>
     </x-slot>
-    <div class="max-w-7xl mx-auto py-8 space-y-5" x-data="bulkClassFees(@js($candidates), @js($filters['class_room_id'] ?? ''), @js(old('lines', [])))">
+    <div class="max-w-7xl mx-auto py-8 space-y-5" x-data="schoolFeeForms.payments(@js($candidates), @js($filters['class_room_id'] ?? ''), @js(old('lines', [])))">
         <div class="flex flex-wrap items-center gap-3 text-sm">
             <span class="rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white" aria-current="page">Collect payments</span>
             @can('revenue.delete')<a href="{{ route('class-fees.bulk', ['mode' => 'unpaid', 'year' => $year, 'class_room_id' => $filters['class_room_id'] ?? null, 'include_inactive' => $filters['include_inactive'] ?? 0]) }}" class="rounded-md border border-gray-200 bg-white px-4 py-2 font-semibold text-red-700">Make unpaid</a>@endcan
@@ -25,8 +25,8 @@
                     <h3 class="font-semibold text-gray-900">1. Choose students &amp; terms</h3>
                     <div><label for="bulk-class" class="block text-sm font-medium text-gray-700">Class</label><select id="bulk-class" x-model="classId" @change="selected = []" class="mt-1 w-full rounded-md border-gray-300"><option value="">All classes</option>@foreach($classes as $option)<option value="{{ $option->id }}">{{ $option->name }}</option>@endforeach</select></div>
                     <div><label for="bulk-search" class="block text-sm font-medium text-gray-700">Search students</label><input id="bulk-search" type="search" x-model.debounce.200ms="query" placeholder="Name or admission number" class="mt-1 w-full rounded-md border-gray-300"></div>
-                    <div><label for="bulk-term" class="block text-sm font-medium text-gray-700">Installments to add</label><select id="bulk-term" x-model="installment" @change="selected = []" class="mt-1 w-full rounded-md border-gray-300"><option value="exam">All exam terms</option><option value="term:1">Term 1 only</option><option value="term:2">Term 2 only</option><option value="term:3">Term 3 only</option><option value="facility">Facility fee only</option><option value="all">Exam terms &amp; facility fee</option></select></div>
-                    <p class="text-xs text-gray-500">Only installments with a remaining balance are listed. Facility fees apply for the full joining year, regardless of the month joined. Students joining during a term owe that term, including admissions on its ending date. Future terms can be paid in advance.</p>
+                    @include('class-fees.partials.bulk-fee-filters', ['filterPrefix' => 'bulk'])
+                    <p class="text-xs text-gray-500">Students appear only for applicable fees with a remaining balance. Future terms can be paid in advance.</p>
                     <label class="flex items-center gap-2 text-sm font-semibold text-indigo-700"><input type="checkbox" :checked="allSelected" @change="toggleAll($event.target.checked)" class="rounded border-gray-300 text-indigo-600">Select all matching students <span x-text="'(' + visible.length + ')'"></span></label>
                 </div>
                 <div class="max-h-96 overflow-y-auto divide-y divide-gray-100">

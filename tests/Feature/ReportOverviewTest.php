@@ -66,7 +66,7 @@ class ReportOverviewTest extends TestCase
 
         $response = $this->get(route('reports.index'))->assertOk()
             ->assertViewHas('overviewFilters', fn ($filters) => $filters['period'] === 'today' && $filters['from'] === '2026-10-21' && $filters['to'] === '2026-10-21')
-            ->assertViewHas('overviewCards', fn ($cards) => $cards->count() === 7 && $cards['collection']['amount'] === 900.0 && $cards['revenue']['amount'] === 1150.0 && $cards['expense']['amount'] === 450.0);
+            ->assertViewHas('overviewCards', fn ($cards) => $cards->count() === 8 && $cards['collection']['amount'] === 900.0 && $cards['revenue']['amount'] === 1150.0 && $cards['expense']['amount'] === 450.0);
         foreach ($response->viewData('overviewCards') as $card) {
             $this->get($card['url'])->assertOk()->assertViewHas('total', $card['amount'])->assertViewHas('totalCount', $card['count']);
         }

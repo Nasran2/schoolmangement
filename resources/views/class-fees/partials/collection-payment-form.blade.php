@@ -14,6 +14,17 @@
         <div class="fee-field"><label for="amount">Amount (Rs)</label><input id="amount" class="fee-input" type="number" name="amount" min="0.01" step="0.01" max="{{ $selectedStatus['collectable'] }}" x-model="amount" value="{{ old('amount', $selectedStatus['collectable']) }}" required><p class="fee-hint">Up to Rs {{ number_format($selectedStatus['collectable'], 2) }} for this installment. Partial payments are allowed.</p>@if($type === 'facility')<p class="fee-hint">Configured facility fee: Rs {{ number_format($selectedCycle['amount'], 2) }}. The unpaid balance is filled in by default; you can enter a smaller amount.</p><button type="button" class="fee-link" @click="amount = defaultAmount">Use remaining facility fee</button>@endif</div>
         <div class="fee-field"><label for="paid_at">Payment Date</label><input id="paid_at" class="fee-input" type="date" name="paid_at" x-model="date" max="{{ today()->toDateString() }}" value="{{ old('paid_at', today()->toDateString()) }}" required></div>
     </div>
+    @if($computerEntry ?? null)
+        <div class="fee-income">
+            <input type="hidden" name="include_computer" value="0">
+            <label class="fee-check"><input type="checkbox" name="include_computer" value="1" x-model="includeComputer" @checked(old('include_computer', true))> Include Computer Fee · Term {{ $computerEntry['cycle']['term'] }}</label>
+            <p class="fee-hint">Pay this term's exam and computer fees together on one bill, or uncheck to pay only the exam fee.</p>
+            <div x-show="includeComputer" class="fee-field" style="margin:12px 0 0;">
+                <input type="hidden" name="computer_cycle" value="{{ $computerEntry['cycle']['key'] }}" :disabled="!includeComputer">
+                <label for="computer_amount">Computer fee amount (Rs)</label><input id="computer_amount" name="computer_amount" type="number" class="fee-input" min="0.01" step="0.01" max="{{ $computerEntry['status']['collectable'] }}" x-model="computerAmount" value="{{ old('computer_amount', $computerEntry['status']['collectable']) }}" :disabled="!includeComputer" :required="includeComputer">
+            </div>
+        </div>
+    @endif
     <fieldset class="fee-field"><legend class="fee-field-label">Payment Method</legend><div class="fee-methods">
         @foreach(['cash' => ['Cash', 'No extra details'], 'bank_transfer' => ['Bank Transfer', 'Bank + reference'], 'cheque' => ['Cheque', 'Pending confirmation']] as $methodValue => $methodLabels)
             <label class="fee-method" :class="method === '{{ $methodValue }}' ? 'is-selected' : ''"><input type="radio" name="payment_method" value="{{ $methodValue }}" x-model="method" @change="methodChanged()" @checked(old('payment_method', 'cash') === $methodValue)><span><strong>{{ $methodLabels[0] }}</strong><small>{{ $methodLabels[1] }}</small></span></label>
@@ -37,8 +48,8 @@
     <div class="fee-field" x-show="recordRevenue"><label for="bill_no">Bill Number {{ $autogenerate ? '(automatic)' : '(optional)' }}</label><input id="bill_no" class="fee-input" name="bill_no" maxlength="50" value="{{ old('bill_no', $nextBillNumberPreview) }}" @readonly($autogenerate)><p class="fee-hint">{{ $autogenerate ? 'Next bill number preview. The final number is assigned when you save.' : 'Enter a unique bill number or keep the suggested number.' }}</p></div>
     <div class="fee-field"><label for="notes">Notes (optional)</label><textarea id="notes" class="fee-input" name="notes" rows="3" maxlength="1000" placeholder="Add any additional notes…">{{ old('notes') }}</textarea></div>
     <div class="fee-actions">
-        <button type="submit" class="fee-button fee-button-wide" @click="viewReceipt = true" :disabled="saving" x-show="recordRevenue"><span x-text="saving ? 'Saving…' : 'Pay {{ $feeLabel }} & view bill'">Pay {{ $feeLabel }} &amp; view bill</span></button>
-        <button type="submit" class="fee-button fee-button-secondary" @click="viewReceipt = false" :disabled="saving"><span x-text="recordRevenue ? 'Pay {{ $feeLabel }}' : 'Save historical payment'">Pay {{ $feeLabel }}</span></button>
+        <button type="submit" class="fee-button fee-button-wide" @click="viewReceipt = true" :disabled="saving" x-show="recordRevenue"><span x-text="saving ? 'Saving…' : 'Pay ' + paymentLabel + ' & view bill'">Pay {{ $feeLabel }} &amp; view bill</span></button>
+        <button type="submit" class="fee-button fee-button-secondary" @click="viewReceipt = false" :disabled="saving"><span x-text="recordRevenue ? 'Pay ' + paymentLabel : 'Save historical payment'">Pay {{ $feeLabel }}</span></button>
         <a class="fee-button fee-button-secondary" href="{{ route('revenue.items.create', ['quick' => $type]) }}">Cancel</a>
     </div>
 </form>

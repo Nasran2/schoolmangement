@@ -5,6 +5,7 @@
             <a class="text-indigo-700 underline" href="{{ route('class-fees.index', array_replace($registerQuery, ['view' => 'overview'])) }}">Overview</a>
             <span class="font-semibold text-gray-600" aria-current="page">All students</span>
             <a class="text-indigo-700 underline" href="{{ route('class-fees.index', array_replace($registerQuery, ['type' => $type === 'exam' ? 'facility' : 'exam', 'view' => 'students'])) }}">{{ $type === 'exam' ? 'Facility fees only' : 'Exam & facility fees' }}</a>
+            <a class="text-indigo-700 underline" href="{{ route('class-fees.index', array_replace($registerQuery, ['type' => 'computer', 'view' => 'students'])) }}">Computer fees only</a>
         </nav></div>
             <div class="flex flex-wrap gap-2">
                 @can('revenue.add')<a href="{{ route('class-fees.bulk', ['year' => $year, 'class_room_id' => $class?->id]) }}" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white">Bulk payments</a>@endcan

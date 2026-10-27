@@ -1,0 +1,33 @@
+COMBINED EXAM & COMPUTER PAYMENT — EXISTING SCHOOL RECEIPT FORMAT
+
+Prepared and verified locally. Apply online with cPanel File Manager.
+
+1. Back up the existing application files.
+2. Upload school-receipt-format-update.zip to the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   (the folder containing app/, resources/, routes/ and public/).
+3. Extract there and overwrite ALL matching files. Do not extract in public/ alone.
+4. Delete only compiled .php files inside storage/framework/views/. Preserve that
+   folder and .gitignore. Laravel recreates these compiled templates automatically.
+5. If bootstrap/cache/routes-v7.php exists, delete only that route cache file,
+   because this cumulative package includes the preceding fee routes.
+6. Hard refresh the browser: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows).
+
+No terminal command, migration, SQL import or asset build is required.
+The package includes the earlier fee and bulk-term filter updates.
+It includes application code only, without the school database or preview data.
+
+WHAT THE RECEIPT NOW SHOWS
+- The existing POLGAHAWELA BRITISH COLLEGE receipt format and print layout.
+- School heading/logo, main bill number, date and school contact details.
+- Student, parent/guardian, address, grade and admission number.
+- Exam Fee + Computer Fee as payment description, and the term paid.
+- Separate exam and computer amounts with one combined total and amount in words.
+- The existing Authorized Signature / Cashier area and computer-generated footer.
+- Pending cheque notice until clearance. Cancelled/returned fee lines show zero
+  and their status/reason. Refunds and corrected dates remain accurate.
+
+Both component receipt links open the same main printed bill.
+Existing combined receipts use the new format immediately after refresh.
+Do not delete, recollect or re-enter a payment to change its receipt layout.
+No bill numbers, income records or student balances are changed by this update.

@@ -8,7 +8,7 @@
             @endcanany
         </div>
     </x-slot>
-    <div class="max-w-7xl mx-auto py-8 space-y-5" x-data="bulkClassFeeReversals(@js($candidates), @js($filters['class_room_id'] ?? ''), @js(old('lines', [])))">
+    <div class="max-w-7xl mx-auto py-8 space-y-5" x-data="schoolFeeForms.reversals(@js($candidates), @js($filters['class_room_id'] ?? ''), @js(old('lines', [])))">
         <style>
             .fee-reversal-layout { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; }
             .fee-reversal-warning { background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; border-radius:8px; padding:16px; font-size:13px; line-height:1.6; }
@@ -38,7 +38,7 @@
                     <h3 class="font-semibold text-gray-900">1. Choose paid students &amp; fees</h3>
                     <div><label for="unpaid-class" class="block text-sm font-medium text-gray-700">Class</label><select id="unpaid-class" x-model="classId" @change="selected = []" class="mt-1 w-full rounded-md border-gray-300"><option value="">All classes</option>@foreach($classes as $option)<option value="{{ $option->id }}">{{ $option->name }}</option>@endforeach</select></div>
                     <div><label for="unpaid-search" class="block text-sm font-medium text-gray-700">Search students</label><input id="unpaid-search" type="search" x-model.debounce.200ms="query" placeholder="Name or admission number" class="mt-1 w-full rounded-md border-gray-300"></div>
-                    <div><label for="unpaid-term" class="block text-sm font-medium text-gray-700">Fees to make unpaid</label><select id="unpaid-term" x-model="installment" @change="selected = []" class="mt-1 w-full rounded-md border-gray-300"><option value="exam">All exam terms</option><option value="term:1">Term 1 only</option><option value="term:2">Term 2 only</option><option value="term:3">Term 3 only</option><option value="facility">Facility fee only</option><option value="all">Exam terms &amp; facility fee</option></select></div>
+                    @include('class-fees.partials.bulk-fee-filters', ['filterPrefix' => 'unpaid'])
                     <p class="text-xs text-gray-500">Shows fees with recorded payments, including partially paid fees. All active receipts for each selected fee will be cancelled, including any pending cheque on that fee. Former-class payments remain under their original class.</p>
                     <label class="flex items-center gap-2 text-sm font-semibold text-indigo-700"><input type="checkbox" :checked="allSelected" @change="toggleAll($event.target.checked)" class="rounded border-gray-300 text-indigo-600">Select all available students <span x-text="'(' + selectable.length + ')'"></span></label>
                 </div>

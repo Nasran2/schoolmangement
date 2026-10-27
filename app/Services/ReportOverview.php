@@ -26,6 +26,7 @@ class ReportOverview
         'teachers' => ['title' => 'Pending teacher payments', 'note' => 'Unsettled salary for the current payroll month.', 'tone' => 'purple', 'scope' => 'pending', 'permissions' => ['teachers.salary.pay', 'teachers.salary.summary.view']],
         'students' => ['title' => 'Pending student receivables', 'note' => 'Current monthly fee balances, including earlier dues.', 'tone' => 'amber', 'scope' => 'pending', 'permissions' => ['reports.student_due.view']],
         'exam' => ['title' => 'Pending exam fees', 'note' => 'Unpaid exam installments due today or earlier.', 'tone' => 'indigo', 'scope' => 'pending', 'permissions' => ['class_fees.view']],
+        'computer' => ['title' => 'Pending computer fees', 'note' => 'Unpaid computer term fees due today or earlier.', 'tone' => 'indigo', 'scope' => 'pending', 'permissions' => ['class_fees.view']],
         'facility' => ['title' => 'Pending facility fees', 'note' => 'Unpaid annual facility fees due today or earlier.', 'tone' => 'teal', 'scope' => 'pending', 'permissions' => ['class_fees.view']],
     ];
 
@@ -74,14 +75,14 @@ class ReportOverview
     {
         $rules = ['sort' => ['nullable', Rule::in(['default', 'amount_desc', 'amount_asc', 'name_asc', 'date_asc', 'date_desc'])],
             'min_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999999']];
-        if (in_array($metric, ['students', 'exam', 'facility'], true)) {
+        if (in_array($metric, ['students', 'exam', 'computer', 'facility'], true)) {
             $rules['class_room_id'] = ['nullable', 'integer', 'exists:class_rooms,id'];
         }
-        if (in_array($metric, ['exam', 'facility'], true)) {
+        if (in_array($metric, ['exam', 'computer', 'facility'], true)) {
             $rules['installment_year'] = ['nullable', 'integer', 'between:2000,2099'];
             $rules['balance_status'] = ['nullable', Rule::in(['unpaid', 'partial', 'pending'])];
         }
-        if ($metric === 'exam') {
+        if (in_array($metric, ['exam', 'computer'], true)) {
             $rules['sessions_selected'] = ['nullable', 'boolean'];
             $rules['exam_sessions'] = ['nullable', 'array', 'max:4'];
             $rules['exam_sessions.*'] = ['required', 'integer', 'between:1,4', 'distinct'];
@@ -92,7 +93,7 @@ class ReportOverview
             $rules['balance_status'] = ['nullable', Rule::in(['unpaid', 'partial'])];
         }
         $data = $request->validate($rules);
-        if ($metric === 'exam') {
+        if (in_array($metric, ['exam', 'computer'], true)) {
             $data['exam_sessions'] = ($request->boolean('sessions_selected') || $request->has('exam_sessions'))
                 ? array_map('intval', $data['exam_sessions'] ?? []) : [1, 2, 3, 4];
         }
@@ -136,7 +137,7 @@ class ReportOverview
     public function detailOptions(string $metric, Collection $rows, array $filters): array
     {
         return [
-            'classes' => in_array($metric, ['students', 'exam', 'facility'], true) ? ClassRoom::orderBy('level')->orderBy('name')->get(['id', 'name']) : collect(),
+            'classes' => in_array($metric, ['students', 'exam', 'computer', 'facility'], true) ? ClassRoom::orderBy('level')->orderBy('name')->get(['id', 'name']) : collect(),
             'teachers' => $metric === 'teachers' ? Teacher::where('active', true)->orderBy('name')->get(['id', 'name']) : collect(),
             'years' => $rows->pluck('installment_year')->push(today()->year)->push($filters['installment_year'] ?? null)->filter()->unique()->sortDesc()->values(),
             'session_count' => max($this->examSessionCount, (int) $rows->max('exam_session')),
@@ -151,7 +152,7 @@ class ReportOverview
             'expense' => $this->expenses($filters),
             'teachers' => $this->teachers($filters['payroll_month'] ?? today()->format('Y-m')),
             'students' => $this->students(),
-            'exam', 'facility' => $this->classFees($metric),
+            'exam', 'computer', 'facility' => $this->classFees($metric),
             default => collect(),
         };
     }
@@ -231,7 +232,7 @@ class ReportOverview
         // Number sessions from every scheduled date, including settled and future cycles,
         // so paying an earlier installment or changing a fee cannot renumber a later session.
         $sessionMap = [];
-        if ($type === 'exam') {
+        if (in_array($type, ['exam', 'computer'], true)) {
             $annualCycles = $fees->cycles($schedules, $schedules->min('first_due_date')->copy()->startOfYear(), today()->endOfYear());
             foreach ($annualCycles->groupBy(fn ($cycle) => $cycle['schedule']->class_room_id.':'.$cycle['due']->year) as $group) {
                 $dates = $group->pluck('due')->map(fn ($due) => $due->toDateString())->unique()->sort()->values();
@@ -250,7 +251,7 @@ class ReportOverview
                 $cycle = $tracker['cycles'][$key];
                 $rows->push(['date' => $cycle['due']->toDateString(), 'reference' => $row['student']->admission_number,
                     'class_room_id' => $cycle['schedule']->class_room_id, 'installment_year' => $cycle['due']->year,
-                    'exam_session' => $type === 'exam' ? $sessionMap[$key] : null,
+                    'exam_session' => in_array($type, ['exam', 'computer'], true) ? $sessionMap[$key] : null,
                     'party' => $row['student']->name, 'description' => ($cycle['schedule']->classRoom?->name ?: 'Class').' · '.ClassFeeSchedule::TYPES[$type],
                     'amount' => $status['due'], 'status' => $status['status'],
                     'status_key' => match ($status['status']) {

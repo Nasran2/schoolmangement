@@ -109,7 +109,7 @@
                                     $daysLeft = $chequeDate ? $today->diffInDays($chequeDate, false) : null;
                                 @endphp
                                 <tr class="hover:bg-slate-50">
-                                    <td class="px-4 py-3 font-medium text-gray-900">{{ $item->bill_no ?? '-' }}</td>
+                                    <td class="px-4 py-3 font-medium text-gray-900">{{ $item->bill_no ?? '-' }}@if(!empty($item->payment_meta['fee_bundle']))<div class="mt-1 text-xs text-indigo-700">Combined bill {{ $item->payment_meta['fee_bundle']['bill_no'] }}. Passing or returning updates both fee components.</div>@endif</td>
                                     <td class="px-4 py-3">
                                         @if ($item->student)
                                             <a class="text-indigo-600 hover:underline" href="{{ route('students.show', $item->student) }}">{{ $item->student->name }}</a>

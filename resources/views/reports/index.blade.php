@@ -145,6 +145,11 @@
                         <div>
                             <div class="text-sm font-semibold text-gray-800 mb-3">Students & Fees</div>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <a href="{{ route('reports.student_intake') }}" class="{{ $card }}">
+                                    <div class="{{ $bar }} from-indigo-500 to-blue-500"></div>
+                                    <div class="{{ $title }}">Student Intake</div>
+                                    <div class="{{ $desc }}">New intakes by joining date, registration number and class.</div>
+                                </a>
                                 @can('reports.student_due.view')
                                     <a href="{{ route('reports.student_due') }}" class="{{ $card }}">
                                         <div class="{{ $bar }} from-fuchsia-500 to-pink-500"></div>

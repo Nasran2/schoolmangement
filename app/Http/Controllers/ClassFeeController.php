@@ -6,6 +6,7 @@ use App\Models\ClassFeeSchedule;
 use App\Models\ClassRoom;
 use App\Models\Revenue;
 use App\Models\Student;
+use App\Services\Billing\ClassFeeCombinedPaymentService;
 use App\Services\Billing\ClassFeePaymentService;
 use App\Services\Billing\ClassFeeReversalService;
 use App\Services\Billing\ClassFeeService;
@@ -39,16 +40,17 @@ class ClassFeeController extends Controller
         }
         $type = $filters['type'] ?? 'exam';
         $year = (int) ($filters['year'] ?? today()->year);
+        $includeComputer = $type === 'computer' || (bool) ($filters['include_computer'] ?? true);
         $includeFacility = $type === 'facility' || (bool) ($filters['include_facility'] ?? true);
         $classes = ClassRoom::query()->with('feeSchedules')->orderBy('level')->orderBy('name')->get();
         $class = isset($filters['class_room_id']) ? $classes->firstWhere('id', $filters['class_room_id']) : null;
         $scope = implode(':', [$type, $class?->id ?? 'all', $year, (int) $request->boolean('all_years')]);
-        $rulesFor = fn ($option) => $option->feeSchedules->filter(fn ($rule) => $rule->fee_type === $type || ($type === 'exam' && $includeFacility && $rule->fee_type === 'facility'));
+        $rulesFor = fn ($option) => $option->feeSchedules->filter(fn ($rule) => $rule->fee_type === $type || ($type === 'exam' && (($includeFacility && $rule->fee_type === 'facility') || ($includeComputer && $rule->fee_type === 'computer'))));
         $fromFor = fn ($rules) => $request->boolean('all_years') && $rules->isNotEmpty()
             ? $rules->min('first_due_date')->copy() : Carbon::create($year, 1, 1);
         $to = Carbon::create($request->boolean('all_years') ? today()->year : $year, 12, 31);
         $availableRules = ($class ? collect([$class]) : $classes)->flatMap(fn ($option) => $rulesFor($option));
-        $examCycles = $type === 'exam' ? $fees->cycles($availableRules->where('fee_type', 'exam'), $fromFor($availableRules), $to) : collect();
+        $examCycles = $type === 'exam' ? $fees->cycles($availableRules->filter(fn ($rule) => in_array($rule->fee_type, ['exam', 'computer'], true)), $fromFor($availableRules), $to) : collect();
         $examOptions = $examCycles->map(fn ($cycle) => $cycle['due']->toDateString())->unique()->sort()->values();
         $examLabels = $examCycles->mapWithKeys(fn ($cycle) => [$cycle['due']->toDateString() => (isset($cycle['term']) ? 'Term '.$cycle['term'].' · ' : '').$cycle['due']->format('d M Y')
             .(isset($cycle['end']) ? ' – '.$cycle['end']->format('d M Y') : '')]);
@@ -58,10 +60,12 @@ class ClassFeeController extends Controller
         $selectedExamDates = $explicitSelection && $sameScope
             ? $examOptions->intersect($filters['exam_dates'] ?? [])->values()->all() : $examOptions->all();
         $selectionQuery = [
-            'include_facility' => (int) $includeFacility, 'exam_selection' => 1, 'exam_dates' => $selectedExamDates,
+            'include_facility' => (int) $includeFacility, 'include_computer' => (int) $includeComputer, 'exam_selection' => 1, 'exam_dates' => $selectedExamDates,
             'include_former' => (int) $request->boolean('include_former'),
         ];
         $filters = array_replace($filters, $selectionQuery, ['selection_scope' => $scope]);
+        $computerOptionsAvailable = ($class ? collect([$class]) : $classes)
+            ->contains(fn ($option) => $option->feeSchedules->contains('fee_type', 'computer'));
         $schedules = $class ? $rulesFor($class) : collect();
         $allStudents = Student::with('promotionHistories')
             ->when($class, fn ($q) => $q->where(fn ($q) => $q->where('class_room_id', $class->id)
@@ -75,7 +79,7 @@ class ClassFeeController extends Controller
         $membersFor = fn ($option) => $allStudents->filter(fn ($student) => (int) $student->class_room_id === (int) $option->id
             || ($request->boolean('include_former') && $student->promotionHistories->contains(fn ($move) => (int) $move->from_class_room_id === (int) $option->id || (int) $move->to_class_room_id === (int) $option->id)));
         $students = $class ? $membersFor($class) : collect();
-        $tracker = $fees->tracker($schedules, $students, $fromFor($schedules), $to, $selectedExamDates);
+        $tracker = $fees->tracker($schedules, $students, $fromFor($schedules), $to, $type === 'exam' ? $selectedExamDates : null);
         $allRows = $tracker['rows'];
         $tracker = $this->filterTracker($tracker, $filters, $studentList);
         $classSummaries = collect();
@@ -86,7 +90,7 @@ class ClassFeeController extends Controller
                     continue;
                 }
                 $members = $membersFor($option);
-                $summary = $this->filterTracker($fees->tracker($rules, $members, $fromFor($rules), $to, $selectedExamDates), $filters, $studentList);
+                $summary = $this->filterTracker($fees->tracker($rules, $members, $fromFor($rules), $to, $type === 'exam' ? $selectedExamDates : null), $filters, $studentList);
                 if ($summary['rows']->isEmpty() && ($members->isNotEmpty() || ! empty($filters['q']) || ($filters['status'] ?? 'all') !== 'all')) {
                     continue;
                 }
@@ -128,8 +132,8 @@ class ClassFeeController extends Controller
 
             return $section;
         })->filter(fn ($section) => $section['rows']->isNotEmpty());
-        $reportTitle = $type === 'exam' && $includeFacility ? 'Exam & Facility Fees' : ClassFeeSchedule::TYPES[$type];
-        $data = compact('type', 'year', 'classes', 'class', 'classSummaries', 'tracker', 'rows', 'students', 'selectedStudent', 'selectedCycle', 'selectedStatus', 'unassigned', 'examOptions', 'examLabels', 'selectedExamDates', 'includeFacility', 'selectionQuery', 'reportTitle', 'studentList', 'sections', 'registerQuery', 'studentCount', 'paginator', 'displaySections') + [
+        $reportTitle = $type === 'exam' ? 'Exam'.($includeComputer && $availableRules->contains('fee_type', 'computer') ? ', Computer' : '').($includeFacility ? ' & Facility' : '').' Fees' : ClassFeeSchedule::TYPES[$type];
+        $data = compact('type', 'year', 'classes', 'class', 'classSummaries', 'tracker', 'rows', 'students', 'selectedStudent', 'selectedCycle', 'selectedStatus', 'unassigned', 'examOptions', 'examLabels', 'selectedExamDates', 'includeFacility', 'selectionQuery', 'reportTitle', 'includeComputer', 'computerOptionsAvailable', 'studentList', 'sections', 'registerQuery', 'studentCount', 'paginator', 'displaySections') + [
             'filters' => $filters, 'submissionId' => (string) Str::uuid(), 'dueBreakdown' => $dueBreakdown,
         ];
         if ($request->filled('action_panel')) {
@@ -226,6 +230,9 @@ class ClassFeeController extends Controller
             'submission_id' => ['required', 'uuid'],
             'student_id' => ['required', 'integer', 'exists:students,id'],
             'cycle' => ['required', 'string', 'regex:/^\d+:\d{4}-\d{2}-\d{2}$/'],
+            'include_computer' => ['nullable', 'boolean'],
+            'computer_cycle' => ['required_if:include_computer,1', 'nullable', 'string', 'regex:/^\d+:\d{4}-\d{2}-\d{2}$/'],
+            'computer_amount' => ['required_if:include_computer,1', 'nullable', 'numeric', 'decimal:0,2', 'min:0.01', 'max:9999999999.99'],
             'record_revenue' => ['nullable', 'boolean'],
             'existing_revenue_id' => ['nullable', 'integer', 'exists:revenues,id'],
             'amount' => ['required_without:existing_revenue_id', 'nullable', 'numeric', 'decimal:0,2', 'min:0.01', 'max:9999999999.99'],
@@ -251,7 +258,9 @@ class ClassFeeController extends Controller
         if (($data['return_to'] ?? null) === 'collection') {
             $data['record_revenue'] = true;
         }
-        $revenue = $payments->collect($classroom, $type, $data, $request->user());
+        $revenue = ! empty($data['include_computer'])
+            ? app(ClassFeeCombinedPaymentService::class)->collect($classroom, $type, $data, $request->user())
+            : $payments->collect($classroom, $type, $data, $request->user());
 
         if (($data['return_to'] ?? null) === 'students') {
             $message = $revenue instanceof Revenue ? 'Payment recorded. Bill: '.$revenue->bill_no : 'Historical payment recorded without adding income.';

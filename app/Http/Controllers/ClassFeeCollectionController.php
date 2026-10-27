@@ -72,7 +72,10 @@ class ClassFeeCollectionController extends Controller
             }
         }
 
-        return view('class-fees.collect', compact('type', 'filters', 'year', 'classes', 'students', 'selectedStudent', 'installments', 'selectedCycle', 'selectedStatus', 'class') + [
+        $computerEntry = $selectedStudent && $selectedCycle && $type === 'exam' && $selectedStatus['collectable'] > 0
+            ? $fees->computerForTerm($class, $selectedStudent, $selectedCycle) : null;
+
+        return view('class-fees.collect', compact('type', 'filters', 'year', 'classes', 'students', 'selectedStudent', 'installments', 'selectedCycle', 'selectedStatus', 'class', 'computerEntry') + [
             'feeLabel' => ClassFeeSchedule::TYPES[$type], 'submissionId' => (string) Str::uuid(),
             'collectionMode' => true,
             'autogenerate' => app('settings')->get('billing.revenue.autogenerate', '1') === '1',

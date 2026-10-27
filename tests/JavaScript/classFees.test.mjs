@@ -65,7 +65,7 @@ test('class select all and student search add across classes without duplicates'
 test('term selection and revenue toggle apply to queued rows and new additions', () => {
     const bulk = bulkClassFees(candidates);
     bulk.init();
-    bulk.installment = 'term:1';
+    bulk.terms = ['1'];
     bulk.toggleAll(true);
     bulk.addSelected();
     assert.equal(bulk.lines.length, 2);
@@ -73,7 +73,7 @@ test('term selection and revenue toggle apply to queued rows and new additions',
     bulk.recordRevenue = false;
     bulk.applyRevenue();
     assert.equal(bulk.income, 0);
-    bulk.installment = 'term:2';
+    bulk.terms = ['2'];
     bulk.toggleAll(true);
     bulk.addSelected();
     assert.equal(bulk.lines[2].record_revenue, false);
@@ -171,7 +171,7 @@ test('bulk make unpaid excludes blocked fees and preserves only unchanged select
 test('bulk make unpaid term and facility selection and 500-fee limit are enforced in the queue', () => {
     const state = bulkClassFeeReversals(paidCandidates);
     state.init();
-    state.installment = 'term:2';
+    state.terms = ['2'];
     state.toggleAll(true);
     state.addSelected();
     assert.equal(state.lines.length, 1);
@@ -180,9 +180,139 @@ test('bulk make unpaid term and facility selection and 500-fee limit are enforce
     state.installment = 'facility';
     assert.equal(state.visible.length, 0);
     state.installment = 'all';
+    state.selectTerms(true);
     state.candidates = Array.from({ length: 501 }, (_, index) => ({ ...paidCandidates[0], key: `1:${index + 1}`, student_id: index + 1, installments: [paidCandidates[0].installments[0]] }));
     state.toggleAll(true);
     state.addSelected();
     assert.equal(state.lines.length, 500);
     assert.match(state.message, /500/);
+});
+
+test('bulk term collection and reversal include optional computer fees while keeping fee-only filters', () => {
+    for (const factory of [bulkClassFees, bulkClassFeeReversals]) {
+        const page = factory([]);
+        const exam = {type:'exam', term:2};
+        const computer = {type:'computer', term:2};
+        const facility = {type:'facility'};
+        assert.equal(page.matchesCycle(exam), true);
+        assert.equal(page.matchesCycle(computer), true);
+        assert.equal(page.matchesCycle(facility), false);
+        page.terms = ['2'];
+        assert.equal(page.matchesCycle(exam), true);
+        assert.equal(page.matchesCycle(computer), true);
+        assert.equal(page.matchesCycle({type:'computer',term:1}), false);
+        page.installment = 'computer';
+        assert.equal(page.matchesCycle(exam), false);
+        assert.equal(page.matchesCycle(computer), true);
+        page.installment = 'all';
+        assert.equal(page.matchesCycle(facility), true);
+    }
+});
+
+const computerCandidates = [1, 2].map(id => ({ key: `${id}:${id}`, student_id: id, class_id: id,
+    name: `Computer student ${id}`, admission: `C0${id}`, class_name: `Class ${id}`,
+    installments: ['exam', 'computer'].flatMap((type, typeIndex) => [1, 2, 3].map(term => ({
+        key: `${id * 10 + typeIndex}:2026-${String(term * 4 - 3).padStart(2, '0')}-01`,
+        type, term, label: `${type} Term ${term}`, balance: type === 'exam' ? 700 : 300,
+        paid: 300, revenue: 300, history: 0, pending: 0, blocked_reason: null, fingerprint: `${id}:${type}:${term}`,
+        payments: [{ source: 'revenue', id: id * 10 + term, amount: 300 }],
+    }))).concat([{ key: `${id * 10 + 2}:2026-01-08`, type: 'facility', label: 'Facility', balance: 5000,
+        paid: 5000, revenue: 5000, history: 0, pending: 0, blocked_reason: null, fingerprint: `${id}:facility`, payments: [] }]),
+}));
+
+test('computer-only multi-term selection queues exactly those fees for all matching students', () => {
+    for (const factory of [bulkClassFees, bulkClassFeeReversals]) {
+        const page = factory(computerCandidates);
+        page.init();
+        page.installment = 'computer';
+        page.terms = ['1', '2'];
+        assert.equal(page.selectionSummary(), 'Computer fee · Terms 1 & 2');
+        assert.equal(page.visible.length, 2);
+        page.toggleAll(true);
+        page.addSelected();
+        assert.equal(page.lines.length, 4);
+        assert.equal(page.total, 1200);
+        assert.ok(page.lines.every(line => /^computer Term [12]$/.test(line.label)));
+        assert.deepEqual([...new Set(page.lines.map(line => line.student_id))], [1, 2]);
+        page.toggleAll(true);
+        page.addSelected();
+        assert.equal(page.lines.length, 4);
+        page.terms = ['3'];
+        page.toggleAll(true);
+        page.addSelected();
+        assert.equal(page.lines.length, 6);
+        assert.equal(page.total, 1800);
+    }
+});
+
+test('fee type and term subsets work independently with class, search, no terms and annual fees', () => {
+    for (const factory of [bulkClassFees, bulkClassFeeReversals]) {
+        const page = factory(computerCandidates, 2);
+        page.init();
+        page.installment = 'computer';
+        page.terms = ['2'];
+        page.toggleAll(true);
+        page.addSelected();
+        assert.equal(page.lines.length, 1);
+        assert.equal(page.lines[0].student_id, 2);
+        assert.equal(page.lines[0].label, 'computer Term 2');
+        page.classId = '';
+        page.query = 'C01';
+        page.terms = ['1'];
+        page.toggleAll(true);
+        page.addSelected();
+        assert.equal(page.lines.length, 2);
+        assert.equal(page.lines[1].label, 'computer Term 1');
+        page.selectTerms(false);
+        assert.equal(page.visible.length, 0);
+        assert.equal(page.selected.length, 0);
+        assert.equal(page.lines.length, 2, 'filters must not silently change queued payments');
+        page.installment = 'facility';
+        assert.equal(page.visible.length, 1);
+        assert.equal(page.selectionSummary(), 'Facility fee · Annual fee');
+        assert.equal(page.matchesCycle({type:'computer',term:1}), false);
+        page.installment = 'all';
+        assert.equal(page.matchesCycle({type:'facility'}), true);
+        assert.equal(page.matchesCycle({type:'exam',term:1}), false);
+        page.selectTerms(true);
+        assert.equal(page.matchesCycle({type:'exam',term:4}), true, 'All terms retains legacy quarterly fees');
+        page.installment = 'exam';
+        page.terms = ['1', '3'];
+        assert.equal(page.matchesCycle({type:'exam',term:3}), true);
+        assert.equal(page.matchesCycle({type:'exam',term:2}), false);
+        assert.equal(page.matchesCycle({type:'computer',term:3}), false);
+    }
+});
+
+test('adding after narrowing a search never queues students outside the visible selection', () => {
+    for (const factory of [bulkClassFees, bulkClassFeeReversals]) {
+        const page = factory(computerCandidates);
+        page.init();
+        page.installment = 'computer';
+        page.terms = ['1'];
+        page.toggleAll(true);
+        page.query = 'C02';
+        page.addSelected();
+        assert.equal(page.lines.length, 1);
+        assert.equal(page.lines[0].student_id, 2);
+    }
+});
+
+test('standalone bulk forms retain multi-term filtering when an old compiled bundle replaces legacy globals', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const { runInNewContext } = await import('node:vm');
+    const page = {};
+    runInNewContext(await readFile(new URL('../../public/js/class-fees.js', import.meta.url), 'utf8'), page);
+    page.bulkClassFees = () => ({ installment:'exam' });
+    page.bulkClassFeeReversals = () => ({ installment:'exam' });
+    for (const factory of [page.schoolFeeForms.payments, page.schoolFeeForms.reversals]) {
+        const state = factory(computerCandidates);
+        state.init();
+        state.installment = 'computer';
+        state.terms = ['1', '2'];
+        state.toggleAll(true);
+        state.addSelected();
+        assert.equal(state.lines.length, 4);
+        assert.equal(state.total, 1200);
+    }
 });

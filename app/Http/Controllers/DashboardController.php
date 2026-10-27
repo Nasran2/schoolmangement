@@ -331,6 +331,10 @@ class DashboardController extends Controller
             }
         }
 
+        if ($user->can('dashboard.widget.exam_fees.view') && \App\Models\ClassFeeSchedule::where('fee_type', 'computer')->exists()) {
+            $classFeeSummaries['computer'] = app(ClassFeeService::class)->dashboard('computer', $rangeStart, $rangeEnd);
+        }
+
         return view('dashboard', [
             'classFeeSummaries' => $classFeeSummaries,
             'totalRevenue' => $totalRevenue,

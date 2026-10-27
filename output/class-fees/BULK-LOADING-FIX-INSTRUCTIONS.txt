@@ -1,0 +1,41 @@
+BULK PAYMENT PAGE - EMPTY FORM FIX
+
+CAUSE
+The hosted public JavaScript is older than the bulk page and lacks its current
+schoolFeeForms factories. That prevents students, term choices and totals loading.
+
+UPLOAD WITH CPANEL FILE MANAGER
+1. Back up the five existing application files listed in the manifest.
+2. Upload bulk-payment-loading-fix.zip into the Laravel application root:
+   /home/bicpolga/public_html/system.bicpolgahawela.lk/
+   (the folder containing app/, resources/, routes/ and public/).
+3. Extract there and overwrite ALL five matching files, including
+   public/js/class-fees.js and resources/views/class-fees/partials/scripts.blade.php.
+   Do not extract into public/ alone.
+4. In storage/framework/views/, delete only compiled .php files. Keep the folder
+   and .gitignore. Laravel recreates the compiled templates automatically.
+5. Hard refresh the bulk page: Cmd+Shift+R (Mac) / Ctrl+Shift+R (Windows).
+
+No terminal, migration, route-cache change, database import or asset build needed.
+
+THE FIX
+The Blade partial now embeds the current application script directly, before
+Alpine starts. It no longer depends on a separate cached public URL. Old public
+copies and custom document roots cannot replace the uploaded form code.
+
+CHECK
+Open Exam & Facility Fees -> Bulk payments, choose the year and class.
+Students with applicable unpaid balances should appear. Select a fee type and
+one or more terms, select students, then add them to the review list.
+The payment count, amounts, revenue checkbox and Save button should be visible.
+Make unpaid uses the same fix for its paid-student list.
+
+Fully settled students do not appear in Collect payments; use Make unpaid to
+review recorded payments. If no applicable balance matches a filter, the page
+shows a clear message rather than a blank form.
+
+VERIFIED LOCALLY
+59 PHP tests passed (541 assertions), plus 24 JavaScript tests. Browser checks used
+an isolated sample database and the old hosted JavaScript as a stale public copy:
+student search, computer Term 1/2 selection, payment review totals and the Make
+unpaid list all loaded without script errors. No school payments were changed.

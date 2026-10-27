@@ -4,6 +4,7 @@
         return {
             query: config.query || '', classId: String(config.classId || ''), year: config.year,
             allYears: config.allYears, includeInactive: config.includeInactive, selectedId: config.studentId || '',
+            includeComputer: Boolean(config.includeComputer), computerAmount: config.computerAmount ?? 0,
             defaultAmount: config.defaultAmount ?? config.amount ?? '', amount: config.amount ?? '', date: config.date, method: config.method || 'cash',
             recordRevenue: config.recordRevenue !== false, results: [], open: false, loading: false,
             error: '', highlighted: -1, saving: false, viewReceipt: true, requestVersion: 0, searchTimer: null, searchController: null,
@@ -69,6 +70,8 @@
                 window.location.assign(url.toString());
             },
             methodChanged() { if (this.method === 'cheque') this.recordRevenue = true; },
+            get totalAmount() { return Number(this.amount || 0) + (this.includeComputer ? Number(this.computerAmount || 0) : 0); },
+            get paymentLabel() { return this.includeComputer ? 'Exam & Computer Fees' : (config.label || 'Fee'); },
             money(value) { return Number(value || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
         };
     }

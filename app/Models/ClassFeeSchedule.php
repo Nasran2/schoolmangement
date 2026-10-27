@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClassFeeSchedule extends Model
 {
-    public const TYPES = ['exam' => 'Exam Fee', 'facility' => 'Facility Fee'];
+    public const TYPES = ['exam' => 'Exam Fee', 'computer' => 'Computer Fee', 'facility' => 'Facility Fee'];
 
     protected $fillable = ['class_room_id', 'revenue_category_id', 'fee_type', 'amount', 'first_due_date', 'ends_on', 'terms'];
 
@@ -26,6 +26,6 @@ class ClassFeeSchedule extends Model
 
     public function intervalMonths(): int
     {
-        return $this->fee_type === 'exam' ? ($this->terms ? 4 : 3) : 12;
+        return in_array($this->fee_type, ['exam', 'computer'], true) ? ($this->terms ? 4 : 3) : 12;
     }
 }

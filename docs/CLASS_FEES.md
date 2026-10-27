@@ -125,17 +125,21 @@ Admin and Super Admin retain full access. The original fee-schedule migration is
 
 `public/js/class-fees.js` is the single implementation of the calendar and bulk
 selection factories. `resources/js/classFees.js` re-exports it for the Vite build
-and JavaScript tests. Both fee views include `class-fees.partials.scripts`, which
-loads the standalone file synchronously before the deferred Alpine application.
-Its modification time versions the URL. Upload the standalone file and the Blade
-partial together. This keeps the controls working even when an older application
-bundle is still deployed. A regression test covers the standalone runtime.
+and JavaScript tests. Fee views include `class-fees.partials.scripts`, which reads
+the trusted application copy at `base_path('public/js/class-fees.js')` and embeds
+it synchronously before the deferred Alpine application. The script is marked
+with a source hash. It does not fetch a separately cached public URL; stale
+document-root copies, custom `public_path()` values and CDN/browser caches cannot
+substitute older factories. Upload the standalone file and Blade partial together.
+If the file is missing, the page displays a specific upload message instead of
+throwing a server error. Regression tests cover an old custom public copy, missing
+application source, script ordering and older compiled globals.
 
-When deploying, include `public/build/manifest.json` **and** every referenced file
-under `public/build/assets/`. Updating PHP/Blade files alone does not update Vite
-JavaScript. An outdated bundle can produce `termCalendar is not defined`, followed
-by `feeAmount is not defined`, and leave the date controls hidden. Clear compiled
-views with `php artisan view:clear` after replacing the view files.
+These fee controls require no Vite rebuild. Other bundled application changes
+still require `public/build/manifest.json` and every referenced asset to be uploaded
+together. Clear compiled views after replacing the Blade partial; without a
+terminal, delete only compiled `.php` files inside `storage/framework/views/`,
+preserving the directory and `.gitignore`.
 
 ## Correcting setup before the first payment
 
@@ -361,3 +365,110 @@ last available page. Live page navigation brings the results into view, and savi
 from a payment dialog refreshes the current page (clamped if the result count has
 changed). PDF/CSV exports continue to include all filtered rows, independent of
 page and page size. Pagination markup is shared by the top/bottom controls.
+
+## Optional computer fees per term
+
+Class Rooms → Manage → Edit has **Computer fee per term (Rs) — optional** beside
+exam fee setup. Blank/zero creates no computer charge. A positive amount uses the
+same three starting/ending dates as exam terms, with the existing four-month
+suggestions. Computer-only classes can also use that calendar. The fee becomes due
+at term start; a student joining before/on its ending date owes that term. Finished
+terms before admission do not apply. Existing exam/facility receipts are unchanged.
+Rate/calendar corrections use the existing fee schedule history protections.
+
+Revenue → **Collect Exam Fee** offers a checked **Include Computer Fee · Term N**
+when the student has a collectable computer balance for that same class/term.
+The two editable amounts default to their remaining balances and update one live
+total. Uncheck it for exam-only payment. **Collect Computer Fee** collects computer
+balances independently. The categories stay fixed; these collectors always record
+revenue and ledger entries, with cheque income waiting for clearance.
+
+Combined collection runs in one database transaction and reserves one numbered
+printed bill. Two accounting records retain their correct categories and balances:
+for example BILL-1000 (exam) and BILL-1000-C (computer). Both receipt links open the
+same combined bill showing the term, each fee and the total. Passing/returning
+either component of a combined cheque updates all active components together;
+clearance cannot precede either cheque date. Cancellations remain cancelled.
+Corrections and make-unpaid actions apply to the chosen fee component, preserving
+the other fee and the audit trail. The printed bill reflects later corrections,
+cancellations, refunds and cheque status.
+
+Bulk payments defaults to exam and computer terms. Choosing Term 1/2/3 includes
+both fees; separate exam/computer and facility options remain available. Exam and
+computer rows for the same student/class/term share a bill when both are included
+in revenue. History-only rows stay historical; use the bulk accounting checkbox
+for payments received earlier rather than adding that income again. Changed or
+invalid rows roll back the whole batch. Submission IDs make retries idempotent.
+
+Computer fees are included in the register, paid/unpaid corrections, selected-term
+filters, PDF/CSV downloads and report details. They have a separate due summary
+and dashboard card when configured (using the existing exam fee widget permission).
+Unchecking computer inclusion keeps its toggle available for re-enabling.
+Shared JS assets are standalone; no migration or Vite build is required.
+
+## Grouped student fee register
+
+All students now groups exam and computer cycles sharing the exact starting date,
+ending date and term number into one term column. Each component retains its fee
+label, status, balance, Pay and Make unpaid actions. Pay both fees appears only
+when both matching fees have a collectable balance. Receipt references and Edit
+payment links expand under Payment details / edit. This is presentation grouping;
+individual balances, receipt IDs and accounting behavior are unchanged.
+
+Facility Fee always follows every selected term and immediately precedes Due now.
+When earlier years are included, each dated term gets its own column, annual
+facility entries stack in the final fee column, and each student appears once.
+Narrow screens/long year ranges scroll horizontally with student names pinned.
+The normal three-term layout fits the 1265px desktop preview with all three sample
+students visible when the results are in view. Neutral row backgrounds, subtle
+status badges, consistent action links and a lightly shaded total replace the
+previous seven separate fee columns. Instant search reuses the same view partials.
+
+ClassFeeTableColumns owns display grouping. The shared tracker also sorts types
+explicitly as exam, computer, facility, so annual fees cannot interleave with
+computer terms based on their due date. Overview/PDF payment counts come before
+the fee columns to leave Facility Fee next to Due now. Exports retain individual
+fee breakdowns and all filtered students. No asset build or migration is needed.
+
+## Independent bulk fee and term filters
+
+Bulk payments and Make unpaid share Fee type plus three independent term
+checkboxes. Choose Computer fee only with Term 1, Term 2, Terms 1 & 2, or any other
+subset. Exam-only and combined exam/computer selections use the same term controls.
+Annual facility fees ignore term selection; All fees includes facility plus the
+chosen term fees. All terms also retains legacy quarterly cycles. Clear terms
+explicitly excludes term fees rather than silently selecting them again.
+
+Only candidates with a matching available fee appear. Select all applies to the
+current fee, terms, class and search. Adding queues only currently visible selected
+students and matching cycles, without duplicate rows. Filters do not modify items
+already in the review list; the interface states that explicitly. Amount editing,
+accounting inclusion, the 500-fee limit and all server validation remain unchanged.
+
+The standalone script exposes schoolFeeForms.payments / schoolFeeForms.reversals.
+The Blade pages use these names so older compiled app bundles that reassign
+bulkClassFees cannot override the new form. Both forms share one selector partial
+and one JS filter implementation. No Vite build or migration is required.
+
+## Combined payments use the existing school receipt
+
+The combined-receipt view is now an adapter to revenue.receipt and the shared
+x-receipt component. Exam + computer payments use the established monochrome
+school heading, student/guardian/address lines, bill/date, amount in words, term
+paid, grade/admission number and signature. Both accounting component links print
+the same main bill, with two fee amounts and one total. The separate accounting
+references remain in Revenue; the printed family-facing receipt uses the main bill.
+Existing combined payments automatically use this layout without rewriting records.
+
+The adapter computes active totals, refunds/waivers and net collected. Pending
+cheques print their pending notice with zero net collected until clearance. Returned
+or cancelled components print zero with their status/reason; valid remaining fees
+stay visible and the banner says Receipt Updated. Different edited component dates
+print beside their fee, while the main bill retains the primary payment date.
+Combined totals are rounded to two decimals before generating amount words, and
+nonzero cents are spelled out. The original single-payment paths are preserved.
+
+Combined receipts use one receipt-print region and the existing 9.8in by 5.5in print
+format. Screen width adapts to the content area; print height can grow instead of
+clipping correction/refund information. Standard combined print text is compact.
+No asset build or database migration is needed.

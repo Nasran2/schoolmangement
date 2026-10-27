@@ -26,11 +26,12 @@
     </x-slot>
 
     <div class="py-8 bg-gradient-to-b from-slate-50 to-white">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+        <div class="{{ isset($receiptSummary) ? 'receipt-combined-container mx-auto' : 'max-w-4xl mx-auto sm:px-6 lg:px-8' }}">
             @php
-            $isReturnedChequeReceipt = ($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected';
-            $isPendingChequeReceipt = ($revenue->payment_method ?? null) === 'cheque' && in_array($revenue->payment_status ?? null, ['pending', 'hold']);
-            $isCancelledReceipt = method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled');
+            $isReturnedChequeReceipt = isset($receiptSummary) ? $receiptSummary['returned'] : (($revenue->payment_method ?? null) === 'cheque' && ($revenue->payment_status ?? null) === 'rejected');
+            $isPendingChequeReceipt = isset($receiptSummary) ? $receiptSummary['pending'] : (($revenue->payment_method ?? null) === 'cheque' && in_array($revenue->payment_status ?? null, ['pending', 'hold']));
+            $isCancelledReceipt = isset($receiptSummary) ? $receiptSummary['invalid'] : (method_exists($revenue, 'isCancelled') ? $revenue->isCancelled() : (($revenue->payment_status ?? null) === 'cancelled'));
+            $isUpdatedReceipt = isset($receiptSummary) && $receiptSummary['has_invalid'] && !$receiptSummary['invalid'];
             $isInvalidReceipt = $isReturnedChequeReceipt || $isCancelledReceipt;
             $bannerClass = $isInvalidReceipt ? 'bg-rose-50 border-rose-200' : ($isPendingChequeReceipt ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200');
             $textClass = $isInvalidReceipt ? 'text-rose-900' : ($isPendingChequeReceipt ? 'text-yellow-900' : 'text-green-900');
@@ -54,10 +55,10 @@
                     @endif
                     <div>
                         <p class="font-semibold {{ $textClass }}">
-                            {{ $isInvalidReceipt ? 'Payment Cancelled' : ($isPendingChequeReceipt ? 'Payment Pending Confirmation' : 'Payment Successful!') }}
+                            {{ $isInvalidReceipt ? 'Payment Cancelled' : ($isPendingChequeReceipt ? 'Payment Pending Confirmation' : ($isUpdatedReceipt ? 'Receipt Updated' : 'Payment Successful!')) }}
                         </p>
                         <p class="text-sm {{ $subtextClass }}">
-                            Receipt #{{ $revenue->bill_no }} {{ $isCancelledReceipt ? 'has been cancelled and is not counted as paid.' : ($isReturnedChequeReceipt ? 'belongs to a returned cheque and is not counted as paid.' : 'has been generated') }}
+                            Receipt #{{ $receiptSummary['bill_no'] ?? $revenue->bill_no }} {{ $isReturnedChequeReceipt ? 'belongs to a returned cheque and is not counted as paid.' : ($isCancelledReceipt ? 'has been cancelled and is not counted as paid.' : ($isUpdatedReceipt ? 'shows the remaining valid payment after corrections.' : 'has been generated')) }}
                         </p>
                     </div>
                 </div>
@@ -68,6 +69,8 @@
                 :student="$revenue->student"
                 :category="$revenue->category"
                 :feeCycle="$feeCycle ?? null"
+                :receiptItems="$receiptItems ?? null"
+                :receiptSummary="$receiptSummary ?? null"
                 :schoolInfo="$schoolInfo"
                 :schoolLogoDataUri="$schoolLogoDataUri" />
         </div>

@@ -91,13 +91,15 @@
             <table class="min-w-full text-sm divide-y divide-gray-200">
                 <thead class="bg-gray-50"><tr>
                     <th class="p-3 text-left">Student</th>
+                    <th class="p-3 text-left whitespace-nowrap">Installments paid</th>
                     @foreach($tracker['cycles'] as $cycle)<th class="p-3 text-left whitespace-nowrap"><div>{{ \App\Models\ClassFeeSchedule::TYPES[$cycle['schedule']->fee_type] }}</div>@if(isset($cycle['term']))<div class="text-indigo-700">Term {{ $cycle['term'] }}</div>@endif{{ $cycle['due']->format('d M Y') }}@if(isset($cycle['end']))<div class="text-xs font-normal text-gray-500">to {{ $cycle['end']->format('d M Y') }}</div>@endif<div class="text-xs font-normal text-gray-500">Rs {{ number_format($cycle['amount'], 2) }}</div></th>@endforeach
-                    <th class="p-3 text-left whitespace-nowrap">Installments paid</th><th class="p-3 text-right">Due now (Rs)</th>
+                    <th class="p-3 text-right">Due now (Rs)</th>
                 </tr></thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($rows as $row)
                         <tr>
                             <td class="p-3"><div class="font-semibold">{{ $row['student']->name }}</div><div class="text-xs text-gray-500">{{ $row['student']->admission_number }}{{ $row['student']->class_room_id !== $class?->id ? ' · Former class' : '' }}</div></td>
+                            <td class="p-3 font-semibold">{{ $row['paid_count'] }} of {{ $row['due_count'] }} paid @if($row['waived_count'] > 0)<div class="text-xs font-normal text-gray-600">{{ $row['waived_count'] }} settled with waiver</div>@endif</td>
                             @foreach($row['installments'] as $key => $installment)
                                 <td class="p-3 whitespace-nowrap">
                                     <span class="font-semibold {{ $installment['status'] === 'Paid' ? 'text-green-700' : ($installment['due'] > 0 ? 'text-red-700' : 'text-gray-600') }}">{{ $installment['status'] }}</span>
@@ -124,7 +126,7 @@
                                     @endcan
                                 </td>
                             @endforeach
-                            <td class="p-3 font-semibold">{{ $row['paid_count'] }} of {{ $row['due_count'] }} paid @if($row['waived_count'] > 0)<div class="text-xs font-normal text-gray-600">{{ $row['waived_count'] }} settled with waiver</div>@endif</td><td class="p-3 text-right font-mono">{{ number_format($row['due'], 2) }}</td>
+                            <td class="p-3 text-right font-mono">{{ number_format($row['due'], 2) }}</td>
                         </tr>
                     @empty
                         <tr><td class="p-5 text-gray-500" colspan="{{ $tracker['cycles']->count() + 3 }}">No students match these filters.</td></tr>

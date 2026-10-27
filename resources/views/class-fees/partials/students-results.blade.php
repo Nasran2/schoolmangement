@@ -1,50 +1,60 @@
 @include('class-fees.partials.student-pagination', ['position' => 'top'])
 @forelse($displaySections as $section)
-    @php($sectionName = $section['class']?->name ?? 'No class assigned')
+    @php
+        $sectionName = $section['class']?->name ?? 'No class assigned';
+        $columns = \App\Support\ClassFeeTableColumns::forCycles($section['cycles']);
+    @endphp
     <section class="fee-register-section">
-        <h3 class="fee-register-section-title">{{ $sectionName }}</h3>
-        @foreach($section['cycles']->isEmpty() ? collect([collect()]) : $section['cycles']->chunk(4) as $chunk)
-            <div class="overflow-x-auto">
-                <table class="fee-register-table"><thead><tr><th>Student / admission</th>
-                    @foreach($chunk as $cycle)<th><div>{{ \App\Models\ClassFeeSchedule::TYPES[$cycle['schedule']->fee_type] }} @if(isset($cycle['term']))· Term {{ $cycle['term'] }}@endif</div><div class="fee-register-sub">{{ $cycle['due']->format('d M Y') }}@if(isset($cycle['end'])) – {{ $cycle['end']->format('d M Y') }}@endif<br>Rs {{ number_format($cycle['amount'], 2) }}</div></th>@endforeach
-                    @if($chunk->isEmpty())<th>Fees</th>@endif<th style="min-width:110px;text-align:right;">Due now (Rs)<div class="fee-register-sub">All selected fees</div></th>
-                </tr></thead><tbody>
+        <h3 class="fee-register-section-title">{{ $sectionName }}<span>{{ $columns->contains('kind', 'term') ? 'Fees grouped by term' : 'Annual facility fees' }}</span></h3>
+        <div class="fee-register-table-scroll" tabindex="0" role="region" aria-label="{{ $sectionName }} student fees">
+            <table class="fee-register-table">
+                <thead><tr>
+                    <th scope="col" class="fee-register-student-column">Student / admission</th>
+                    @foreach($columns as $column)
+                        <th scope="col" class="{{ $column['kind'] === 'facility' ? 'fee-register-facility-column' : 'fee-register-term-column' }}">
+                            <div class="fee-register-column-title">{{ $column['label'] }}@if($column['kind'] === 'term') <span>{{ $column['due']->format('Y') }}</span>@endif</div>
+                            @if($column['kind'] === 'term')
+                                <div class="fee-register-sub">{{ $column['due']->format('d M') }}@if($column['end']) – {{ $column['end']->format('d M Y') }}@else {{ $column['due']->format('Y') }}@endif</div>
+                            @else
+                                <div class="fee-register-sub">Annual fee</div>
+                            @endif
+                            <div class="fee-register-rates">
+                                @foreach($column['cycles'] as $cycle)
+                                    <span>{{ $column['kind'] === 'facility' ? $cycle['due']->format('d M Y') : ($cycle['schedule']->fee_type === 'computer' ? 'Computer' : 'Exam') }} <strong>Rs {{ number_format($cycle['amount'], 2) }}</strong></span>
+                                @endforeach
+                            </div>
+                        </th>
+                    @endforeach
+                    @if($columns->isEmpty())<th scope="col">Fees</th>@endif
+                    <th scope="col" class="fee-register-due-column">Due now (Rs)<div class="fee-register-sub">All selected fees</div></th>
+                </tr></thead>
+                <tbody>
                     @foreach($section['rows'] as $row)
-                        <tr><td><div class="font-semibold text-gray-900">{{ $row['student']->name }}</div><div class="fee-register-sub">{{ $row['student']->admission_number }}@if($section['class'] && (int) $row['student']->class_room_id !== (int) $section['class']->id)<br>Former class @endif @if(!$row['student']->active || $row['student']->alumni)<br>Inactive / alumni @endif</div></td>
-                            @foreach($chunk as $key => $cycle)
-                                @php($installment = $row['installments'][$key])
-                                <td><div class="fee-register-status-line"><div class="font-semibold {{ $installment['status'] === 'Paid' ? 'text-green-700' : ($installment['due'] > 0 ? 'text-red-700' : 'text-gray-600') }}">{{ $installment['status'] }}</div>
-                                    @if($installment['eligible'] || $installment['paid'] > 0 || $installment['pending'] > 0)
-                                        <div class="fee-register-sub">Paid Rs {{ number_format($installment['paid'], 2) }}@if($installment['pending'] > 0)<br>Pending Rs {{ number_format($installment['pending'], 2) }}@endif @if($installment['waived'] > 0)<br>Waived Rs {{ number_format($installment['waived'], 2) }}@endif</div>
-                                    @endif
-                                    </div>
-                                    @if($installment['eligible'] || $installment['paid'] > 0 || $installment['pending'] > 0)
-                                        <div class="fee-register-actions">
-                                            @can('revenue.add')
-                                                @if($installment['eligible'] && $installment['collectable'] > 0)
-                                                    <a class="fee-register-button" data-register-action="pay" href="{{ route('class-fees.index', ['class_room_id' => $section['class']->id, 'type' => $type, 'year' => $cycle['due']->year, 'student_id' => $row['student']->id, 'cycle' => $key, 'include_inactive' => 1, 'include_former' => 1, 'include_facility' => 1]) }}#collect-fee">{{ $cycle['due']->gt(today()) ? 'Pay in advance' : 'Pay' }}</a>
-                                                @endif
-                                            @endcan
-                                            @can('revenue.delete')
-                                                @if($installment['paid'] > 0)<a class="fee-register-button fee-register-unpaid" data-register-action="unpaid" href="{{ route('class-fees.index', ['class_room_id' => $section['class']->id, 'type' => $type, 'year' => $cycle['due']->year, 'student_id' => $row['student']->id, 'cycle' => $key, 'include_inactive' => 1, 'include_former' => 1, 'include_facility' => 1]) }}">Make unpaid</a>@endif
-                                            @endcan
-                                        </div>
-                                        @can('revenue.manage')
-                                            @foreach($installment['receipts']->reject(fn ($receipt) => $receipt->isCancelled()) as $receipt)
-                                                @php($source = $receipt instanceof \App\Models\Revenue ? 'revenue' : 'history')
-                                                <div class="fee-register-sub">{{ $source === 'revenue' ? ($receipt->bill_no ?: 'Receipt #'.$receipt->id) : 'History #'.$receipt->id }} <a class="text-indigo-700 underline" href="{{ route('class-fees.payments.edit', ['source' => $source, 'payment' => $receipt->id]) }}">Edit payment</a></div>
-                                            @endforeach
-                                        @endcan
-                                    @endif
+                        <tr>
+                            <th scope="row" class="fee-register-student-column"><div class="fee-register-student-name">{{ $row['student']->name }}</div><div class="fee-register-sub">{{ $row['student']->admission_number }}@if($section['class'] && (int) $row['student']->class_room_id !== (int) $section['class']->id)<br>Former class @endif @if(!$row['student']->active || $row['student']->alumni)<br>Inactive / alumni @endif</div></th>
+                            @foreach($columns as $column)
+                                <td class="{{ $column['kind'] === 'facility' ? 'fee-register-facility-column' : 'fee-register-term-column' }}">
+                                    @foreach($column['cycles'] as $cycle)
+                                        @include('class-fees.partials.student-fee')
+                                    @endforeach
+                                    @can('revenue.add')
+                                        @php
+                                            $exam = $column['cycles']->first(fn ($cycle) => $cycle['schedule']->fee_type === 'exam');
+                                            $computer = $column['cycles']->first(fn ($cycle) => $cycle['schedule']->fee_type === 'computer');
+                                        @endphp
+                                        @if($exam && $computer && $row['installments'][$exam['key']]['collectable'] > 0 && $row['installments'][$computer['key']]['collectable'] > 0)
+                                            <a class="fee-register-combined-pay" href="{{ route('revenue.items.create', ['quick' => 'exam', 'student_id' => $row['student']->id, 'year' => $exam['due']->year, 'cycle' => $exam['key'], 'all_years' => 1, 'include_inactive' => 1]) }}">Pay both fees</a>
+                                        @endif
+                                    @endcan
                                 </td>
                             @endforeach
-                            @if($chunk->isEmpty())<td class="text-gray-500">No selected fees in this period.</td>@endif
-                            <td style="text-align:right;font-weight:600;">{{ number_format($row['due'], 2) }}</td>
+                            @if($columns->isEmpty())<td class="text-gray-500">No selected fees in this period.</td>@endif
+                            <td class="fee-register-due-column"><strong>{{ number_format($row['due'], 2) }}</strong></td>
                         </tr>
                     @endforeach
-                </tbody></table>
-            </div>
-        @endforeach
+                </tbody>
+            </table>
+        </div>
     </section>
 @empty
     <div class="rounded-lg bg-white p-8 text-center text-sm text-gray-500">No students match these filters.</div>

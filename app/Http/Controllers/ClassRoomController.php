@@ -22,7 +22,8 @@ class ClassRoomController extends Controller
             $rules[$type.'_fee_start_date'] = [Rule::requiredIf(fn () => (float) $request->input($type.'_fee', 0) > 0), 'nullable', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'];
         }
 
-        $rules['exam_terms'] = ['nullable', 'array', 'size:3'];
+        $rules['computer_fee'] = ['nullable', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'];
+        $rules['exam_terms'] = [Rule::requiredIf(fn () => (float) $request->input('computer_fee', 0) > 0), 'nullable', 'array', 'size:3'];
         $rules['exam_terms.*.start'] = ['required_with:exam_terms', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'];
         $rules['exam_terms.*.end'] = ['required_with:exam_terms', 'date_format:Y-m-d', 'after_or_equal:2000-01-01', 'before:2100-01-01'];
 
@@ -46,6 +47,7 @@ class ClassRoomController extends Controller
             }
             if ($level === $expected) {
                 $expected++;
+
                 continue;
             }
             if ($level > $expected) {
@@ -81,6 +83,7 @@ class ClassRoomController extends Controller
             ->get()
             ->map(function ($student) {
                 $student->setAttribute('computed_due_amount', (float) ($student->due_amount ?? 0));
+
                 return $student;
             });
 
@@ -132,7 +135,7 @@ class ClassRoomController extends Controller
         }
 
         DB::transaction(function () use ($data) {
-            $class = ClassRoom::create(Arr::except($data, ['exam_fee', 'exam_fee_start_date', 'exam_terms', 'facility_fee', 'facility_fee_start_date']));
+            $class = ClassRoom::create(Arr::except($data, ['exam_fee', 'exam_fee_start_date', 'exam_terms', 'computer_fee', 'facility_fee', 'facility_fee_start_date']));
             app(ClassFeeService::class)->configure($class, $data);
         });
 
@@ -179,7 +182,7 @@ class ClassRoomController extends Controller
 
         DB::transaction(function () use ($classroom, $data) {
             ClassRoom::whereKey($classroom->id)->lockForUpdate()->firstOrFail();
-            $classroom->update(Arr::except($data, ['exam_fee', 'exam_fee_start_date', 'exam_terms', 'facility_fee', 'facility_fee_start_date']));
+            $classroom->update(Arr::except($data, ['exam_fee', 'exam_fee_start_date', 'exam_terms', 'computer_fee', 'facility_fee', 'facility_fee_start_date']));
             app(ClassFeeService::class)->configure($classroom, $data);
         });
 
@@ -189,7 +192,7 @@ class ClassRoomController extends Controller
     public function destroy(ClassRoom $classroom): RedirectResponse
     {
         if (\App\Models\ClassFeePaymentHistory::whereHas('classFeeSchedule', fn ($q) => $q->where('class_room_id', $classroom->id))->exists() || \App\Models\Revenue::whereHas('classFeeSchedule', fn ($q) => $q->where('class_room_id', $classroom->id))->exists()) {
-            return back()->withErrors(['classroom' => 'This class has exam or facility fee receipts. Deactivate it to preserve its fee history.']);
+            return back()->withErrors(['classroom' => 'This class has term or facility fee receipts. Deactivate it to preserve its fee history.']);
         }
         $classroom->delete();
 
